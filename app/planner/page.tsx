@@ -3,6 +3,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, addMonths, subMonths, startOfWeek, endOfWeek, parseISO } from 'date-fns'
 import { db, PlannedSession } from '@/lib/dexieClient'
+import StatusBadge from '@/components/StatusBadge'
+import SessionActions from '@/components/SessionActions'
 import Link from 'next/link'
 
 export default function PlannerCalendarPage() {
@@ -162,14 +164,22 @@ export default function PlannerCalendarPage() {
                   
                   {sessionsForDay.length > 0 && (
                     <div className="space-y-1">
-                      {sessionsForDay.slice(0, 2).map(session => (
-                        <div
-                          key={session.id}
-                          className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded px-1 py-0.5 truncate"
-                        >
-                          {session.subject}
-                        </div>
-                      ))}
+                      {sessionsForDay.slice(0, 2).map(session => {
+                        const statusColor = 
+                          session.status === 'completed' ? 'bg-primary-accent/20 dark:bg-primary-accent/30 text-primary-accent dark:text-primary-accent-300' :
+                          session.status === 'cancelled' ? 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400' :
+                          session.status === 'rescheduled' ? 'bg-warning/20 dark:bg-warning/30 text-yellow-700 dark:text-yellow-300' :
+                          'bg-primary/20 dark:bg-primary/30 text-primary dark:text-primary-300'
+                        
+                        return (
+                          <div
+                            key={session.id}
+                            className={`text-xs ${statusColor} rounded px-1 py-0.5 truncate`}
+                          >
+                            {session.subject}
+                          </div>
+                        )
+                      })}
                       {sessionsForDay.length > 2 && (
                         <div className="text-xs text-gray-500 dark:text-gray-400">
                           +{sessionsForDay.length - 2} more
@@ -209,30 +219,47 @@ export default function PlannerCalendarPage() {
                 {selectedDateSessions.map(session => (
                   <div
                     key={session.id}
-                    className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 flex items-start justify-between gap-4"
+                    className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4"
                   >
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-900 dark:text-white mb-1">
-                        {session.subject}
-                      </h4>
-                      {session.goal && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Goal: {session.goal}
+                    <div className="flex items-start justify-between gap-4 mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h4 className="font-semibold text-gray-900 dark:text-white">
+                            {session.subject}
+                          </h4>
+                          <StatusBadge status={session.status} />
+                        </div>
+                        {session.goal && (
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                            Goal: {session.goal}
+                          </p>
+                        )}
+                        {session.rescheduledTo && (
+                          <p className="text-sm text-warning dark:text-yellow-300">
+                            Rescheduled to: {format(parseISO(session.rescheduledTo), 'MMM d, yyyy')}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                          Created {format(session.createdAt, 'MMM d, yyyy')}
                         </p>
-                      )}
-                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-                        Created {format(session.createdAt, 'MMM d, yyyy')}
-                      </p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteSession(session.id)}
+                        className="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors text-red-600 dark:text-red-400"
+                        aria-label="Delete session"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
                     </div>
-                    <button
-                      onClick={() => handleDeleteSession(session.id)}
-                      className="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors text-red-600 dark:text-red-400"
-                      aria-label="Delete session"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+                    
+                    <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+                      <SessionActions 
+                        session={session} 
+                        onUpdate={loadPlannedSessions}
+                      />
+                    </div>
                   </div>
                 ))}
               </div>

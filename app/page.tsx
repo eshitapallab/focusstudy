@@ -89,6 +89,18 @@ export default function Home() {
     await db.plannedSessions.delete(id)
     setPlannedSessions(prev => prev.filter(p => p.id !== id))
   }
+  
+  const handleUpdatePlanned = async () => {
+    // Reload today's planned sessions after status update
+    const today = new Date()
+    const todayDate = format(today, 'yyyy-MM-dd')
+    const planned = await db.plannedSessions
+      .where('plannedDate')
+      .equals(todayDate)
+      .toArray()
+    
+    setPlannedSessions(planned)
+  }
 
   const handleStop = async () => {
     const sessionId = await stop()
@@ -278,6 +290,7 @@ export default function Home() {
           plannedSessions={plannedSessions}
           onStartSession={handleStartPlanned}
           onDelete={handleDeletePlanned}
+          onUpdate={handleUpdatePlanned}
         />
 
         {/* Big Start Button */}

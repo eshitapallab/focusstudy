@@ -34,6 +34,9 @@ export interface PlannedSession {
   subject: string
   plannedDate: string // ISO date string
   goal?: string | null
+  status: 'pending' | 'completed' | 'cancelled' | 'rescheduled'
+  completedSessionId?: string | null // Links to actual session if completed
+  rescheduledTo?: string | null // New date if rescheduled (ISO date string)
   createdAt: number
   syncStatus: 'pending' | 'synced' | 'conflict'
 }
@@ -74,6 +77,21 @@ export class FocusFlowDB extends Dexie {
       sessionMetadata: 'id, sessionId, syncStatus, subject',
       plannedSessions: 'id, deviceId, userId, plannedDate, syncStatus',
       config: 'deviceId'
+    })
+    
+    // Version 3: Add status tracking to planned sessions
+    this.version(3).stores({
+      sessions: 'id, deviceId, userId, startTs, endTs, syncStatus, running',
+      sessionMetadata: 'id, sessionId, syncStatus, subject',
+      plannedSessions: 'id, deviceId, userId, plannedDate, syncStatus, status',
+      config: 'deviceId'
+    }).upgrade(tx => {
+      // Add default status to existing planned sessions
+      return tx.table('plannedSessions').toCollection().modify(session => {
+        if (!session.status) {
+          session.status = 'pending'
+        }
+      })
     })
   }
 }

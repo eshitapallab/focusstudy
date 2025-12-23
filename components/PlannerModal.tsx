@@ -32,6 +32,9 @@ export default function PlannerModal({ onClose, onCreated }: PlannerModalProps) 
         subject: subject.trim(),
         plannedDate: date,
         goal: goal.trim() || null,
+        status: 'pending',
+        completedSessionId: null,
+        rescheduledTo: null,
         createdAt: Date.now(),
         syncStatus: 'pending'
       }
