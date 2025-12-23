@@ -1,0 +1,82 @@
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+})
+
+// Database types
+export interface SupabaseSession {
+  id: string
+  user_id: string | null
+  device_id: string
+  start_ts: string
+  end_ts: string | null
+  paused_ms: number
+  mode: string
+  created_at: string
+}
+
+export interface SupabaseSessionMetadata {
+  id: string
+  session_id: string
+  subject: string | null
+  planned: boolean
+  focus_rating: number | null
+  note: string | null
+  labeled_at: string | null
+}
+
+export interface SupabasePlannedSession {
+  id: string
+  user_id: string | null
+  device_id: string
+  subject: string
+  planned_date: string
+  goal: string | null
+  created_at: string
+}
+
+// Auth helpers
+export async function signInWithMagicLink(email: string) {
+  const { data, error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/callback`
+    }
+  })
+
+  return { data, error }
+}
+
+export async function signInWithOAuth(provider: 'google' | 'github') {
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/callback`
+    }
+  })
+
+  return { data, error }
+}
+
+export async function signOut() {
+  const { error } = await supabase.auth.signOut()
+  return { error }
+}
+
+export async function getCurrentUser() {
+  const { data: { user }, error } = await supabase.auth.getUser()
+  return { user, error }
+}
+
+export async function getSession() {
+  const { data: { session }, error } = await supabase.auth.getSession()
+  return { session, error }
+}
