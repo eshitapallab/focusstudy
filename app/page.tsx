@@ -227,21 +227,33 @@ export default function Home() {
       
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         {/* Header */}
-        <header className="mb-12">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <FocusStudyLogo size={32} color="#4F7CAC" className="sm:w-12 sm:h-12 w-8 h-8" />
+        <header className="mb-8">
+          {/* Top row: Branding and Sign In */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <FocusStudyLogo size={40} color="#4F7CAC" className="flex-shrink-0" />
               <div>
-                <h1 className="text-lg sm:text-xl font-bold text-text-primary dark:text-white mb-1">
+                <h1 className="text-xl sm:text-2xl font-bold text-text-primary dark:text-white">
                   FocusStudy
                 </h1>
-                <p className="text-xs sm:text-sm text-text-secondary dark:text-gray-300">
+                <p className="text-sm text-text-secondary dark:text-gray-300">
                   {format(new Date(), 'EEEE, MMMM d')}
                 </p>
               </div>
             </div>
+            {!user && (
+              <Link
+                href="/auth"
+                className="px-4 py-2 bg-primary hover:bg-primary-600 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
+              >
+                Sign In
+              </Link>
+            )}
+          </div>
+          
+          {/* Bottom row: Navigation icons and User Menu */}
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
-              {user && <UserMenu />}
               <Link
                 href="/planner"
                 className="min-w-touch min-h-touch p-3 hover:bg-surface dark:hover:bg-gray-800 rounded-lg transition-colors"
@@ -271,6 +283,7 @@ export default function Home() {
                 </svg>
               </Link>
             </div>
+            {user && <UserMenu />}
           </div>
         </header>
 
