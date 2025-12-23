@@ -30,13 +30,14 @@ export default function GoalProgress({ todayMinutes }: GoalProgressProps) {
   }
 
   const calculateStreak = async () => {
-    // Get all sessions ordered by date
-    const allSessions = await db.sessions
-      .where('endTs')
-      .above(0)
-      .toArray()
+    try {
+      // Get all sessions ordered by date
+      const allSessions = await db.sessions
+        .where('endTs')
+        .above(0)
+        .toArray()
 
-    if (allSessions.length === 0) return
+      if (allSessions.length === 0) return
 
     // Group sessions by date
     const sessionsByDate = new Map<string, number>()
@@ -116,6 +117,12 @@ export default function GoalProgress({ todayMinutes }: GoalProgressProps) {
         longestStreak: longest,
         lastSessionDate: today
       })
+    }
+    } catch (error) {
+      console.error('Error calculating streak:', error)
+      // Fail gracefully - don't show streak if calculation fails
+      setCurrentStreak(0)
+      setLongestStreak(0)
     }
   }
 

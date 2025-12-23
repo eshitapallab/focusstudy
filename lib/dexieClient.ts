@@ -68,7 +68,8 @@ export class FocusFlowDB extends Dexie {
   constructor() {
     super('FocusFlowDB')
     
-    this.version(1).stores({
+    // Version 2: Fixed endTs indexing for goal/streak calculations
+    this.version(2).stores({
       sessions: 'id, deviceId, userId, startTs, endTs, syncStatus, running',
       sessionMetadata: 'id, sessionId, syncStatus, subject',
       plannedSessions: 'id, deviceId, userId, plannedDate, syncStatus',
