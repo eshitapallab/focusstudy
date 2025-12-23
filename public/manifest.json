@@ -1,12 +1,69 @@
 {
-  "name": "FocusFlow",
+  "name": "FocusFlow - Focus Timer & Study Tracker",
   "short_name": "FocusFlow",
-  "description": "Study timer with focus tracking",
+  "description": "Neurodivergent-friendly study timer with post-hoc labeling, analytics, and cloud sync. Track your focus sessions without friction.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#0ea5e9",
   "orientation": "portrait",
+  "scope": "/",
+  "categories": ["productivity", "education", "lifestyle"],
+  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7",
+  "screenshots": [
+    {
+      "src": "/screenshot-timer.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Timer screen with zero-friction start button"
+    },
+    {
+      "src": "/screenshot-analytics.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Analytics dashboard with week trends and heatmap"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Start Focus Session",
+      "short_name": "Start",
+      "description": "Quickly start a new focus session",
+      "url": "/?start=true",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "View Analytics",
+      "short_name": "Analytics",
+      "description": "View your focus statistics",
+      "url": "/analytics",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Settings",
+      "short_name": "Settings",
+      "description": "Manage notifications and preferences",
+      "url": "/settings",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
   "icons": [
     {
       "src": "/icon-192.png",
@@ -20,5 +77,6 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "prefer_related_applications": false
 }

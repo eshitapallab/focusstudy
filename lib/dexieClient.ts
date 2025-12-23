@@ -44,6 +44,13 @@ export interface DeviceConfig {
   sessionCount: number
   labeledSessionCount: number
   hasPromptedForAccount: boolean
+  notificationsEnabled?: boolean
+  breakReminderInterval?: number
+  dailyGoalMinutes?: number
+  showStreaks?: boolean
+  currentStreak?: number
+  longestStreak?: number
+  lastSessionDate?: string
   settings: {
     notificationsEnabled: boolean
     reduceMotion: boolean
