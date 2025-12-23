@@ -109,7 +109,11 @@ function VerifyContent() {
 
       if (data.session) {
         // Success! Redirect to original destination or home
-        router.push(`${redirectTo}?auth=success`)
+        const targetUrl = `${redirectTo}?auth=success`
+        console.log('Redirecting to:', targetUrl)
+        
+        // Force a hard redirect to ensure middleware picks up the session
+        window.location.href = targetUrl
       }
     } catch (err) {
       console.error('Verification error:', err)
