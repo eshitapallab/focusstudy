@@ -11,7 +11,7 @@ function VerifyContent() {
   const email = searchParams.get('email')
   const redirectTo = searchParams.get('redirectTo') || '/'
   
-  const [otp, setOtp] = useState(['', '', '', '', '', '', '', ''])
+  const [otp, setOtp] = useState(['', '', '', '', '', ''])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [canResend, setCanResend] = useState(false)
@@ -51,12 +51,12 @@ function VerifyContent() {
     setError(null)
 
     // Auto-advance to next input
-    if (value && index < 7) {
+    if (value && index < 5) {
       inputRefs.current[index + 1]?.focus()
     }
 
-    // Auto-submit when all 8 digits are entered
-    if (newOtp.every(digit => digit !== '') && index === 7) {
+    // Auto-submit when all 6 digits are entered
+    if (newOtp.every(digit => digit !== '') && index === 5) {
       handleVerify(newOtp.join(''))
     }
   }
@@ -70,12 +70,12 @@ function VerifyContent() {
 
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault()
-    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 8)
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
     
-    if (pastedData.length === 8) {
+    if (pastedData.length === 6) {
       const newOtp = pastedData.split('')
       setOtp(newOtp)
-      inputRefs.current[7]?.focus()
+      inputRefs.current[5]?.focus()
       handleVerify(pastedData)
     }
   }
@@ -96,6 +96,7 @@ function VerifyContent() {
       console.log('Verify OTP response:', { data, error: verifyError })
 
       if (verifyError) {
+        console.error('OTP verification failed:', verifyError)
         if (verifyError.message.includes('expired')) {
           setError('Code expired. Please request a new one.')
         } else if (verifyError.message.includes('invalid')) {
@@ -112,6 +113,17 @@ function VerifyContent() {
 
       // Check if we have a valid session or user
       if (data?.session || data?.user) {
+        console.log('Session data:', data.session)
+        console.log('User data:', data.user)
+        
+        // Ensure session is set in the client
+        if (data.session) {
+          await supabase.auth.setSession({
+            access_token: data.session.access_token,
+            refresh_token: data.session.refresh_token
+          })
+        }
+        
         // Success! Redirect to original destination or home
         const targetUrl = `${redirectTo}?auth=success`
         console.log('Auth successful, redirecting to:', targetUrl)
@@ -121,10 +133,13 @@ function VerifyContent() {
         
         // Small delay to ensure session is saved
         setTimeout(() => {
+          console.log('Executing redirect now...')
           window.location.href = targetUrl
-        }, 100)
+        }, 500)
         return
       }
+
+      console.error('No session or user in response:', data)
 
       // If we got here, something went wrong
       setError('Verification succeeded but no session created. Please try again.')
@@ -212,7 +227,7 @@ function VerifyContent() {
             Check your email
           </h1>
           <p className="text-text-secondary dark:text-gray-400">
-            We sent an 8-digit code to
+            We sent a 6-digit code to
             <br />
             <strong className="text-text-primary dark:text-white">{email}</strong>
           </p>
