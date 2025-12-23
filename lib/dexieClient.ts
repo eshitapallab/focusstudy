@@ -63,7 +63,7 @@ export class FocusFlowDB extends Dexie {
     
     this.version(1).stores({
       sessions: 'id, deviceId, userId, startTs, syncStatus, running',
-      sessionMetadata: 'id, sessionId, syncStatus',
+      sessionMetadata: 'id, sessionId, syncStatus, subject',
       plannedSessions: 'id, deviceId, userId, plannedDate, syncStatus',
       config: 'deviceId'
     })
