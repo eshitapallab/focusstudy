@@ -10,6 +10,7 @@ export interface LocalSession {
   pausedMs: number // total paused time in ms
   mode: string // 'pomodoro', 'flow', etc.
   pauses: Array<{ start: number; end?: number }> // pause intervals
+  distractions?: number[] // timestamps of distraction logs
   running: boolean
   createdAt: number
   syncStatus: 'pending' | 'synced' | 'conflict'
@@ -56,9 +57,15 @@ export interface DeviceConfig {
   lastSessionDate?: string
   settings: {
     notificationsEnabled: boolean
+    smartNotificationsEnabled: boolean
+    hapticsEnabled: boolean
     reduceMotion: boolean
     highContrast: boolean
     dyslexiaFont: boolean
+  }
+  studyPatterns?: {
+    commonStudyTimes: number[] // Array of hours (0-23) when user typically studies
+    lastNotificationShown?: number
   }
 }
 
@@ -93,6 +100,29 @@ export class FocusFlowDB extends Dexie {
         }
       })
     })
+    
+    // Version 4: Add distraction tracking and enhanced settings
+    this.version(4).stores({
+      sessions: 'id, deviceId, userId, startTs, endTs, syncStatus, running',
+      sessionMetadata: 'id, sessionId, syncStatus, subject',
+      plannedSessions: 'id, deviceId, userId, plannedDate, syncStatus, status',
+      config: 'deviceId'
+    }).upgrade(tx => {
+      // Add distraction arrays to existing sessions
+      tx.table('sessions').toCollection().modify(session => {
+        if (!session.distractions) {
+          session.distractions = []
+        }
+      })
+      
+      // Add new settings to config
+      return tx.table('config').toCollection().modify(config => {
+        if (config.settings) {
+          config.settings.smartNotificationsEnabled = false
+          config.settings.hapticsEnabled = true // Enable by default for better UX
+        }
+      })
+    })
   }
 }
 
@@ -116,6 +146,8 @@ export async function getOrCreateDeviceId(): Promise<string> {
     hasPromptedForAccount: false,
     settings: {
       notificationsEnabled: false,
+      smartNotificationsEnabled: false,
+      hapticsEnabled: true,
       reduceMotion: false,
       highContrast: false,
       dyslexiaFont: false

@@ -6,6 +6,7 @@ import { calculateActualDuration } from '@/lib/timer'
 import WeekTrend from '@/components/Analytics/WeekTrend'
 import Heatmap from '@/components/Analytics/Heatmap'
 import SubjectBreakdown from '@/components/Analytics/SubjectBreakdown'
+import ComparisonMode from '@/components/ComparisonMode'
 import FocusStudyLogo from '@/components/FocusStudyLogo'
 import Link from 'next/link'
 
@@ -88,12 +89,12 @@ export default function AnalyticsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </Link>
-            <FocusStudyLogo size={40} color="#4F7CAC" />
+            <FocusStudyLogo size={32} color="#4F7CAC" className="sm:w-10 sm:h-10 w-8 h-8" />
             <div>
-              <h1 className="text-2xl font-bold text-text-primary dark:text-white">
+              <h1 className="text-xl sm:text-2xl font-bold text-text-primary dark:text-white">
                 Analytics
               </h1>
-              <p className="text-text-secondary dark:text-gray-400 text-sm">
+              <p className="text-text-secondary dark:text-gray-400 text-xs sm:text-sm">
                 Your study patterns and insights
               </p>
             </div>
@@ -188,6 +189,9 @@ export default function AnalyticsPage() {
               <WeekTrend sessions={sessions} />
               <SubjectBreakdown sessionsWithMetadata={sessionsWithMetadata} />
             </div>
+            
+            {/* Comparison Mode */}
+            <ComparisonMode />
 
             {/* Heatmap */}
             <Heatmap sessions={sessions} months={3} />

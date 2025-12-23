@@ -82,6 +82,16 @@ export function useTimer() {
     setState(timerRef.current.getState())
     return sessionId
   }, [])
+  
+  const logDistraction = useCallback(async () => {
+    if (!timerRef.current) return
+    await timerRef.current.logDistraction()
+  }, [])
+  
+  const getDistractionCount = useCallback(() => {
+    if (!timerRef.current) return 0
+    return timerRef.current.getDistractionCount()
+  }, [])
 
   const dismissReconciliationMessage = useCallback(() => {
     setReconciliationMessage(null)
@@ -93,6 +103,8 @@ export function useTimer() {
     pause,
     resume,
     stop,
+    logDistraction,
+    getDistractionCount,
     reconciliationMessage,
     dismissReconciliationMessage
   }

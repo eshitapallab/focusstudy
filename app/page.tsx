@@ -11,13 +11,14 @@ import AuthModal from '@/components/Auth/AuthModal'
 import UserMenu from '@/components/Auth/UserMenu'
 import GoalProgress from '@/components/GoalProgress'
 import FocusStudyLogo from '@/components/FocusStudyLogo'
+import SmartNotificationsInit from '@/components/SmartNotificationsInit'
 import { db, shouldPromptForAccount } from '@/lib/dexieClient'
 import { formatDuration, calculateActualDuration } from '@/lib/timer'
 import { format } from 'date-fns'
 import Link from 'next/link'
 
 export default function Home() {
-  const { state, start, pause, resume, stop, reconciliationMessage, dismissReconciliationMessage } = useTimer()
+  const { state, start, pause, resume, stop, logDistraction, getDistractionCount, reconciliationMessage, dismissReconciliationMessage } = useTimer()
   const { user, syncInProgress, syncError, isSupabaseConfigured } = useAuth()
   const [showReflection, setShowReflection] = useState(false)
   const [completedSessionId, setCompletedSessionId] = useState<string | null>(null)
@@ -28,6 +29,7 @@ export default function Home() {
   const [plannedSessions, setPlannedSessions] = useState<any[]>([])
   const [plannedSubject, setPlannedSubject] = useState<string | null>(null)
   const [showAuthModal, setShowAuthModal] = useState(false)
+  const [distractionCount, setDistractionCount] = useState(0)
 
   // Load today's stats
   useEffect(() => {
@@ -78,11 +80,18 @@ export default function Home() {
   const handleStart = async () => {
     await start('flow')
     setPlannedSubject(null)
+    setDistractionCount(0)
   }
   
   const handleStartPlanned = async (subject: string) => {
     setPlannedSubject(subject)
     await start('flow')
+    setDistractionCount(0)
+  }
+  
+  const handleLogDistraction = async () => {
+    await logDistraction()
+    setDistractionCount(getDistractionCount())
   }
   
   const handleDeletePlanned = async (id: string) => {
@@ -150,6 +159,8 @@ export default function Home() {
           onPause={pause}
           onResume={resume}
           onStop={handleStop}
+          onLogDistraction={handleLogDistraction}
+          distractionCount={distractionCount}
         />
         
         {/* Reconciliation Banner */}
@@ -198,17 +209,20 @@ export default function Home() {
   // Today screen
   return (
     <main className="min-h-screen bg-background dark:from-gray-900 dark:to-gray-800">
+      {/* Initialize smart notifications */}
+      <SmartNotificationsInit />
+      
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         {/* Header */}
         <header className="mb-12">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <FocusStudyLogo size={48} color="#4F7CAC" />
+            <div className="flex items-center gap-2 sm:gap-3">
+              <FocusStudyLogo size={32} color="#4F7CAC" className="sm:w-12 sm:h-12 w-8 h-8" />
               <div>
-                <h1 className="text-xl font-bold text-text-primary dark:text-white mb-1">
+                <h1 className="text-lg sm:text-xl font-bold text-text-primary dark:text-white mb-1">
                   FocusStudy
                 </h1>
-                <p className="text-sm text-text-secondary dark:text-gray-300">
+                <p className="text-xs sm:text-sm text-text-secondary dark:text-gray-300">
                   {format(new Date(), 'EEEE, MMMM d')}
                 </p>
               </div>

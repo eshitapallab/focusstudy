@@ -138,6 +138,33 @@ export class Timer {
     
     return sessionId
   }
+  
+  /**
+   * Log a distraction during the session
+   */
+  async logDistraction(): Promise<void> {
+    if (!this.currentSession) {
+      throw new Error('No active session to log distraction')
+    }
+    
+    const now = Date.now()
+    const distractions = this.currentSession.distractions || []
+    distractions.push(now)
+    
+    await db.sessions.update(this.currentSession.id, {
+      distractions
+    })
+    
+    this.currentSession.distractions = distractions
+  }
+  
+  /**
+   * Get distraction count for current session
+   */
+  getDistractionCount(): number {
+    if (!this.currentSession) return 0
+    return this.currentSession.distractions?.length || 0
+  }
 
   /**
    * Get current timer state

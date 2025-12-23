@@ -5,6 +5,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameM
 import { db, PlannedSession } from '@/lib/dexieClient'
 import StatusBadge from '@/components/StatusBadge'
 import SessionActions from '@/components/SessionActions'
+import FocusStudyLogo from '@/components/FocusStudyLogo'
 import Link from 'next/link'
 
 export default function PlannerCalendarPage() {
@@ -57,17 +58,18 @@ export default function PlannerCalendarPage() {
         {/* Header */}
         <header className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               <Link
                 href="/"
                 className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                 aria-label="Back to Home"
               >
-                <svg className="w-6 h-6 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </Link>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              <FocusStudyLogo size={32} color="#4F7CAC" className="sm:w-10 sm:h-10 w-8 h-8" />
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
                 Session Planner
               </h1>
             </div>

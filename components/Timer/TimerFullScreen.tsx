@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { formatDuration } from '@/lib/timer'
 import FocusStudyLogo from '@/components/FocusStudyLogo'
+import { triggerHaptic, getHapticsEnabled } from '@/lib/haptics'
 
 interface TimerFullScreenProps {
   sessionId: string
@@ -12,6 +13,8 @@ interface TimerFullScreenProps {
   onPause: () => void
   onResume: () => void
   onStop: () => void
+  onLogDistraction: () => void
+  distractionCount: number
 }
 
 export default function TimerFullScreen({
@@ -21,21 +24,50 @@ export default function TimerFullScreen({
   mode,
   onPause,
   onResume,
-  onStop
+  onStop,
+  onLogDistraction,
+  distractionCount
 }: TimerFullScreenProps) {
   const [showStopConfirm, setShowStopConfirm] = useState(false)
+  const [hapticsEnabled, setHapticsEnabled] = useState(true)
+  const [showDistractionFeedback, setShowDistractionFeedback] = useState(false)
+  
+  useEffect(() => {
+    // Load haptics setting
+    getHapticsEnabled().then(setHapticsEnabled)
+  }, [])
   
   const handleStop = () => {
     setShowStopConfirm(true)
   }
   
-  const confirmStop = () => {
+  const confirmStop = async () => {
     setShowStopConfirm(false)
+    await triggerHaptic('success', hapticsEnabled)
     onStop()
   }
   
   const cancelStop = () => {
     setShowStopConfirm(false)
+  }
+  
+  const handlePause = async () => {
+    await triggerHaptic('pause', hapticsEnabled)
+    onPause()
+  }
+  
+  const handleResume = async () => {
+    await triggerHaptic('start', hapticsEnabled)
+    onResume()
+  }
+  
+  const handleLogDistraction = async () => {
+    await triggerHaptic('distraction', hapticsEnabled)
+    onLogDistraction()
+    
+    // Show brief feedback
+    setShowDistractionFeedback(true)
+    setTimeout(() => setShowDistractionFeedback(false), 1500)
   }
 
   // Calculate progress (for visual ring - maxes at 90 min for breathing room)
@@ -106,29 +138,58 @@ export default function TimerFullScreen({
       </div>
 
       {/* Controls */}
-      <div className="flex gap-4 mb-8">
-        {running ? (
+      <div className="flex flex-col items-center gap-4 mb-8">
+        {/* Primary controls */}
+        <div className="flex gap-4">
+          {running ? (
+            <button
+              onClick={handlePause}
+              className="min-w-touch min-h-touch px-8 py-4 bg-warning hover:bg-yellow-500 text-gray-900 font-semibold rounded-2xl shadow-sm transition-all transform hover:scale-[1.02] active:scale-95 motion-reduce:transform-none"
+            >
+              Pause
+            </button>
+          ) : (
+            <button
+              onClick={handleResume}
+              className="min-w-touch min-h-touch px-8 py-4 bg-primary-accent hover:bg-primary-accent-600 text-white font-semibold rounded-2xl shadow-sm transition-all transform hover:scale-[1.02] active:scale-95 motion-reduce:transform-none"
+            >
+              Resume
+            </button>
+          )}
+          
           <button
-            onClick={onPause}
-            className="min-w-touch min-h-touch px-8 py-4 bg-warning hover:bg-yellow-500 text-gray-900 font-semibold rounded-2xl shadow-sm transition-all transform hover:scale-[1.02] active:scale-95 motion-reduce:transform-none"
+            onClick={handleStop}
+            className="min-w-touch min-h-touch px-8 py-4 bg-surface hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-text-primary dark:text-white font-semibold rounded-2xl shadow-sm transition-all transform hover:scale-[1.02] active:scale-95 motion-reduce:transform-none"
           >
-            Pause
+            Stop
           </button>
-        ) : (
-          <button
-            onClick={onResume}
-            className="min-w-touch min-h-touch px-8 py-4 bg-primary-accent hover:bg-primary-accent-600 text-white font-semibold rounded-2xl shadow-sm transition-all transform hover:scale-[1.02] active:scale-95 motion-reduce:transform-none"
-          >
-            Resume
-          </button>
-        )}
+        </div>
         
+        {/* Distraction log button */}
         <button
-          onClick={handleStop}
-          className="min-w-touch min-h-touch px-8 py-4 bg-surface hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-text-primary dark:text-white font-semibold rounded-2xl shadow-sm transition-all transform hover:scale-[1.02] active:scale-95 motion-reduce:transform-none"
+          onClick={handleLogDistraction}
+          className="relative px-6 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-text-secondary dark:text-gray-400 text-sm font-medium rounded-xl transition-colors"
+          title="Log a distraction"
         >
-          Stop
+          <span className="flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Got distracted
+            {distractionCount > 0 && (
+              <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold bg-primary text-white rounded-full">
+                {distractionCount}
+              </span>
+            )}
+          </span>
         </button>
+        
+        {/* Distraction feedback */}
+        {showDistractionFeedback && (
+          <div className="absolute bottom-32 text-sm text-text-secondary dark:text-gray-400 animate-fade-in">
+            Logged — you're aware, that's the first step ✨
+          </div>
+        )}
       </div>
 
       {/* Stop Confirmation Modal */}
