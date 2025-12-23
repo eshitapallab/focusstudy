@@ -16,7 +16,7 @@ import Link from 'next/link'
 
 export default function Home() {
   const { state, start, pause, resume, stop, reconciliationMessage, dismissReconciliationMessage } = useTimer()
-  const { user, syncInProgress, syncError } = useAuth()
+  const { user, syncInProgress, syncError, isSupabaseConfigured } = useAuth()
   const [showReflection, setShowReflection] = useState(false)
   const [completedSessionId, setCompletedSessionId] = useState<string | null>(null)
   const [completedDurationMs, setCompletedDurationMs] = useState(0)
@@ -280,7 +280,7 @@ export default function Home() {
         </div>
 
         {/* Account Prompt (if applicable) */}
-        {showAccountPrompt && !user && (
+        {showAccountPrompt && !user && isSupabaseConfigured && (
           <div className="bg-primary-50 dark:bg-primary-900/20 border-2 border-primary-200 dark:border-primary-800 rounded-xl p-6 shadow-lg">
             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
               Protect your history & sync devices

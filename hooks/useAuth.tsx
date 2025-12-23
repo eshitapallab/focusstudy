@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react'
 import { User } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabaseClient'
+import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient'
 import { fullSync } from '@/lib/sync'
 import { getOrCreateDeviceId } from '@/lib/dexieClient'
 
@@ -12,6 +12,7 @@ interface AuthContextType {
   signOut: () => Promise<void>
   syncInProgress: boolean
   syncError: string | null
+  isSupabaseConfigured: boolean
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -19,7 +20,8 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   signOut: async () => {},
   syncInProgress: false,
-  syncError: null
+  syncError: null,
+  isSupabaseConfigured: false
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -27,8 +29,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [syncInProgress, setSyncInProgress] = useState(false)
   const [syncError, setSyncError] = useState<string | null>(null)
+  const supabaseConfigured = isSupabaseConfigured()
 
   useEffect(() => {
+    // Skip auth setup if Supabase is not configured
+    if (!supabase || !supabaseConfigured) {
+      setLoading(false)
+      return
+    }
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
@@ -54,7 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [supabaseConfigured])
 
   const triggerSync = async (userId: string) => {
     setSyncInProgress(true)
@@ -79,8 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut()
+  const handleSignOut = async () => {    if (!supabase) return    await supabase.auth.signOut()
     setUser(null)
   }
 
@@ -91,7 +99,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         signOut: handleSignOut,
         syncInProgress,
-        syncError
+        syncError,
+        isSupabaseConfigured: supabaseConfigured
       }}
     >
       {children}
