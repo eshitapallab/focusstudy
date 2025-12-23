@@ -1,15 +1,17 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import FocusStudyLogo from '@/components/FocusStudyLogo'
 
-export default function AuthPage() {
+function AuthForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const redirectTo = searchParams.get('redirectTo') || '/'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -39,8 +41,12 @@ export default function AuthPage() {
         return
       }
 
-      // Success - redirect to verification page
-      router.push(`/auth/verify?email=${encodeURIComponent(email.trim())}`)
+      // Success - redirect to verification page with redirect URL
+      const params = new URLSearchParams({
+        email: email.trim(),
+        redirectTo
+      })
+      router.push(`/auth/verify?${params.toString()}`)
     } catch (err) {
       console.error('Auth error:', err)
       setError('Failed to send code. Please check your connection and try again.')
@@ -62,10 +68,10 @@ export default function AuthPage() {
             <FocusStudyLogo size={64} color="#4F7CAC" />
           </div>
           <h1 className="text-3xl font-bold text-text-primary dark:text-white mb-2">
-            Welcome to FocusStudy
+            Sign In to FocusStudy
           </h1>
           <p className="text-text-secondary dark:text-gray-400">
-            Sign in or create an account
+            New here? No problem! We'll create your account automatically.
           </p>
         </div>
 
@@ -133,27 +139,29 @@ export default function AuthPage() {
               )}
             </button>
           </form>
-
-          {/* Back to App */}
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => router.push('/')}
-              className="text-sm text-text-secondary dark:text-gray-400 hover:text-primary dark:hover:text-primary-400 transition-colors"
-            >
-              ← Back to studying
-            </button>
-          </div>
         </div>
 
         {/* Footer Note */}
         <div className="mt-6 text-center">
           <p className="text-sm text-text-secondary dark:text-gray-400">
-            Your study sessions are saved locally.
+            Secure authentication with one-time codes.
             <br />
-            Sign in to sync across devices.
+            Your data syncs automatically across all devices.
           </p>
         </div>
       </div>
     </main>
+  )
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-b from-primary-50 to-white dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+      </div>
+    }>
+      <AuthForm />
+    </Suspense>
   )
 }

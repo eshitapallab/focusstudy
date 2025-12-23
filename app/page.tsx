@@ -230,21 +230,21 @@ export default function Home() {
         <header className="mb-8">
           {/* Top row: Branding and Sign In */}
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <FocusStudyLogo size={40} color="#4F7CAC" className="flex-shrink-0" />
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-text-primary dark:text-white">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <FocusStudyLogo size={36} color="#4F7CAC" className="flex-shrink-0" />
+              <div className="min-w-0">
+                <h1 className="text-2xl font-bold text-text-primary dark:text-white whitespace-nowrap">
                   FocusStudy
                 </h1>
-                <p className="text-sm text-text-secondary dark:text-gray-300">
-                  {format(new Date(), 'EEEE, MMMM d')}
+                <p className="text-xs text-text-secondary dark:text-gray-300 whitespace-nowrap">
+                  {format(new Date(), 'EEEE, MMM d')}
                 </p>
               </div>
             </div>
             {!user && (
               <Link
                 href="/auth"
-                className="px-4 py-2 bg-primary hover:bg-primary-600 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
+                className="px-3 py-2 bg-primary hover:bg-primary-600 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm flex-shrink-0"
               >
                 Sign In
               </Link>

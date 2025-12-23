@@ -9,6 +9,7 @@ function VerifyContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const email = searchParams.get('email')
+  const redirectTo = searchParams.get('redirectTo') || '/'
   
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
   const [isLoading, setIsLoading] = useState(false)
@@ -107,8 +108,8 @@ function VerifyContent() {
       }
 
       if (data.session) {
-        // Success! Redirect to home
-        router.push('/?auth=success')
+        // Success! Redirect to original destination or home
+        router.push(`${redirectTo}?auth=success`)
       }
     } catch (err) {
       console.error('Verification error:', err)
