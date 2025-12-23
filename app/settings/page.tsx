@@ -80,11 +80,19 @@ export default function SettingsPage() {
       } else {
         await db.config.add({
           deviceId,
+          sessionCount: 0,
+          labeledSessionCount: 0,
           notificationsEnabled: updates.notificationsEnabled ?? notificationsEnabled,
           breakReminderInterval: updates.breakReminderInterval ?? breakReminderInterval,
           dailyGoalMinutes: updates.dailyGoal ?? dailyGoal,
           showStreaks: updates.showStreaks ?? showStreaks,
-          hasPromptedForAccount: false
+          hasPromptedForAccount: false,
+          settings: {
+            notificationsEnabled: updates.notificationsEnabled ?? notificationsEnabled,
+            reduceMotion: false,
+            highContrast: false,
+            dyslexiaFont: false
+          }
         })
       }
     } catch (error) {

@@ -20,6 +20,12 @@ export async function syncLocalToSupabase(userId: string, deviceId: string): Pro
     errors: []
   }
 
+  if (!supabase) {
+    result.success = false
+    result.errors.push('Supabase not configured')
+    return result
+  }
+
   try {
     // Get all pending sessions
     const pendingSessions = await db.sessions
@@ -181,6 +187,12 @@ export async function syncSupabaseToLocal(userId: string): Promise<SyncResult> {
     uploaded: 0,
     failed: 0,
     errors: []
+  }
+
+  if (!supabase) {
+    result.success = false
+    result.errors.push('Supabase not configured')
+    return result
   }
 
   try {

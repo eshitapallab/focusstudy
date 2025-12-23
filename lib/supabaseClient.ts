@@ -52,6 +52,8 @@ export interface SupabasePlannedSession {
 
 // Auth helpers
 export async function signInWithMagicLink(email: string) {
+  if (!supabase) throw new Error('Supabase not configured')
+  
   const { data, error } = await supabase.auth.signInWithOtp({
     email,
     options: {
@@ -63,6 +65,8 @@ export async function signInWithMagicLink(email: string) {
 }
 
 export async function signInWithOAuth(provider: 'google' | 'github') {
+  if (!supabase) throw new Error('Supabase not configured')
+  
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
     options: {
@@ -74,16 +78,22 @@ export async function signInWithOAuth(provider: 'google' | 'github') {
 }
 
 export async function signOut() {
+  if (!supabase) throw new Error('Supabase not configured')
+  
   const { error } = await supabase.auth.signOut()
   return { error }
 }
 
 export async function getCurrentUser() {
+  if (!supabase) throw new Error('Supabase not configured')
+  
   const { data: { user }, error } = await supabase.auth.getUser()
   return { user, error }
 }
 
 export async function getSession() {
+  if (!supabase) throw new Error('Supabase not configured')
+  
   const { data: { session }, error } = await supabase.auth.getSession()
   return { session, error }
 }

@@ -68,8 +68,8 @@ export default function Heatmap({ sessions, months = 3 }: HeatmapProps) {
   }
   
   // Group by weeks
-  const weeks: typeof heatmapData[][] = []
-  let currentWeek: typeof heatmapData = []
+  const weeks: Array<Array<{ date: Date; minutes: number; sessions: number }>> = []
+  let currentWeek: Array<{ date: Date; minutes: number; sessions: number }> = []
   
   // Pad start to align with Sunday
   const firstDayOfWeek = getDay(heatmapData[0]?.date || new Date())

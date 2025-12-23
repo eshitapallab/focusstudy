@@ -56,7 +56,7 @@ class NotificationService {
     }
 
     try {
-      await this.registration.showNotification(options.title, {
+      const notificationOptions: any = {
         body: options.body,
         icon: options.icon || '/icon-192x192.png',
         badge: options.badge || '/icon-192x192.png',
@@ -68,7 +68,9 @@ class NotificationService {
           dateOfArrival: Date.now(),
           primaryKey: 1
         }
-      })
+      }
+      
+      await this.registration.showNotification(options.title, notificationOptions)
     } catch (error) {
       console.error('Error showing notification:', error)
     }
