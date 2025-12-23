@@ -29,6 +29,7 @@ function AuthForm() {
         email: email.trim(),
         options: {
           shouldCreateUser: true,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         }
       })
 
@@ -70,9 +71,6 @@ function AuthForm() {
           <h1 className="text-3xl font-bold text-text-primary dark:text-white mb-2">
             Sign In to FocusStudy
           </h1>
-          <p className="text-text-secondary dark:text-gray-400">
-            New here? No problem! We'll create your account automatically.
-          </p>
         </div>
 
         {/* Auth Card */}
