@@ -8,15 +8,17 @@ interface ReflectionModalProps {
   durationMs: number
   onComplete: () => void
   onSkip: () => void
+  defaultSubject?: string | null
 }
 
 export default function ReflectionModal({
   sessionId,
   durationMs,
   onComplete,
-  onSkip
+  onSkip,
+  defaultSubject = null
 }: ReflectionModalProps) {
-  const [subject, setSubject] = useState('')
+  const [subject, setSubject] = useState(defaultSubject || '')
   const [focusRating, setFocusRating] = useState<number | null>(null)
   const [note, setNote] = useState('')
   const [recentSubjects, setRecentSubjects] = useState<string[]>([])

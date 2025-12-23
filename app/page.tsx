@@ -4,9 +4,12 @@ import { useTimer } from '@/hooks/useTimer'
 import { useState, useEffect } from 'react'
 import TimerFullScreen from '@/components/Timer/TimerFullScreen'
 import ReflectionModal from '@/components/ReflectionModal'
+import PlannerModal from '@/components/PlannerModal'
+import TodayList from '@/components/TodayList'
 import { db, shouldPromptForAccount } from '@/lib/dexieClient'
 import { formatDuration, calculateActualDuration } from '@/lib/timer'
 import { format } from 'date-fns'
+import Link from 'next/link'
 
 export default function Home() {
   const { state, start, pause, resume, stop, reconciliationMessage, dismissReconciliationMessage } = useTimer()
@@ -15,6 +18,9 @@ export default function Home() {
   const [completedDurationMs, setCompletedDurationMs] = useState(0)
   const [showAccountPrompt, setShowAccountPrompt] = useState(false)
   const [todayMinutes, setTodayMinutes] = useState(0)
+  const [showPlannerModal, setShowPlannerModal] = useState(false)
+  const [plannedSessions, setPlannedSessions] = useState<any[]>([])
+  const [plannedSubject, setPlannedSubject] = useState<string | null>(null)
 
   // Load today's stats
   useEffect(() => {
@@ -36,10 +42,19 @@ export default function Home() {
       }, 0)
 
       setTodayMinutes(Math.floor(totalMs / 1000 / 60))
+      
+      // Load today's planned sessions
+      const todayDate = format(today, 'yyyy-MM-dd')
+      const planned = await db.plannedSessions
+        .where('plannedDate')
+        .equals(todayDate)
+        .toArray()
+      
+      setPlannedSessions(planned)
     }
 
     loadTodayStats()
-  }, [state.sessionId])
+  }, [state.sessionId, showPlannerModal])
 
   // Check if should prompt for account
   useEffect(() => {
@@ -55,6 +70,17 @@ export default function Home() {
 
   const handleStart = async () => {
     await start('flow')
+    setPlannedSubject(null)
+  }
+  
+  const handleStartPlanned = async (subject: string) => {
+    setPlannedSubject(subject)
+    await start('flow')
+  }
+  
+  const handleDeletePlanned = async (id: string) => {
+    await db.plannedSessions.delete(id)
+    setPlannedSessions(prev => prev.filter(p => p.id !== id))
   }
 
   const handleStop = async () => {
@@ -133,6 +159,19 @@ export default function Home() {
         durationMs={completedDurationMs}
         onComplete={handleReflectionComplete}
         onSkip={handleReflectionSkip}
+        defaultSubject={plannedSubject}
+      />
+    )
+  }
+  
+  // Show planner modal
+  if (showPlannerModal) {
+    return (
+      <PlannerModal
+        onClose={() => setShowPlannerModal(false)}
+        onCreated={() => {
+          setShowPlannerModal(false)
+        }}
       />
     )
   }
@@ -143,12 +182,25 @@ export default function Home() {
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         {/* Header */}
         <header className="mb-12">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            FocusFlow
-          </h1>
-          <p className="text-gray-600 dark:text-gray-300">
-            {format(new Date(), 'EEEE, MMMM d')}
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                FocusFlow
+              </h1>
+              <p className="text-gray-600 dark:text-gray-300">
+                {format(new Date(), 'EEEE, MMMM d')}
+              </p>
+            </div>
+            <Link
+              href="/analytics"
+              className="p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              aria-label="View Analytics"
+            >
+              <svg className="w-6 h-6 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </Link>
+          </div>
         </header>
 
         {/* Today Stats */}
@@ -169,6 +221,13 @@ export default function Home() {
             </div>
           </div>
         </div>
+        
+        {/* Today's Planned Sessions */}
+        <TodayList
+          plannedSessions={plannedSessions}
+          onStartSession={handleStartPlanned}
+          onDelete={handleDeletePlanned}
+        />
 
         {/* Big Start Button */}
         <div className="flex flex-col items-center justify-center py-12">
@@ -184,6 +243,14 @@ export default function Home() {
           <p className="mt-6 text-gray-500 dark:text-gray-400 text-center">
             Tap to begin a focus session
           </p>
+          
+          {/* Plan Session Button */}
+          <button
+            onClick={() => setShowPlannerModal(true)}
+            className="mt-4 px-6 py-2 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors font-medium"
+          >
+            + Plan a session
+          </button>
         </div>
 
         {/* Account Prompt (if applicable) */}
