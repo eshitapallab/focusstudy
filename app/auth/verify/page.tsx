@@ -128,12 +128,17 @@ function VerifyContent() {
     setError(null)
 
     try {
-      const { error: resendError } = await supabase.auth.signInWithOtp({
+      const { data, error: resendError } = await supabase.auth.signInWithOtp({
         email,
         options: {
           shouldCreateUser: true,
+          data: {
+            email: email
+          }
         }
       })
+      
+      console.log('OTP Resend:', { data, error: resendError })
 
       if (resendError) {
         setError(resendError.message)

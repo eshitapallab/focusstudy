@@ -25,12 +25,17 @@ function AuthForm() {
     setError(null)
 
     try {
-      const { error: otpError } = await supabase.auth.signInWithOtp({
+      const { data, error: otpError } = await supabase.auth.signInWithOtp({
         email: email.trim(),
         options: {
           shouldCreateUser: true,
+          data: {
+            email: email.trim()
+          }
         }
       })
+      
+      console.log('OTP Response:', { data, error: otpError })
 
       if (otpError) {
         if (otpError.message.includes('rate limit')) {
