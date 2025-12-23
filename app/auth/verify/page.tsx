@@ -93,6 +93,8 @@ function VerifyContent() {
         type: 'email'
       })
 
+      console.log('Verify OTP response:', { data, error: verifyError })
+
       if (verifyError) {
         if (verifyError.message.includes('expired')) {
           setError('Code expired. Please request a new one.')
@@ -104,23 +106,36 @@ function VerifyContent() {
         // Clear OTP on error
         setOtp(['', '', '', '', '', ''])
         inputRefs.current[0]?.focus()
+        setIsLoading(false)
         return
       }
 
-      if (data.session) {
+      // Check if we have a valid session or user
+      if (data?.session || data?.user) {
         // Success! Redirect to original destination or home
         const targetUrl = `${redirectTo}?auth=success`
-        console.log('Redirecting to:', targetUrl)
+        console.log('Auth successful, redirecting to:', targetUrl)
         
-        // Force a hard redirect to ensure middleware picks up the session
-        window.location.href = targetUrl
+        // Keep loading state on to prevent UI flicker during redirect
+        // Don't call setIsLoading(false) here
+        
+        // Small delay to ensure session is saved
+        setTimeout(() => {
+          window.location.href = targetUrl
+        }, 100)
+        return
       }
+
+      // If we got here, something went wrong
+      setError('Verification succeeded but no session created. Please try again.')
+      setOtp(['', '', '', '', '', ''])
+      inputRefs.current[0]?.focus()
+      setIsLoading(false)
     } catch (err) {
       console.error('Verification error:', err)
       setError('Failed to verify code. Please try again.')
       setOtp(['', '', '', '', '', ''])
       inputRefs.current[0]?.focus()
-    } finally {
       setIsLoading(false)
     }
   }
