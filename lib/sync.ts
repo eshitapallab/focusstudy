@@ -152,7 +152,7 @@ export async function syncLocalToSupabase(userId: string, deviceId: string): Pro
       .upsert({
         device_id: deviceId,
         user_id: userId,
-        data: {
+        backup_data: {
           sessions: allSessions,
           metadata: allMetadata,
           planned: allPlanned
