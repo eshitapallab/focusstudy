@@ -11,7 +11,7 @@ function VerifyContent() {
   const email = searchParams.get('email')
   const redirectTo = searchParams.get('redirectTo') || '/'
   
-  const [otp, setOtp] = useState(['', '', '', '', '', ''])
+  const [otp, setOtp] = useState(['', '', '', '', '', '', '', ''])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [canResend, setCanResend] = useState(false)
@@ -51,12 +51,12 @@ function VerifyContent() {
     setError(null)
 
     // Auto-advance to next input
-    if (value && index < 5) {
+    if (value && index < 7) {
       inputRefs.current[index + 1]?.focus()
     }
 
-    // Auto-submit when all 6 digits are entered
-    if (newOtp.every(digit => digit !== '') && index === 5) {
+    // Auto-submit when all 8 digits are entered
+    if (newOtp.every(digit => digit !== '') && index === 7) {
       handleVerify(newOtp.join(''))
     }
   }
@@ -70,12 +70,12 @@ function VerifyContent() {
 
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault()
-    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 8)
     
-    if (pastedData.length === 6) {
+    if (pastedData.length === 8) {
       const newOtp = pastedData.split('')
       setOtp(newOtp)
-      inputRefs.current[5]?.focus()
+      inputRefs.current[7]?.focus()
       handleVerify(pastedData)
     }
   }
@@ -212,7 +212,7 @@ function VerifyContent() {
             Check your email
           </h1>
           <p className="text-text-secondary dark:text-gray-400">
-            We sent a 6-digit code to
+            We sent an 8-digit code to
             <br />
             <strong className="text-text-primary dark:text-white">{email}</strong>
           </p>

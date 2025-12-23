@@ -108,7 +108,7 @@ function AuthForm() {
             {/* Helper Text */}
             <div className="bg-accent-50 dark:bg-accent-900/20 rounded-lg p-4">
               <p className="text-sm text-text-secondary dark:text-gray-300">
-                We'll send a one-time code to your email.
+                We'll send an 8-digit code to your email.
                 <br />
                 <strong className="text-text-primary dark:text-white">No passwords required.</strong>
               </p>
