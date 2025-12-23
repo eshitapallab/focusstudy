@@ -1,11 +1,11 @@
 {
-  "name": "FocusFlow - Focus Timer & Study Tracker",
-  "short_name": "FocusFlow",
-  "description": "Neurodivergent-friendly study timer with post-hoc labeling, analytics, and cloud sync. Track your focus sessions without friction.",
+  "name": "FocusStudy - Calm Study Timer & Focus Tracker",
+  "short_name": "FocusStudy",
+  "description": "A calm, supportive study timer with guilt-free tracking and focus analytics. Study mindfully.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#0ea5e9",
+  "background_color": "#F7F9FC",
+  "theme_color": "#4F7CAC",
   "orientation": "portrait",
   "scope": "/",
   "categories": ["productivity", "education", "lifestyle"],
@@ -16,21 +16,21 @@
       "sizes": "540x720",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Timer screen with zero-friction start button"
+      "label": "Calm timer screen with circular progress ring"
     },
     {
       "src": "/screenshot-analytics.png",
       "sizes": "540x720",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Analytics dashboard with week trends and heatmap"
+      "label": "Analytics dashboard with supportive insights"
     }
   ],
   "shortcuts": [
     {
-      "name": "Start Focus Session",
+      "name": "Start Study Session",
       "short_name": "Start",
-      "description": "Quickly start a new focus session",
+      "description": "Begin a calm focus session",
       "url": "/?start=true",
       "icons": [
         {
@@ -42,7 +42,7 @@
     {
       "name": "View Analytics",
       "short_name": "Analytics",
-      "description": "View your focus statistics",
+      "description": "View your study insights",
       "url": "/analytics",
       "icons": [
         {

@@ -3,13 +3,13 @@ import { AuthProvider } from '@/hooks/useAuth'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'FocusFlow - Study Timer & Focus Tracker',
-  description: 'Zero-friction study timer with post-hoc labeling and local-first storage',
+  title: 'FocusStudy - Calm Study Timer & Focus Tracker',
+  description: 'A calm, supportive study timer with guilt-free tracking and focus analytics',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'FocusFlow',
+    title: 'FocusStudy',
   },
 }
 
@@ -18,7 +18,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#0ea5e9',
+  themeColor: '#4F7CAC',
 }
 
 export default function RootLayout({

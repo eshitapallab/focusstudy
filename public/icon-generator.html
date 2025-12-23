@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FocusStudy Icon Generator</title>
+</head>
+<body>
+  <h1>FocusStudy Icon Generator</h1>
+  <p>Download these icons and save them to the /public folder:</p>
+  
+  <div style="display: flex; gap: 20px; flex-wrap: wrap; margin: 20px 0;">
+    <div>
+      <canvas id="icon-16" width="16" height="16" style="border: 1px solid #ccc; image-rendering: pixelated; width: 64px; height: 64px;"></canvas>
+      <p>16x16 (favicon)</p>
+      <button onclick="downloadCanvas('icon-16', 'favicon-16x16.png')">Download</button>
+    </div>
+    
+    <div>
+      <canvas id="icon-32" width="32" height="32" style="border: 1px solid #ccc; image-rendering: pixelated; width: 64px; height: 64px;"></canvas>
+      <p>32x32 (favicon)</p>
+      <button onclick="downloadCanvas('icon-32', 'favicon-32x32.png')">Download</button>
+    </div>
+    
+    <div>
+      <canvas id="icon-192" width="192" height="192" style="border: 1px solid #ccc; width: 192px; height: 192px;"></canvas>
+      <p>192x192 (PWA)</p>
+      <button onclick="downloadCanvas('icon-192', 'icon-192.png')">Download</button>
+    </div>
+    
+    <div>
+      <canvas id="icon-512" width="512" height="512" style="border: 1px solid #ccc; width: 256px; height: 256px;"></canvas>
+      <p>512x512 (PWA)</p>
+      <button onclick="downloadCanvas('icon-512', 'icon-512.png')">Download</button>
+    </div>
+  </div>
+
+  <script>
+    // FocusStudy "Focus Ring" logo
+    function drawFocusRing(ctx, size) {
+      const strokeWidth = Math.max(2, size * 0.08)
+      const radius = (size - strokeWidth) / 2
+      const centerX = size / 2
+      const centerY = size / 2
+      
+      // Calculate arc (87% complete, 13% open)
+      const circumference = 2 * Math.PI * radius
+      const openingPercent = 0.13
+      const arcLength = circumference * (1 - openingPercent)
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, size, size)
+      
+      // Draw background (optional subtle circle)
+      ctx.beginPath()
+      ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI)
+      ctx.fillStyle = '#F7F9FC'
+      ctx.fill()
+      
+      // Draw the focus ring
+      ctx.beginPath()
+      // Start at -45 degrees (top-right), draw 87% of circle
+      const startAngle = -Math.PI / 4 // -45 degrees
+      const endAngle = startAngle + (2 * Math.PI * (1 - openingPercent))
+      ctx.arc(centerX, centerY, radius, startAngle, endAngle)
+      ctx.strokeStyle = '#4F7CAC'
+      ctx.lineWidth = strokeWidth
+      ctx.lineCap = 'round'
+      ctx.stroke()
+    }
+
+    // Generate all icon sizes
+    function generateIcons() {
+      const sizes = [
+        { id: 'icon-16', size: 16 },
+        { id: 'icon-32', size: 32 },
+        { id: 'icon-192', size: 192 },
+        { id: 'icon-512', size: 512 }
+      ]
+      
+      sizes.forEach(({ id, size }) => {
+        const canvas = document.getElementById(id)
+        const ctx = canvas.getContext('2d')
+        drawFocusRing(ctx, size)
+      })
+    }
+
+    // Download canvas as PNG
+    function downloadCanvas(canvasId, filename) {
+      const canvas = document.getElementById(canvasId)
+      const link = document.createElement('a')
+      link.download = filename
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    }
+
+    // Generate on page load
+    generateIcons()
+  </script>
+
+  <hr style="margin: 40px 0;">
+  
+  <h2>Instructions:</h2>
+  <ol>
+    <li>Click each "Download" button to save the icon</li>
+    <li>Save <code>favicon-16x16.png</code> and <code>favicon-32x32.png</code> to <code>/public</code></li>
+    <li>Save <code>icon-192.png</code> and <code>icon-512.png</code> to <code>/public</code></li>
+    <li>Generate favicon.ico using a tool like <a href="https://realfavicongenerator.net/" target="_blank">RealFaviconGenerator</a> or use the PNGs directly</li>
+  </ol>
+
+  <h2>Color Palette Reference:</h2>
+  <ul>
+    <li>Primary: #4F7CAC</li>
+    <li>Background: #F7F9FC</li>
+  </ul>
+</body>
+</html>

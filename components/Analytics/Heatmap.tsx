@@ -55,16 +55,16 @@ export default function Heatmap({ sessions, months = 3 }: HeatmapProps) {
     return data
   }, [sessions, months])
   
-  // Calculate intensity levels (neutral colors)
+  // Calculate intensity levels (neutral grayscale + primary tint)
   const maxMinutes = Math.max(...heatmapData.map(d => d.minutes), 1)
   
   const getIntensityClass = (minutes: number) => {
-    if (minutes === 0) return 'bg-gray-100 dark:bg-gray-800'
+    if (minutes === 0) return 'bg-gray-100 dark:bg-gray-800 opacity-40'
     const ratio = minutes / maxMinutes
-    if (ratio > 0.75) return 'bg-blue-500'
-    if (ratio > 0.5) return 'bg-blue-400'
-    if (ratio > 0.25) return 'bg-blue-300'
-    return 'bg-blue-200'
+    if (ratio > 0.75) return 'bg-primary'
+    if (ratio > 0.5) return 'bg-primary/75'
+    if (ratio > 0.25) return 'bg-primary/50'
+    return 'bg-primary/25'
   }
   
   // Group by weeks
@@ -94,10 +94,13 @@ export default function Heatmap({ sessions, months = 3 }: HeatmapProps) {
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-        Activity Heatmap
+    <div className="bg-surface dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
+      <h3 className="text-lg font-semibold text-text-primary dark:text-white mb-4">
+        Activity Pattern
       </h3>
+      <p className="text-sm text-text-secondary dark:text-gray-400 mb-4">
+        Your study consistency over time
+      </p>
       
       <div className="overflow-x-auto">
         <div className="inline-block min-w-full">
@@ -105,7 +108,7 @@ export default function Heatmap({ sessions, months = 3 }: HeatmapProps) {
           <div className="flex gap-1 mb-2">
             <div className="w-8"></div>
             {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
-              <div key={i} className="w-4 text-xs text-gray-500 dark:text-gray-400 text-center">
+              <div key={i} className="w-4 text-xs text-text-secondary dark:text-gray-400 text-center font-medium">
                 {day}
               </div>
             ))}
@@ -116,7 +119,7 @@ export default function Heatmap({ sessions, months = 3 }: HeatmapProps) {
             {weeks.map((week, weekIdx) => (
               <div key={weekIdx} className="flex gap-1 items-center">
                 {/* Week label */}
-                <div className="w-8 text-xs text-gray-500 dark:text-gray-400">
+                <div className="w-8 text-xs text-text-secondary dark:text-gray-400">
                   {weekIdx === 0 || week[0].minutes === -1 ? '' : format(week[0].date, 'MMM d')}
                 </div>
                 
@@ -124,7 +127,7 @@ export default function Heatmap({ sessions, months = 3 }: HeatmapProps) {
                 {week.map((day, dayIdx) => (
                   <div
                     key={dayIdx}
-                    className={`w-4 h-4 rounded-sm transition-all hover:ring-2 hover:ring-primary-500 cursor-pointer relative group ${
+                    className={`w-4 h-4 rounded-sm transition-all hover:ring-2 hover:ring-primary cursor-pointer relative group ${
                       day.minutes === -1 ? 'bg-transparent' : getIntensityClass(day.minutes)
                     }`}
                     title={day.minutes >= 0 ? `${format(day.date, 'MMM d')}: ${day.minutes} min` : ''}
@@ -132,7 +135,7 @@ export default function Heatmap({ sessions, months = 3 }: HeatmapProps) {
                     {day.minutes >= 0 && (
                       <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
                         {format(day.date, 'MMM d')}<br />
-                        {day.minutes} min, {day.sessions} session{day.sessions !== 1 ? 's' : ''}
+                        {day.minutes} min · {day.sessions} session{day.sessions !== 1 ? 's' : ''}
                       </div>
                     )}
                   </div>
@@ -142,14 +145,14 @@ export default function Heatmap({ sessions, months = 3 }: HeatmapProps) {
           </div>
           
           {/* Legend */}
-          <div className="flex items-center gap-2 mt-4 text-xs text-gray-500 dark:text-gray-400">
+          <div className="flex items-center gap-2 mt-4 text-xs text-text-secondary dark:text-gray-400">
             <span>Less</span>
             <div className="flex gap-1">
-              <div className="w-4 h-4 bg-gray-100 dark:bg-gray-800 rounded-sm"></div>
-              <div className="w-4 h-4 bg-blue-200 rounded-sm"></div>
-              <div className="w-4 h-4 bg-blue-300 rounded-sm"></div>
-              <div className="w-4 h-4 bg-blue-400 rounded-sm"></div>
-              <div className="w-4 h-4 bg-blue-500 rounded-sm"></div>
+              <div className="w-4 h-4 bg-gray-100 dark:bg-gray-800 opacity-40 rounded-sm"></div>
+              <div className="w-4 h-4 bg-primary/25 rounded-sm"></div>
+              <div className="w-4 h-4 bg-primary/50 rounded-sm"></div>
+              <div className="w-4 h-4 bg-primary/75 rounded-sm"></div>
+              <div className="w-4 h-4 bg-primary rounded-sm"></div>
             </div>
             <span>More</span>
           </div>

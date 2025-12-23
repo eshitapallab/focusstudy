@@ -1,16 +1,18 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 255, 255, 255;
-  --background-end-rgb: 255, 255, 255;
+  --foreground-rgb: 31, 41, 51; /* text-primary */
+  --background-start-rgb: 247, 249, 252; /* background */
+  --background-end-rgb: 247, 249, 252;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --foreground-rgb: 255, 255, 255;
+    --foreground-rgb: 238, 242, 247; /* surface in dark */
     --background-start-rgb: 17, 24, 39;
     --background-end-rgb: 17, 24, 39;
   }
@@ -18,12 +20,10 @@
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background: rgb(var(--background-start-rgb));
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 @layer utilities {
@@ -79,9 +79,9 @@ body {
   animation: fade-in 0.2s ease-out;
 }
 
-/* Focus styles for accessibility */
+/* Focus styles for accessibility - using brand primary */
 *:focus-visible {
-  outline: 2px solid rgb(14, 165, 233);
+  outline: 2px solid #4F7CAC;
   outline-offset: 2px;
 }
 
