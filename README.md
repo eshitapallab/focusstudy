@@ -8,7 +8,11 @@ A production-ready, local-first study timer with post-hoc labeling, zero-frictio
 - **Timestamp-based Timer**: Resilient to OS backgrounding and pausing
 - **Post-hoc Labeling**: Label sessions after completion, not before
 - **Local-first**: Works offline with IndexedDB, syncs when online
+- **Authentication**: Magic link email + OAuth (Google/GitHub) 🆕
+- **Cloud Sync**: Automatic backup and multi-device sync 🆕
 - **Soft Account Prompt**: Prompts for account after 5-10 sessions to enable sync
+- **Analytics Dashboard**: Week trends, heatmap, subject breakdown
+- **Session Planning**: Pre-schedule focus sessions
 - **Accessibility**: High contrast, reduce motion, large tap targets (44x44px)
 - **PWA**: Install as a mobile app
 - **Forgiving Analytics**: Neutral heatmap, no guilt-inducing streaks
@@ -39,12 +43,13 @@ npm install
 cp .env.example .env.local
 ```
 
-Edit `.env.local` and add your Supabase credentials:
-```
-NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
+**👉 See [SETUP_SUPABASE.md](./SETUP_SUPABASE.md) for detailed setup instructions (15 min)**
+
+Quick version:
+- Create a Supabase project at [supabase.com](https://supabase.com)
+- Copy your Project URL and anon key to `.env.local`
+- Run the database migration in SQL Editor
+- You're ready to go!
 
 4. Run the development server:
 ```bash

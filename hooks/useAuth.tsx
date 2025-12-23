@@ -1,0 +1,108 @@
+'use client'
+
+import { createContext, useContext, useEffect, useState } from 'react'
+import { User } from '@supabase/supabase-js'
+import { supabase } from '@/lib/supabaseClient'
+import { fullSync } from '@/lib/sync'
+import { getOrCreateDeviceId } from '@/lib/dexieClient'
+
+interface AuthContextType {
+  user: User | null
+  loading: boolean
+  signOut: () => Promise<void>
+  syncInProgress: boolean
+  syncError: string | null
+}
+
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  loading: true,
+  signOut: async () => {},
+  syncInProgress: false,
+  syncError: null
+})
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [syncInProgress, setSyncInProgress] = useState(false)
+  const [syncError, setSyncError] = useState<string | null>(null)
+
+  useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      setLoading(false)
+
+      // Trigger sync if user is signed in
+      if (session?.user) {
+        triggerSync(session.user.id)
+      }
+    })
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setUser(session?.user ?? null)
+      setLoading(false)
+
+      if (event === 'SIGNED_IN' && session?.user) {
+        // Trigger sync on sign in
+        await triggerSync(session.user.id)
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const triggerSync = async (userId: string) => {
+    setSyncInProgress(true)
+    setSyncError(null)
+
+    try {
+      const deviceId = await getOrCreateDeviceId()
+      const result = await fullSync(userId, deviceId)
+
+      if (!result.upload.success || !result.download.success) {
+        const errors = [
+          ...result.upload.errors,
+          ...result.download.errors
+        ]
+        setSyncError(errors.join(', '))
+      }
+    } catch (error) {
+      console.error('Sync failed:', error)
+      setSyncError('Failed to sync data. Please try again.')
+    } finally {
+      setSyncInProgress(false)
+    }
+  }
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    setUser(null)
+  }
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        signOut: handleSignOut,
+        syncInProgress,
+        syncError
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  )
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider')
+  }
+  return context
+}

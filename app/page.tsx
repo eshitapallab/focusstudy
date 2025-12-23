@@ -1,11 +1,14 @@
 'use client'
 
 import { useTimer } from '@/hooks/useTimer'
+import { useAuth } from '@/hooks/useAuth'
 import { useState, useEffect } from 'react'
 import TimerFullScreen from '@/components/Timer/TimerFullScreen'
 import ReflectionModal from '@/components/ReflectionModal'
 import PlannerModal from '@/components/PlannerModal'
 import TodayList from '@/components/TodayList'
+import AuthModal from '@/components/Auth/AuthModal'
+import UserMenu from '@/components/Auth/UserMenu'
 import { db, shouldPromptForAccount } from '@/lib/dexieClient'
 import { formatDuration, calculateActualDuration } from '@/lib/timer'
 import { format } from 'date-fns'
@@ -13,6 +16,7 @@ import Link from 'next/link'
 
 export default function Home() {
   const { state, start, pause, resume, stop, reconciliationMessage, dismissReconciliationMessage } = useTimer()
+  const { user, syncInProgress, syncError } = useAuth()
   const [showReflection, setShowReflection] = useState(false)
   const [completedSessionId, setCompletedSessionId] = useState<string | null>(null)
   const [completedDurationMs, setCompletedDurationMs] = useState(0)
@@ -21,6 +25,7 @@ export default function Home() {
   const [showPlannerModal, setShowPlannerModal] = useState(false)
   const [plannedSessions, setPlannedSessions] = useState<any[]>([])
   const [plannedSubject, setPlannedSubject] = useState<string | null>(null)
+  const [showAuthModal, setShowAuthModal] = useState(false)
 
   // Load today's stats
   useEffect(() => {
@@ -191,17 +196,38 @@ export default function Home() {
                 {format(new Date(), 'EEEE, MMMM d')}
               </p>
             </div>
-            <Link
-              href="/analytics"
-              className="p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-              aria-label="View Analytics"
-            >
-              <svg className="w-6 h-6 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-            </Link>
+            <div className="flex items-center gap-2">
+              {user && <UserMenu />}
+              <Link
+                href="/analytics"
+                className="p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                aria-label="View Analytics"
+              >
+                <svg className="w-6 h-6 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </Link>
+            </div>
           </div>
         </header>
+
+        {/* Sync Status Banner */}
+        {syncInProgress && (
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6 flex items-center gap-3">
+            <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
+            <p className="text-blue-700 dark:text-blue-300 text-sm font-medium">
+              Syncing your sessions...
+            </p>
+          </div>
+        )}
+        
+        {syncError && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+            <p className="text-red-700 dark:text-red-300 text-sm font-medium">
+              Sync failed: {syncError}
+            </p>
+          </div>
+        )}
 
         {/* Today Stats */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg mb-8">
@@ -254,7 +280,7 @@ export default function Home() {
         </div>
 
         {/* Account Prompt (if applicable) */}
-        {showAccountPrompt && (
+        {showAccountPrompt && !user && (
           <div className="bg-primary-50 dark:bg-primary-900/20 border-2 border-primary-200 dark:border-primary-800 rounded-xl p-6 shadow-lg">
             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
               Protect your history & sync devices
@@ -270,13 +296,24 @@ export default function Home() {
                 Maybe later
               </button>
               <button
-                onClick={() => {/* TODO: Navigate to sign up */}}
+                onClick={() => setShowAuthModal(true)}
                 className="flex-1 min-h-touch py-2 px-4 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-lg transition-colors"
               >
                 Create account
               </button>
             </div>
           </div>
+        )}
+        
+        {/* Auth Modal */}
+        {showAuthModal && (
+          <AuthModal
+            onClose={() => setShowAuthModal(false)}
+            onSuccess={() => {
+              setShowAuthModal(false)
+              setShowAccountPrompt(false)
+            }}
+          />
         )}
       </div>
     </main>
