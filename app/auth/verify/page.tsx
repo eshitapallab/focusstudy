@@ -116,11 +116,11 @@ function VerifyContent() {
         console.log('Session data:', data.session)
         console.log('User data:', data.user)
         
-        // Ensure session is set in the client
+        // Best-effort: ensure session is set in the client (don't block redirect)
         if (data.session) {
-          await supabase.auth.setSession({
+          supabase.auth.setSession({
             access_token: data.session.access_token,
-            refresh_token: data.session.refresh_token
+            refresh_token: data.session.refresh_token,
           })
         }
         
@@ -134,7 +134,7 @@ function VerifyContent() {
         // Small delay to ensure session is saved
         setTimeout(() => {
           console.log('Executing redirect now...')
-          window.location.href = targetUrl
+          window.location.replace(targetUrl)
         }, 500)
         return
       }
