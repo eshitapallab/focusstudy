@@ -1,5 +1,20 @@
 # Quick Start: Setting Up Supabase for FocusFlow
 
+## 📝 Note: Supabase is Optional!
+
+**FocusFlow works perfectly in local-only mode without Supabase!** 
+
+If you don't set up Supabase:
+- ✅ All features work (timer, analytics, planning)
+- ✅ Data stored locally in your browser (IndexedDB)
+- ✅ No account creation or sync features
+- ❌ Data won't sync across devices
+- ❌ Data is lost if you clear browser data
+
+**To enable cloud sync and multi-device support**, follow this guide to set up Supabase (takes ~15 min).
+
+---
+
 ## Prerequisites
 - Node.js 18+ installed
 - FocusFlow project cloned
