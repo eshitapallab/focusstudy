@@ -195,7 +195,7 @@ function VerifyContent() {
           <p className="text-text-secondary dark:text-gray-400">
             We sent a 6-digit code to
             <br />
-            <strong className="text-text-primary dark:text-white">{maskEmail(email)}</strong>
+            <strong className="text-text-primary dark:text-white">{email}</strong>
           </p>
         </div>
 
