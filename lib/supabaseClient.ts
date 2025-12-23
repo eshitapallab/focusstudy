@@ -50,33 +50,15 @@ export interface SupabasePlannedSession {
   created_at: string
 }
 
-// Auth helpers
-export async function signInWithMagicLink(email: string) {
-  if (!supabase) throw new Error('Supabase not configured')
-  
-  const { data, error } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/callback`
-    }
-  })
+/**
+ * Auth Helper Functions
+ * OTP-ONLY Authentication System
+ */
 
-  return { data, error }
-}
-
-export async function signInWithOAuth(provider: 'google' | 'github') {
-  if (!supabase) throw new Error('Supabase not configured')
-  
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider,
-    options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/callback`
-    }
-  })
-
-  return { data, error }
-}
-
+/**
+ * Sign out the current user
+ * Note: This does NOT delete local data - user can continue using the app
+ */
 export async function signOut() {
   if (!supabase) throw new Error('Supabase not configured')
   
@@ -84,6 +66,9 @@ export async function signOut() {
   return { error }
 }
 
+/**
+ * Get current authenticated user
+ */
 export async function getCurrentUser() {
   if (!supabase) throw new Error('Supabase not configured')
   
@@ -91,6 +76,9 @@ export async function getCurrentUser() {
   return { user, error }
 }
 
+/**
+ * Get current session
+ */
 export async function getSession() {
   if (!supabase) throw new Error('Supabase not configured')
   

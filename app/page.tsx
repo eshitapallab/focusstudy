@@ -30,6 +30,19 @@ export default function Home() {
   const [plannedSubject, setPlannedSubject] = useState<string | null>(null)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [distractionCount, setDistractionCount] = useState(0)
+  const [showAuthSuccess, setShowAuthSuccess] = useState(false)
+
+  // Check for auth success from URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('auth') === 'success') {
+      setShowAuthSuccess(true)
+      // Clear URL parameter
+      window.history.replaceState({}, '', '/')
+      // Auto-hide after 5 seconds
+      setTimeout(() => setShowAuthSuccess(false), 5000)
+    }
+  }, [])
 
   // Load today's stats
   useEffect(() => {
@@ -279,6 +292,31 @@ export default function Home() {
           </div>
         )}
 
+        {/* Auth Success Banner */}
+        {showAuthSuccess && user && (
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <p className="text-green-800 dark:text-green-200 text-sm font-medium">
+                  You're signed in!
+                </p>
+                <p className="text-green-700 dark:text-green-300 text-xs">
+                  Your sessions are now synced across devices
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowAuthSuccess(false)}
+              className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Goal Progress & Streaks */}
         <GoalProgress todayMinutes={todayMinutes} />
 
@@ -358,8 +396,7 @@ export default function Home() {
         {/* Auth Modal */}
         {showAuthModal && (
           <AuthModal
-            onClose={() => setShowAuthModal(false)}
-            onSuccess={() => {
+            onClose={() => {
               setShowAuthModal(false)
               setShowAccountPrompt(false)
             }}
