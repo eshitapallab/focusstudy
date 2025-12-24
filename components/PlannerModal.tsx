@@ -40,11 +40,11 @@ export default function PlannerModal({ onClose, onCreated }: PlannerModalProps) 
       }
       
       await db.plannedSessions.add(planned)
+      setIsSubmitting(false)
       onCreated()
       onClose()
     } catch (error) {
       console.error('Failed to create planned session:', error)
-    } finally {
       setIsSubmitting(false)
     }
   }

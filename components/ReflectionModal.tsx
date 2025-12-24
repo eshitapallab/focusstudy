@@ -68,10 +68,11 @@ export default function ReflectionModal({
         await incrementSessionCount(true)
       }
       
+      // Call onComplete before finally block to ensure state updates
+      setIsSubmitting(false)
       onComplete()
     } catch (error) {
       console.error('Failed to save session metadata:', error)
-    } finally {
       setIsSubmitting(false)
     }
   }
