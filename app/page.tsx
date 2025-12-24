@@ -221,22 +221,33 @@ export default function Home() {
 
   // Today screen
   return (
-    <main className="min-h-screen bg-background dark:from-gray-900 dark:to-gray-800">
+    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-900 dark:to-indigo-950 relative overflow-hidden">
+      {/* Decorative background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-primary-200/40 to-accent-200/40 dark:from-primary-900/20 dark:to-accent-900/20 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-accent-200/40 to-primary-200/40 dark:from-accent-900/20 dark:to-primary-900/20 rounded-full blur-3xl" />
+      </div>
+
       {/* Initialize smart notifications */}
       <SmartNotificationsInit />
       
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
+      <div className="container mx-auto px-4 py-8 max-w-2xl relative">
         {/* Header */}
         <header className="mb-8">
           {/* Top row: Branding and Sign In */}
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              <FocusStudyLogo size={36} color="#4F7CAC" className="flex-shrink-0" />
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent rounded-full blur-lg opacity-40" />
+                <div className="relative bg-white dark:bg-gray-800 p-2 rounded-full shadow-lg">
+                  <FocusStudyLogo size={32} color="#6366F1" className="flex-shrink-0" />
+                </div>
+              </div>
               <div className="min-w-0">
-                <h1 className="text-2xl font-bold text-text-primary dark:text-white whitespace-nowrap">
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-primary via-purple-500 to-accent bg-clip-text text-transparent whitespace-nowrap">
                   FocusStudy
                 </h1>
-                <p className="text-xs text-text-secondary dark:text-gray-300 whitespace-nowrap">
+                <p className="text-xs text-text-secondary dark:text-gray-400 whitespace-nowrap">
                   {format(new Date(), 'EEEE, MMM d')}
                 </p>
               </div>
@@ -244,19 +255,19 @@ export default function Home() {
             {!user && (
               <Link
                 href="/auth"
-                className="px-3 py-2 bg-primary hover:bg-primary-600 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm flex-shrink-0"
+                className="px-4 py-2 bg-gradient-to-r from-primary to-accent hover:from-primary-600 hover:to-accent-600 text-white text-sm font-semibold rounded-xl transition-all shadow-lg shadow-primary/25 flex-shrink-0 transform hover:scale-105 active:scale-95"
               >
-                Sign In
+                Sign In ✨
               </Link>
             )}
           </div>
           
           {/* Bottom row: Navigation icons and User Menu */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl p-1 shadow-sm border border-white/50 dark:border-gray-700/50">
               <Link
                 href="/planner"
-                className="min-w-touch min-h-touch p-3 hover:bg-surface dark:hover:bg-gray-800 rounded-lg transition-colors"
+                className="min-w-touch min-h-touch p-3 hover:bg-white dark:hover:bg-gray-700 rounded-xl transition-all"
                 aria-label="View Calendar"
               >
                 <svg className="w-5 h-5 text-text-secondary dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -265,7 +276,7 @@ export default function Home() {
               </Link>
               <Link
                 href="/analytics"
-                className="min-w-touch min-h-touch p-3 hover:bg-surface dark:hover:bg-gray-800 rounded-lg transition-colors"
+                className="min-w-touch min-h-touch p-3 hover:bg-white dark:hover:bg-gray-700 rounded-xl transition-all"
                 aria-label="View Analytics"
               >
                 <svg className="w-5 h-5 text-text-secondary dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -274,7 +285,7 @@ export default function Home() {
               </Link>
               <Link
                 href="/settings"
-                className="min-w-touch min-h-touch p-3 hover:bg-surface dark:hover:bg-gray-800 rounded-lg transition-colors"
+                className="min-w-touch min-h-touch p-3 hover:bg-white dark:hover:bg-gray-700 rounded-xl transition-all"
                 aria-label="Settings"
               >
                 <svg className="w-5 h-5 text-text-secondary dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -289,41 +300,43 @@ export default function Home() {
 
         {/* Sync Status Banner */}
         {syncInProgress && (
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6 flex items-center gap-3">
-            <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
-            <p className="text-blue-700 dark:text-blue-300 text-sm font-medium">
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200/50 dark:border-blue-800/50 rounded-2xl p-4 mb-6 flex items-center gap-3 backdrop-blur-sm">
+            <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent"></div>
+            <p className="text-primary dark:text-primary-300 text-sm font-medium">
               Syncing your sessions...
             </p>
           </div>
         )}
         
         {syncError && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200/50 dark:border-red-800/50 rounded-2xl p-4 mb-6 backdrop-blur-sm">
             <p className="text-red-700 dark:text-red-300 text-sm font-medium">
-              Sync failed: {syncError}
+              ⚠️ Sync failed: {syncError}
             </p>
           </div>
         )}
 
         {/* Auth Success Banner */}
         {showAuthSuccess && user && (
-          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6 flex items-center justify-between">
+          <div className="bg-gradient-to-r from-success-50 to-emerald-50 dark:from-success-900/20 dark:to-emerald-900/20 border border-success-200/50 dark:border-success-800/50 rounded-2xl p-4 mb-6 flex items-center justify-between backdrop-blur-sm">
             <div className="flex items-center gap-3">
-              <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <div className="w-8 h-8 rounded-full bg-success flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
               <div>
-                <p className="text-green-800 dark:text-green-200 text-sm font-medium">
-                  You're signed in!
+                <p className="text-success-700 dark:text-success-200 text-sm font-semibold">
+                  You're signed in! 🎉
                 </p>
-                <p className="text-green-700 dark:text-green-300 text-xs">
-                  Your sessions are now synced across devices
+                <p className="text-success-600 dark:text-success-300 text-xs">
+                  Your sessions sync across all devices
                 </p>
               </div>
             </div>
             <button
               onClick={() => setShowAuthSuccess(false)}
-              className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200"
+              className="text-success-600 dark:text-success-400 hover:text-success-800 dark:hover:text-success-200 p-1"
             >
               ✕
             </button>
@@ -334,18 +347,21 @@ export default function Home() {
         <GoalProgress todayMinutes={todayMinutes} />
 
         {/* Today Stats */}
-        <div className="bg-surface dark:bg-gray-800 rounded-2xl p-6 shadow-sm mb-8">
+        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/50 dark:border-gray-700/50 mb-8">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-text-secondary dark:text-gray-400 uppercase tracking-wide mb-1 font-medium">
-                Today
+                📅 Today
               </p>
-              <p className="text-3xl font-bold text-text-primary dark:text-white">
-                {todayMinutes} <span className="text-lg text-text-secondary">min</span>
+              <p className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                {todayMinutes} <span className="text-lg text-text-secondary font-normal">min</span>
               </p>
             </div>
-            <div className="w-16 h-16 rounded-full bg-primary/10 dark:bg-primary-900 flex items-center justify-center">
-              <FocusStudyLogo size={32} color="#4F7CAC" />
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent rounded-full blur-lg opacity-30 animate-pulse-slow" />
+              <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-primary-100 to-accent-100 dark:from-primary-900/50 dark:to-accent-900/50 flex items-center justify-center">
+                <FocusStudyLogo size={32} color="#6366F1" />
+              </div>
             </div>
           </div>
         </div>
@@ -359,22 +375,28 @@ export default function Home() {
         />
 
         {/* Big Start Button */}
-        <div className="flex flex-col items-center justify-center py-16">
-          <button
-            onClick={handleStart}
-            className="w-56 h-56 rounded-full bg-primary hover:bg-primary-600 text-white shadow-lg transform transition-all hover:scale-[1.02] active:scale-95 flex flex-col items-center justify-center group motion-reduce:transform-none"
-          >
-            <FocusStudyLogo size={64} color="white" className="mb-3 opacity-90" />
-            <span className="text-lg font-semibold">Start Studying</span>
-          </button>
-          <p className="mt-6 text-text-secondary dark:text-gray-400 text-center text-base">
-            Begin a calm focus session
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="relative">
+            {/* Glow effect behind button */}
+            <div className="absolute inset-0 bg-gradient-to-r from-primary via-purple-500 to-accent rounded-full blur-2xl opacity-40 animate-pulse-slow scale-110" />
+            <button
+              onClick={handleStart}
+              className="relative w-56 h-56 rounded-full bg-gradient-to-br from-primary via-purple-500 to-accent hover:from-primary-600 hover:via-purple-600 hover:to-accent-600 text-white shadow-2xl transform transition-all hover:scale-[1.02] active:scale-95 flex flex-col items-center justify-center group motion-reduce:transform-none"
+            >
+              {/* Inner highlight */}
+              <div className="absolute inset-4 rounded-full bg-gradient-to-br from-white/20 to-transparent" />
+              <FocusStudyLogo size={64} color="white" className="mb-3 opacity-95 relative z-10" />
+              <span className="text-lg font-semibold relative z-10">Start Studying</span>
+            </button>
+          </div>
+          <p className="mt-8 text-text-secondary dark:text-gray-400 text-center text-base">
+            ✨ Begin a calm focus session
           </p>
           
           {/* Plan Session Button */}
           <button
             onClick={() => setShowPlannerModal(true)}
-            className="mt-6 min-h-touch px-6 py-3 text-primary dark:text-primary-400 hover:bg-surface dark:hover:bg-primary-900/20 rounded-xl transition-colors font-medium"
+            className="mt-6 min-h-touch px-6 py-3 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-primary/20 dark:border-primary/30 text-primary dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-2xl transition-all font-semibold shadow-sm hover:shadow-md"
           >
             + Plan a session
           </button>
@@ -382,25 +404,28 @@ export default function Home() {
 
         {/* Account Prompt (if applicable) */}
         {showAccountPrompt && !user && isSupabaseConfigured && (
-          <div className="bg-primary-50 dark:bg-primary-900/20 border-2 border-primary-200 dark:border-primary-800 rounded-xl p-6 shadow-lg">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
-              Protect your history & sync devices
-            </h3>
+          <div className="bg-gradient-to-br from-primary-50 to-accent-50 dark:from-primary-900/30 dark:to-accent-900/30 border-2 border-primary-200/50 dark:border-primary-700/50 rounded-3xl p-6 shadow-xl backdrop-blur-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-2xl">🔐</span>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                Protect your progress
+              </h3>
+            </div>
             <p className="text-gray-600 dark:text-gray-300 mb-4">
               You've completed several sessions! Create a free account to sync across devices and never lose your data.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={handleDismissAccountPrompt}
-                className="flex-1 min-h-touch py-2 px-4 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                className="flex-1 min-h-touch py-3 px-4 border-2 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-semibold rounded-xl hover:bg-white dark:hover:bg-gray-700 transition-all"
               >
                 Maybe later
               </button>
               <button
                 onClick={() => setShowAuthModal(true)}
-                className="flex-1 min-h-touch py-2 px-4 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-lg transition-colors"
+                className="flex-1 min-h-touch py-3 px-4 bg-gradient-to-r from-primary to-accent hover:from-primary-600 hover:to-accent-600 text-white font-semibold rounded-xl transition-all shadow-lg shadow-primary/25"
               >
-                Create account
+                Create account ✨
               </button>
             </div>
           </div>

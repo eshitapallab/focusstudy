@@ -79,22 +79,23 @@ export default function ReflectionModal({
   const minutes = Math.floor(durationMs / 1000 / 60)
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center p-0 md:p-4 z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-t-3xl md:rounded-2xl p-6 w-full md:max-w-lg md:w-full shadow-2xl animate-slide-up">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-t-3xl md:rounded-3xl p-6 w-full md:max-w-lg md:w-full shadow-2xl animate-slide-up border-t-4 border-gradient-start">
         {/* Header */}
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            Nice — what was that session for?
+        <div className="mb-6 text-center">
+          <div className="text-5xl mb-3">🎉</div>
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-primary via-purple-500 to-accent bg-clip-text text-transparent mb-2">
+            Nice session!
           </h2>
           <p className="text-gray-600 dark:text-gray-300">
-            You studied for {minutes} {minutes === 1 ? 'minute' : 'minutes'}
+            You studied for <span className="font-semibold text-primary">{minutes}</span> {minutes === 1 ? 'minute' : 'minutes'}
           </p>
         </div>
 
         {/* Subject Input */}
-        <div className="mb-4">
-          <label htmlFor="subject" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
-            What were you studying?
+        <div className="mb-5">
+          <label htmlFor="subject" className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
+            📚 What were you studying?
           </label>
           <input
             id="subject"
@@ -102,18 +103,18 @@ export default function ReflectionModal({
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
             placeholder="e.g., Math homework, Spanish vocab..."
-            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+            className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-primary/20 focus:border-primary dark:bg-gray-700 dark:text-white transition-all"
             autoFocus
           />
           
           {/* Recent subjects suggestions */}
           {recentSubjects.length > 0 && !subject && (
-            <div className="flex flex-wrap gap-2 mt-2">
+            <div className="flex flex-wrap gap-2 mt-3">
               {recentSubjects.map((s) => (
                 <button
                   key={s}
                   onClick={() => setSubject(s)}
-                  className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  className="px-3 py-1.5 text-sm bg-gradient-to-r from-primary-50 to-accent-50 dark:from-primary-900/30 dark:to-accent-900/30 text-primary dark:text-primary-300 rounded-full hover:from-primary-100 hover:to-accent-100 dark:hover:from-primary-900/50 dark:hover:to-accent-900/50 transition-all border border-primary/20"
                 >
                   {s}
                 </button>
@@ -123,18 +124,18 @@ export default function ReflectionModal({
         </div>
 
         {/* Focus Rating */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
-            How focused were you?
+        <div className="mb-5">
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">
+            🎯 How focused were you?
           </label>
           <div className="flex gap-2 justify-center">
             {[1, 2, 3, 4, 5].map((rating) => (
               <button
                 key={rating}
                 onClick={() => setFocusRating(rating)}
-                className={`min-w-touch min-h-touch w-12 h-12 rounded-full font-semibold transition-all transform hover:scale-110 ${
+                className={`min-w-touch min-h-touch w-12 h-12 rounded-xl font-bold text-lg transition-all transform hover:scale-110 ${
                   focusRating === rating
-                    ? 'bg-primary-500 text-white shadow-lg scale-110'
+                    ? 'bg-gradient-to-br from-primary to-accent text-white shadow-lg shadow-primary/30 scale-110'
                     : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
                 aria-label={`Focus rating ${rating} out of 5`}
@@ -143,24 +144,24 @@ export default function ReflectionModal({
               </button>
             ))}
           </div>
-          <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1 px-1">
-            <span>Distracted</span>
-            <span>Focused</span>
+          <div className="flex justify-between text-xs text-gray-400 mt-2 px-2">
+            <span>😵 Distracted</span>
+            <span>🎯 Focused</span>
           </div>
         </div>
 
         {/* Optional Note */}
         <div className="mb-6">
-          <label htmlFor="note" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
-            Note (optional)
+          <label htmlFor="note" className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
+            💭 Quick note (optional)
           </label>
           <input
             id="note"
             type="text"
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Quick thought about this session..."
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+            placeholder="Any thoughts about this session..."
+            className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-primary/20 focus:border-primary dark:bg-gray-700 dark:text-white transition-all"
           />
         </div>
 
@@ -169,16 +170,16 @@ export default function ReflectionModal({
           <button
             onClick={onSkip}
             disabled={isSubmitting}
-            className="flex-1 min-h-touch py-3 px-4 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+            className="flex-1 min-h-touch py-3 px-4 border-2 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all disabled:opacity-50"
           >
             Skip
           </button>
           <button
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="flex-1 min-h-touch py-3 px-4 bg-primary-500 hover:bg-primary-600 disabled:bg-primary-300 text-white font-semibold rounded-lg transition-colors"
+            className="flex-1 min-h-touch py-3 px-4 bg-gradient-to-r from-primary to-accent hover:from-primary-600 hover:to-accent-600 disabled:from-gray-300 disabled:to-gray-300 text-white font-semibold rounded-xl transition-all shadow-lg shadow-primary/25"
           >
-            {isSubmitting ? 'Saving...' : 'Save'}
+            {isSubmitting ? 'Saving...' : 'Save ✓'}
           </button>
         </div>
       </div>

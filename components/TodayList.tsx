@@ -25,14 +25,14 @@ export default function TodayList({ plannedSessions, onStartSession, onDelete, o
     <div className="mb-8">
       {pendingSessions.length > 0 && (
         <>
-          <h2 className="text-lg font-semibold text-text-primary dark:text-white mb-4">
-            Today's Plan
+          <h2 className="text-lg font-semibold text-text-primary dark:text-white mb-4 flex items-center gap-2">
+            📋 Today's Plan
           </h2>
           <div className="space-y-3">
             {pendingSessions.map((planned) => (
               <div
                 key={planned.id}
-                className="bg-surface dark:bg-gray-800 rounded-xl p-4 shadow-sm"
+                className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-4 shadow-lg border border-white/50 dark:border-gray-700/50 hover:shadow-xl transition-all"
               >
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div className="flex-1 min-w-0">
@@ -51,13 +51,13 @@ export default function TodayList({ plannedSessions, onStartSession, onDelete, o
                   
                   <button
                     onClick={() => onStartSession(planned.subject)}
-                    className="min-w-touch min-h-touch px-4 py-2 bg-primary hover:bg-primary-600 text-white font-semibold rounded-xl transition-colors"
+                    className="min-w-touch min-h-touch px-5 py-2 bg-gradient-to-r from-primary to-accent hover:from-primary-600 hover:to-accent-600 text-white font-semibold rounded-xl transition-all shadow-lg shadow-primary/20 transform hover:scale-105 active:scale-95"
                   >
-                    Start
+                    Start →
                   </button>
                 </div>
                 
-                <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700/50">
                   <SessionActions 
                     session={planned} 
                     onUpdate={() => onUpdate?.()} 
@@ -79,7 +79,7 @@ export default function TodayList({ plannedSessions, onStartSession, onDelete, o
             {otherSessions.map((planned) => (
               <div
                 key={planned.id}
-                className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 flex items-center justify-between gap-4"
+                className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-xl p-3 flex items-center justify-between gap-4 border border-gray-100 dark:border-gray-700/50"
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -98,10 +98,10 @@ export default function TodayList({ plannedSessions, onStartSession, onDelete, o
                   />
                   <button
                     onClick={() => onDelete(planned.id)}
-                    className="min-h-touch p-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                    className="min-h-touch p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
                     aria-label="Delete"
                   >
-                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-gray-400 hover:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                   </button>

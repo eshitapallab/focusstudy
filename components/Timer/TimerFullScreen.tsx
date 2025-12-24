@@ -77,13 +77,24 @@ export default function TimerFullScreen({
   const strokeDashoffset = circumference - (progress / 100) * circumference
 
   return (
-    <div className="fixed inset-0 bg-background dark:from-gray-900 dark:to-gray-800 z-50 flex flex-col items-center justify-center p-6">
+    <div className="fixed inset-0 bg-gradient-to-br from-slate-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-900 dark:to-indigo-950 z-50 flex flex-col items-center justify-center p-6">
+      {/* Decorative background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-primary-200/40 to-accent-200/40 dark:from-primary-900/20 dark:to-accent-900/20 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-accent-200/40 to-primary-200/40 dark:from-accent-900/20 dark:to-primary-900/20 rounded-full blur-3xl" />
+      </div>
+      
       {/* Header */}
-      <div className="w-full max-w-md mb-12">
-        <div className="flex items-center justify-center gap-2">
-          <FocusStudyLogo size={28} color="#4F7CAC" />
-          <span className="text-base text-text-secondary dark:text-gray-400 font-medium">
-            {running ? 'Focus session in progress' : 'Paused'}
+      <div className="relative w-full max-w-md mb-12">
+        <div className="flex items-center justify-center gap-3">
+          <div className="relative">
+            <FocusStudyLogo size={32} color="#6366F1" />
+            {running && (
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-success rounded-full animate-pulse" />
+            )}
+          </div>
+          <span className="text-lg text-text-secondary dark:text-gray-300 font-medium">
+            {running ? 'Focus session in progress' : 'Session paused'}
           </span>
         </div>
       </div>
@@ -102,24 +113,31 @@ export default function TimerFullScreen({
             cy="160"
             r="140"
             stroke="currentColor"
-            strokeWidth="8"
+            strokeWidth="12"
             fill="none"
-            className="text-surface dark:text-gray-700"
+            className="text-gray-100 dark:text-gray-800"
           />
-          {/* Progress circle - brand primary */}
+          {/* Progress circle - gradient effect */}
+          <defs>
+            <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#6366F1" />
+              <stop offset="50%" stopColor="#8B5CF6" />
+              <stop offset="100%" stopColor="#EC4899" />
+            </linearGradient>
+          </defs>
           <circle
             cx="160"
             cy="160"
             r="140"
-            stroke="#4F7CAC"
-            strokeWidth="8"
+            stroke="url(#progressGradient)"
+            strokeWidth="12"
             fill="none"
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
             strokeLinecap="round"
             className="transition-all duration-1000 motion-reduce:transition-none"
             style={{
-              filter: 'drop-shadow(0 0 8px rgba(79, 124, 172, 0.3))'
+              filter: 'drop-shadow(0 0 12px rgba(99, 102, 241, 0.4))'
             }}
           />
         </svg>
@@ -127,48 +145,48 @@ export default function TimerFullScreen({
         {/* Time text */}
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
-            <div className="text-6xl font-bold text-text-primary dark:text-white tabular-nums tracking-tight">
+            <div className="text-7xl font-bold bg-gradient-to-r from-primary via-purple-500 to-accent bg-clip-text text-transparent tabular-nums tracking-tight">
               {formatDuration(elapsedMs)}
             </div>
-            <div className="text-base text-text-secondary dark:text-gray-400 mt-3 font-medium">
-              {Math.floor(elapsedMs / 1000 / 60)} minutes
+            <div className="text-lg text-text-secondary dark:text-gray-400 mt-3 font-medium">
+              {Math.floor(elapsedMs / 1000 / 60)} minutes focused
             </div>
           </div>
         </div>
       </div>
 
       {/* Controls */}
-      <div className="flex flex-col items-center gap-4 mb-8">
+      <div className="relative flex flex-col items-center gap-4 mb-8">
         {/* Primary controls */}
         <div className="flex gap-4">
           {running ? (
             <button
               onClick={handlePause}
-              className="min-w-touch min-h-touch px-8 py-4 bg-warning hover:bg-yellow-500 text-gray-900 font-semibold rounded-2xl shadow-sm transition-all transform hover:scale-[1.02] active:scale-95 motion-reduce:transform-none"
+              className="min-w-touch min-h-touch px-8 py-4 bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-white font-semibold rounded-2xl shadow-lg shadow-amber-500/25 transition-all transform hover:scale-[1.02] active:scale-95 motion-reduce:transform-none"
             >
-              Pause
+              ⏸️ Pause
             </button>
           ) : (
             <button
               onClick={handleResume}
-              className="min-w-touch min-h-touch px-8 py-4 bg-primary-accent hover:bg-primary-accent-600 text-white font-semibold rounded-2xl shadow-sm transition-all transform hover:scale-[1.02] active:scale-95 motion-reduce:transform-none"
+              className="min-w-touch min-h-touch px-8 py-4 bg-gradient-to-r from-success to-emerald-400 hover:from-success-600 hover:to-emerald-500 text-white font-semibold rounded-2xl shadow-lg shadow-success/25 transition-all transform hover:scale-[1.02] active:scale-95 motion-reduce:transform-none"
             >
-              Resume
+              ▶️ Resume
             </button>
           )}
           
           <button
             onClick={handleStop}
-            className="min-w-touch min-h-touch px-8 py-4 bg-surface hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-text-primary dark:text-white font-semibold rounded-2xl shadow-sm transition-all transform hover:scale-[1.02] active:scale-95 motion-reduce:transform-none"
+            className="min-w-touch min-h-touch px-8 py-4 bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 text-text-primary dark:text-white font-semibold rounded-2xl shadow-lg transition-all transform hover:scale-[1.02] active:scale-95 motion-reduce:transform-none border border-gray-200 dark:border-gray-700"
           >
-            Stop
+            ⏹️ Stop
           </button>
         </div>
         
         {/* Distraction log button */}
         <button
           onClick={handleLogDistraction}
-          className="relative px-6 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-text-secondary dark:text-gray-400 text-sm font-medium rounded-xl transition-colors"
+          className="relative px-6 py-3 bg-white/80 hover:bg-white dark:bg-gray-800/80 dark:hover:bg-gray-800 backdrop-blur-sm text-text-secondary dark:text-gray-400 text-sm font-medium rounded-xl transition-all border border-gray-200/50 dark:border-gray-700/50 shadow-sm"
           title="Log a distraction"
         >
           <span className="flex items-center gap-2">
@@ -177,7 +195,7 @@ export default function TimerFullScreen({
             </svg>
             Got distracted
             {distractionCount > 0 && (
-              <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold bg-primary text-white rounded-full">
+              <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold bg-gradient-to-r from-primary to-accent text-white rounded-full">
                 {distractionCount}
               </span>
             )}
@@ -186,32 +204,37 @@ export default function TimerFullScreen({
         
         {/* Distraction feedback */}
         {showDistractionFeedback && (
-          <div className="absolute bottom-32 text-sm text-text-secondary dark:text-gray-400 animate-fade-in">
-            Logged — you're aware, that's the first step ✨
+          <div className="absolute -bottom-8 text-sm text-text-secondary dark:text-gray-400 animate-fade-in">
+            Logged — awareness is the first step ✨
           </div>
         )}
       </div>
 
       {/* Stop Confirmation Modal */}
       {showStopConfirm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-surface dark:bg-gray-800 rounded-2xl p-8 max-w-sm w-full shadow-xl">
-            <h3 className="text-xl font-bold mb-3 text-text-primary dark:text-white">
-              End session?
-            </h3>
-            <p className="text-text-secondary dark:text-gray-300 mb-8 text-base leading-relaxed">
-              You've been studying for {Math.floor(elapsedMs / 1000 / 60)} minutes. Great work! Ready to wrap up and reflect?
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-gray-100 dark:border-gray-700">
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-primary-100 to-accent-100 dark:from-primary-900/50 dark:to-accent-900/50 rounded-full mb-4">
+                <span className="text-3xl">🎉</span>
+              </div>
+              <h3 className="text-2xl font-bold text-text-primary dark:text-white">
+                End session?
+              </h3>
+            </div>
+            <p className="text-text-secondary dark:text-gray-300 mb-8 text-center text-base leading-relaxed">
+              You've been focused for <span className="font-semibold text-primary">{Math.floor(elapsedMs / 1000 / 60)} minutes</span>. Great work! Ready to wrap up?
             </p>
             <div className="flex gap-3">
               <button
                 onClick={cancelStop}
-                className="flex-1 min-h-touch py-3 px-4 border-2 border-gray-300 dark:border-gray-600 text-text-primary dark:text-gray-200 font-semibold rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="flex-1 min-h-touch py-3 px-4 bg-gray-100 dark:bg-gray-700 text-text-primary dark:text-gray-200 font-semibold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-all"
               >
                 Keep going
               </button>
               <button
                 onClick={confirmStop}
-                className="flex-1 min-h-touch py-3 px-4 bg-primary hover:bg-primary-600 text-white font-semibold rounded-xl transition-colors"
+                className="flex-1 min-h-touch py-3 px-4 bg-gradient-to-r from-primary to-accent hover:from-primary-600 hover:to-accent-600 text-white font-semibold rounded-xl transition-all shadow-lg shadow-primary/25"
               >
                 End session
               </button>

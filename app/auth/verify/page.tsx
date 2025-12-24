@@ -216,25 +216,36 @@ function VerifyContent() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-primary-50 to-white dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-900 dark:to-indigo-950 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Decorative background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-primary-200/50 to-accent-200/50 dark:from-primary-900/30 dark:to-accent-900/30 rounded-full blur-3xl animate-pulse-slow" />
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-accent-200/50 to-primary-200/50 dark:from-accent-900/30 dark:to-primary-900/30 rounded-full blur-3xl animate-pulse-slow" />
+      </div>
+
+      <div className="w-full max-w-md relative">
         {/* Logo & Header */}
         <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <FocusStudyLogo size={64} color="#4F7CAC" />
+          <div className="flex justify-center mb-6">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent rounded-full blur-xl opacity-50 animate-pulse-slow" />
+              <div className="relative bg-white dark:bg-gray-800 p-4 rounded-full shadow-xl">
+                <FocusStudyLogo size={56} color="#6366F1" />
+              </div>
+            </div>
           </div>
-          <h1 className="text-3xl font-bold text-text-primary dark:text-white mb-2">
-            Check your email
+          <h1 className="text-3xl font-bold text-text-primary dark:text-white mb-3">
+            📬 Check your email
           </h1>
-          <p className="text-text-secondary dark:text-gray-400">
+          <p className="text-text-secondary dark:text-gray-400 text-lg">
             We sent a 6-digit code to
             <br />
-            <strong className="text-text-primary dark:text-white">{email}</strong>
+            <span className="font-semibold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">{email}</span>
           </p>
         </div>
 
         {/* Verification Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8">
+        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/50 dark:border-gray-700/50">
           <div className="space-y-6">
             {/* OTP Input */}
             <div>
@@ -242,7 +253,7 @@ function VerifyContent() {
                 Enter verification code
               </label>
               <div 
-                className="flex gap-2 justify-center"
+                className="flex gap-3 justify-center"
                 onPaste={handlePaste}
               >
                 {otp.map((digit, index) => (
@@ -258,10 +269,11 @@ function VerifyContent() {
                     onKeyDown={(e) => handleKeyDown(index, e)}
                     disabled={isLoading}
                     className="w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl font-bold
-                             border-2 border-gray-200 dark:border-gray-700 rounded-lg
+                             border-2 border-gray-200 dark:border-gray-700 rounded-xl
                              bg-white dark:bg-gray-900 text-text-primary dark:text-white
-                             focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none
-                             transition-all disabled:opacity-50"
+                             focus:border-primary focus:ring-4 focus:ring-primary/20 outline-none
+                             transition-all disabled:opacity-50 shadow-sm
+                             hover:border-primary-300 dark:hover:border-primary-700"
                     autoFocus={index === 0}
                   />
                 ))}
@@ -270,7 +282,7 @@ function VerifyContent() {
 
             {/* Error Message */}
             {error && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
                 <p className="text-sm text-red-800 dark:text-red-200 text-center">
                   {error}
                 </p>
@@ -281,9 +293,10 @@ function VerifyContent() {
             <button
               onClick={() => handleVerify(otp.join(''))}
               disabled={isLoading || otp.some(d => !d)}
-              className="w-full min-h-touch py-4 bg-primary hover:bg-primary-600 
-                       disabled:bg-gray-300 disabled:cursor-not-allowed
-                       text-white font-semibold rounded-xl transition-colors shadow-sm"
+              className="w-full min-h-touch py-4 bg-gradient-to-r from-primary to-accent hover:from-primary-600 hover:to-accent-600 
+                       disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed
+                       text-white font-semibold rounded-xl transition-all shadow-lg shadow-primary/25
+                       transform hover:scale-[1.02] active:scale-[0.98]"
             >
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -291,7 +304,7 @@ function VerifyContent() {
                   Verifying...
                 </span>
               ) : (
-                'Verify Code'
+                'Verify Code ✓'
               )}
             </button>
 
@@ -303,10 +316,10 @@ function VerifyContent() {
                 className="text-sm text-text-secondary dark:text-gray-400 
                          hover:text-primary dark:hover:text-primary-400 
                          disabled:opacity-50 disabled:cursor-not-allowed
-                         transition-colors"
+                         transition-colors font-medium"
               >
                 {canResend ? (
-                  'Resend code'
+                  '🔄 Resend code'
                 ) : (
                   `Resend code in ${resendCountdown}s`
                 )}
@@ -314,11 +327,11 @@ function VerifyContent() {
             </div>
 
             {/* Back to Email */}
-            <div className="text-center pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="text-center pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
               <button
                 onClick={() => router.push('/auth')}
                 disabled={isLoading}
-                className="text-sm text-text-secondary dark:text-gray-400 hover:text-primary dark:hover:text-primary-400 transition-colors"
+                className="text-sm text-text-secondary dark:text-gray-400 hover:text-primary dark:hover:text-primary-400 transition-colors font-medium"
               >
                 ← Use different email
               </button>
@@ -327,9 +340,9 @@ function VerifyContent() {
         </div>
 
         {/* Helper Note */}
-        <div className="mt-6 text-center">
+        <div className="mt-8 text-center">
           <p className="text-sm text-text-secondary dark:text-gray-400">
-            Code expires in 10 minutes
+            ⏰ Code expires in 10 minutes
           </p>
         </div>
       </div>
@@ -340,7 +353,7 @@ function VerifyContent() {
 export default function VerifyPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-b from-primary-50 to-white dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-900 dark:to-indigo-950 flex items-center justify-center">
         <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
       </div>
     }>
