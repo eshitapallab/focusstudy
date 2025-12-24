@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient'
 import { fullSync } from '@/lib/sync'
@@ -30,6 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [syncInProgress, setSyncInProgress] = useState(false)
   const [syncError, setSyncError] = useState<string | null>(null)
   const supabaseConfigured = isSupabaseConfigured()
+  const syncInProgressRef = useRef(false)
 
   useEffect(() => {
     // Skip auth setup if Supabase is not configured
@@ -66,12 +67,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabaseConfigured])
 
   const triggerSync = async (userId: string) => {
+    // Prevent multiple syncs from running simultaneously
+    if (syncInProgressRef.current) {
+      console.log('Sync already in progress, skipping')
+      return
+    }
+
+    syncInProgressRef.current = true
     setSyncInProgress(true)
     setSyncError(null)
 
     try {
       const deviceId = await getOrCreateDeviceId()
-      const result = await fullSync(userId, deviceId)
+      
+      // Add timeout to prevent sync from hanging indefinitely
+      const syncPromise = fullSync(userId, deviceId)
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Sync timeout')), 30000)
+      )
+      
+      const result = await Promise.race([syncPromise, timeoutPromise])
 
       if (!result.upload.success || !result.download.success) {
         const errors = [
@@ -82,8 +97,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error('Sync failed:', error)
-      setSyncError('Failed to sync data. Please try again.')
+      setSyncError(error instanceof Error ? error.message : 'Failed to sync data. Please try again.')
     } finally {
+      // Always clear sync progress, even on error
+      syncInProgressRef.current = false
       setSyncInProgress(false)
     }
   }
