@@ -14,6 +14,7 @@ export default function PlannerModal({ onClose, onCreated }: PlannerModalProps) 
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [goal, setGoal] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -21,6 +22,7 @@ export default function PlannerModal({ onClose, onCreated }: PlannerModalProps) 
     if (!subject.trim()) return
     
     setIsSubmitting(true)
+    setError(null)
     
     try {
       const deviceId = await getOrCreateDeviceId()
@@ -40,11 +42,15 @@ export default function PlannerModal({ onClose, onCreated }: PlannerModalProps) 
       }
       
       await db.plannedSessions.add(planned)
-      setIsSubmitting(false)
-      onCreated()
-      onClose()
+      
+      // Use setTimeout to ensure state updates before callbacks
+      setTimeout(() => {
+        onCreated()
+        onClose()
+      }, 0)
     } catch (error) {
       console.error('Failed to create planned session:', error)
+      setError('Failed to create session. Please try again.')
       setIsSubmitting(false)
     }
   }
@@ -117,6 +123,13 @@ export default function PlannerModal({ onClose, onCreated }: PlannerModalProps) 
               className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-primary/20 focus:border-primary dark:bg-gray-700 dark:text-white transition-all"
             />
           </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+              <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex gap-3 pt-4">

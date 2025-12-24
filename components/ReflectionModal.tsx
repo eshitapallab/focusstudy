@@ -23,6 +23,7 @@ export default function ReflectionModal({
   const [note, setNote] = useState('')
   const [recentSubjects, setRecentSubjects] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     // Load recent subjects for suggestions
@@ -48,6 +49,7 @@ export default function ReflectionModal({
 
   const handleSubmit = async () => {
     setIsSubmitting(true)
+    setError(null)
     
     try {
       const metadata: SessionMetadata = {
@@ -68,11 +70,13 @@ export default function ReflectionModal({
         await incrementSessionCount(true)
       }
       
-      // Call onComplete before finally block to ensure state updates
-      setIsSubmitting(false)
-      onComplete()
+      // Use setTimeout to ensure state updates before callback
+      setTimeout(() => {
+        onComplete()
+      }, 0)
     } catch (error) {
       console.error('Failed to save session metadata:', error)
+      setError('Failed to save. Please try again.')
       setIsSubmitting(false)
     }
   }
@@ -165,6 +169,13 @@ export default function ReflectionModal({
             className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-primary/20 focus:border-primary dark:bg-gray-700 dark:text-white transition-all"
           />
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+            <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex gap-3">
