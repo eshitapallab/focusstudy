@@ -27,83 +27,81 @@ export async function syncLocalToSupabase(userId: string, deviceId: string): Pro
   }
 
   try {
-    // Get all pending sessions
+    // Get all pending sessions (limit to recent 100 for performance)
     const pendingSessions = await db.sessions
       .where('syncStatus')
       .equals('pending')
+      .reverse()
+      .limit(100)
       .toArray()
 
-    for (const session of pendingSessions) {
+    // Batch upload sessions for better performance
+    const sessionsToUpload = pendingSessions.map(session => ({
+      id: session.id,
+      user_id: userId,
+      device_id: deviceId,
+      start_ts: new Date(session.startTs).toISOString(),
+      end_ts: session.endTs ? new Date(session.endTs).toISOString() : null,
+      paused_ms: session.pausedMs,
+      mode: session.mode,
+      created_at: new Date(session.createdAt).toISOString()
+    }))
+
+    // Bulk insert sessions
+    if (sessionsToUpload.length > 0) {
+      const { error: bulkError } = await supabase
+        .from('sessions')
+        .upsert(sessionsToUpload, { onConflict: 'id', ignoreDuplicates: true })
+
+      if (bulkError) {
+        console.error('Bulk session upload error:', bulkError)
+        result.errors.push(`Bulk upload failed: ${bulkError.message}`)
+      } else {
+        result.uploaded = sessionsToUpload.length
+      }
+    }
+
+    // Update sync status for all sessions in parallel
+    await Promise.all(
+      pendingSessions.map(session =>
+        db.sessions.update(session.id, { syncStatus: 'synced', userId })
+      )
+    )
+
+    // Handle metadata separately with batching
+    for (const session of pendingSessions.slice(0, 20)) {
       try {
-        // Upload session
-        const { data: sessionData, error: sessionError } = await supabase
-          .from('sessions')
-          .insert({
-            id: session.id,
-            user_id: userId,
-            device_id: deviceId,
-            start_ts: new Date(session.startTs).toISOString(),
-            end_ts: session.endTs ? new Date(session.endTs).toISOString() : null,
-            paused_ms: session.pausedMs,
-            mode: session.mode,
-            created_at: new Date(session.createdAt).toISOString()
-          })
-          .select()
-          .single()
-
-        if (sessionError) {
-          // Check if session already exists
-          if (sessionError.code === '23505') {
-            // Duplicate - mark as synced
-            await db.sessions.update(session.id, { 
-              syncStatus: 'synced',
-              userId 
-            })
-            result.uploaded++
-            continue
-          }
-          
-          throw sessionError
-        }
-
-        // Get metadata for this session
         const metadata = await db.sessionMetadata
           .where('sessionId')
           .equals(session.id)
           .toArray()
 
-        // Upload metadata if exists
-        for (const meta of metadata) {
-          const { error: metaError } = await supabase
-            .from('session_metadata')
-            .insert({
-              id: meta.id,
-              session_id: session.id,
-              subject: meta.subject,
-              planned: meta.planned,
-              focus_rating: meta.focusRating,
-              note: meta.note,
-              labeled_at: meta.labeledAt ? new Date(meta.labeledAt).toISOString() : null
-            })
+        if (metadata.length === 0) continue
 
-          if (metaError && metaError.code !== '23505') {
-            console.error('Failed to upload metadata:', metaError)
-          } else {
-            await db.sessionMetadata.update(meta.id, { syncStatus: 'synced' })
-          }
+        const metadataToUpload = metadata.map(meta => ({
+          id: meta.id,
+          session_id: session.id,
+          subject: meta.subject,
+          planned: meta.planned,
+          focus_rating: meta.focusRating,
+          note: meta.note,
+          labeled_at: meta.labeledAt ? new Date(meta.labeledAt).toISOString() : null
+        }))
+
+        const { error: metaError } = await supabase
+          .from('session_metadata')
+          .upsert(metadataToUpload, { onConflict: 'id', ignoreDuplicates: true })
+
+        if (!metaError) {
+          await Promise.all(
+            metadata.map(meta =>
+              db.sessionMetadata.update(meta.id, { syncStatus: 'synced' })
+            )
+          )
         }
-
-        // Mark session as synced
-        await db.sessions.update(session.id, { 
-          syncStatus: 'synced',
-          userId 
-        })
-        
-        result.uploaded++
-      } catch (error) {
-        result.failed++
-        result.errors.push(`Session ${session.id}: ${error}`)
-        console.error('Failed to sync session:', error)
+      } catch (metaError) {
+        console.error('Metadata sync error:', metaError)
+        // Continue with other sessions
       }
     }
 

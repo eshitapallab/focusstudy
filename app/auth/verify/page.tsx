@@ -128,14 +128,8 @@ function VerifyContent() {
         const targetUrl = `${redirectTo}?auth=success`
         console.log('Auth successful, redirecting to:', targetUrl)
         
-        // Keep loading state on to prevent UI flicker during redirect
-        // Don't call setIsLoading(false) here
-        
-        // Small delay to ensure session is saved
-        setTimeout(() => {
-          console.log('Executing redirect now...')
-          window.location.replace(targetUrl)
-        }, 500)
+        // Redirect immediately for faster UX (session is already set)
+        window.location.replace(targetUrl)
         return
       }
 

@@ -44,9 +44,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null)
       setLoading(false)
 
-      // Trigger sync if user is signed in
+      // Trigger sync in background if user is signed in
       if (session?.user) {
-        triggerSync(session.user.id)
+        // Non-blocking background sync
+        triggerSync(session.user.id).catch(err => 
+          console.error('Background sync failed:', err)
+        )
       }
     })
 
@@ -58,8 +61,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false)
 
       if (event === 'SIGNED_IN' && session?.user) {
-        // Trigger sync on sign in
-        await triggerSync(session.user.id)
+        // Trigger sync in background on sign in (non-blocking)
+        triggerSync(session.user.id).catch(err => 
+          console.error('Background sync failed:', err)
+        )
       }
     })
 
@@ -83,7 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Add timeout to prevent sync from hanging indefinitely
       const syncPromise = fullSync(userId, deviceId)
       const timeoutPromise = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Sync timeout')), 30000)
+        setTimeout(() => reject(new Error('Sync timeout')), 10000)
       )
       
       const result = await Promise.race([syncPromise, timeoutPromise])

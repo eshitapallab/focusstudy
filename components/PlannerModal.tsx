@@ -43,11 +43,9 @@ export default function PlannerModal({ onClose, onCreated }: PlannerModalProps) 
       
       await db.plannedSessions.add(planned)
       
-      // Use setTimeout to ensure state updates before callbacks
-      setTimeout(() => {
-        onCreated()
-        onClose()
-      }, 0)
+      // Call callbacks immediately for faster UX
+      onCreated()
+      onClose()
     } catch (error) {
       console.error('Failed to create planned session:', error)
       setError('Failed to create session. Please try again.')

@@ -70,10 +70,8 @@ export default function ReflectionModal({
         await incrementSessionCount(true)
       }
       
-      // Use setTimeout to ensure state updates before callback
-      setTimeout(() => {
-        onComplete()
-      }, 0)
+      // Call onComplete immediately for faster UX
+      onComplete()
     } catch (error) {
       console.error('Failed to save session metadata:', error)
       setError('Failed to save. Please try again.')
