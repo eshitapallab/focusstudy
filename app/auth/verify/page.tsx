@@ -116,9 +116,9 @@ function VerifyContent() {
         console.log('Session data:', data.session)
         console.log('User data:', data.user)
         
-        // Best-effort: ensure session is set in the client (don't block redirect)
+        // Ensure session is properly set before redirect
         if (data.session) {
-          supabase.auth.setSession({
+          await supabase.auth.setSession({
             access_token: data.session.access_token,
             refresh_token: data.session.refresh_token,
           })
@@ -128,7 +128,7 @@ function VerifyContent() {
         const targetUrl = `${redirectTo}?auth=success`
         console.log('Auth successful, redirecting to:', targetUrl)
         
-        // Redirect immediately for faster UX (session is already set)
+        // Redirect after session is saved
         window.location.replace(targetUrl)
         return
       }
