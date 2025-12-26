@@ -502,6 +502,24 @@ export async function completeMicroAction(actionId: string): Promise<void> {
     .eq('id', actionId)
 }
 
+export async function updateMicroActionDate(actionId: string, date: string): Promise<void> {
+  if (!supabase) return
+
+  await supabase
+    .from('micro_actions')
+    .update({ date })
+    .eq('id', actionId)
+}
+
+export async function deleteMicroAction(actionId: string): Promise<void> {
+  if (!supabase) return
+
+  await supabase
+    .from('micro_actions')
+    .delete()
+    .eq('id', actionId)
+}
+
 export async function lockMicroAction(actionId: string): Promise<void> {
   if (!supabase) return
 

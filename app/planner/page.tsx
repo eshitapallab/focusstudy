@@ -9,6 +9,7 @@ import { getMicroActionsForDateRange } from '@/lib/supabaseStudyTrack'
 import AppNav from '@/components/Navigation/AppNav'
 import StatusBadge from '@/components/StatusBadge'
 import SessionActions from '@/components/SessionActions'
+import MicroActionActions from '@/components/MicroActionActions'
 
 export default function PlannerCalendarPage() {
   const { user } = useAuth()
@@ -286,6 +287,15 @@ export default function PlannerCalendarPage() {
                         </div>
                       </div>
                     </div>
+
+                    {!action.completed && (
+                      <div className="pt-3 border-t border-gray-200 dark:border-gray-700 mt-3">
+                        <MicroActionActions
+                          action={action}
+                          onUpdate={loadFocusActionsForMonth}
+                        />
+                      </div>
+                    )}
                   </div>
                 ))}
                 {selectedDateSessions.map(session => (
