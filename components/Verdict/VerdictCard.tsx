@@ -76,7 +76,7 @@ export default function VerdictCard({ verdict, tone = 'neutral' }: VerdictCardPr
           <div className="flex items-center gap-2 text-sm">
             <span className="text-blue-500">📅</span>
             <span className="text-gray-700">
-              {verdict.daysToExam} days to exam
+              {verdict.daysToExam} days = ~{verdict.daysToExam} honest study session{verdict.daysToExam === 1 ? '' : 's'}
             </span>
           </div>
         )}

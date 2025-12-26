@@ -11,6 +11,8 @@ export interface User {
   peerComparisonEnabled: boolean
   notificationsEnabled: boolean
   lastWeeklyRealityCheck?: Date
+  lastWeakSubjectNudgeAt?: Date
+  resetAt?: Date
 }
 
 // Daily check-in entry
@@ -29,6 +31,7 @@ export interface WeeklyReality {
   id: string
   userId: string
   weekStartDate: string // YYYY-MM-DD
+  confidenceScore?: number // 0-100
   answers: {
     avoidedWeakSubjects: boolean
     revisedContent: boolean
@@ -70,6 +73,54 @@ export interface MicroAction {
   relatedSubjects: string[]
   createdAt: Date
   completed: boolean
+  locked?: boolean
+  lockedAt?: Date
+  lockCheckedAt?: Date
+  lockedDone?: boolean
+}
+
+export type EmotionalFeeling = 'calm' | 'neutral' | 'draining'
+
+export interface EmotionalCheckIn {
+  id: string
+  userId: string
+  date: string // YYYY-MM-DD
+  feeling: EmotionalFeeling
+  createdAt: Date
+}
+
+export type ExamTomorrowResponse = 'yes' | 'maybe' | 'no'
+
+export interface ExamTomorrowCheck {
+  id: string
+  userId: string
+  date: string // YYYY-MM-DD
+  response: ExamTomorrowResponse
+  createdAt: Date
+}
+
+export interface MonthlySnapshot {
+  id: string
+  userId: string
+  monthStartDate: string // YYYY-MM-DD
+  avgDailyMinutes: number
+  consistencyDays: number
+  biggestImprovement: string
+  reflection: string
+  createdAt: Date
+}
+
+export interface Pod {
+  id: string
+  ownerId: string
+  inviteCode: string
+  createdAt: Date
+}
+
+export interface PodStatusRow {
+  userId: string
+  checkedIn: boolean
+  verdictStatus: VerdictStatus | null
 }
 
 // Anonymous cohort statistics

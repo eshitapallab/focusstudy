@@ -7,7 +7,14 @@ import type {
   Verdict,
   MicroAction,
   CohortStats,
-  GamingDetection
+  GamingDetection,
+  EmotionalCheckIn,
+  EmotionalFeeling,
+  ExamTomorrowCheck,
+  ExamTomorrowResponse,
+  MonthlySnapshot,
+  Pod,
+  PodStatusRow
 } from './types'
 
 // User operations
@@ -47,6 +54,8 @@ export async function createStudyUser(userId: string, userData: Omit<User, 'id' 
     peerComparisonEnabled: data.peer_comparison_enabled,
     notificationsEnabled: data.notifications_enabled,
     lastWeeklyRealityCheck: data.last_weekly_reality_check ? new Date(data.last_weekly_reality_check) : undefined,
+    lastWeakSubjectNudgeAt: data.last_weak_subject_nudge_at ? new Date(data.last_weak_subject_nudge_at) : undefined,
+    resetAt: data.reset_at ? new Date(data.reset_at) : undefined,
     createdAt: new Date(data.created_at)
   }
 }
@@ -85,6 +94,8 @@ export async function getStudyUser(userId: string): Promise<User | null> {
     peerComparisonEnabled: data.peer_comparison_enabled,
     notificationsEnabled: data.notifications_enabled,
     lastWeeklyRealityCheck: data.last_weekly_reality_check ? new Date(data.last_weekly_reality_check) : undefined,
+    lastWeakSubjectNudgeAt: data.last_weak_subject_nudge_at ? new Date(data.last_weak_subject_nudge_at) : undefined,
+    resetAt: data.reset_at ? new Date(data.reset_at) : undefined,
     createdAt: new Date(data.created_at)
   }
 }
@@ -98,6 +109,8 @@ export async function updateStudyUser(userId: string, updates: Partial<User>): P
   if (updates.peerComparisonEnabled !== undefined) updateData.peer_comparison_enabled = updates.peerComparisonEnabled
   if (updates.notificationsEnabled !== undefined) updateData.notifications_enabled = updates.notificationsEnabled
   if (updates.lastWeeklyRealityCheck !== undefined) updateData.last_weekly_reality_check = updates.lastWeeklyRealityCheck?.toISOString()
+  if (updates.lastWeakSubjectNudgeAt !== undefined) updateData.last_weak_subject_nudge_at = updates.lastWeakSubjectNudgeAt?.toISOString()
+  if (updates.resetAt !== undefined) updateData.reset_at = updates.resetAt?.toISOString()
 
   await supabase
     .from('study_users')
@@ -299,7 +312,11 @@ export async function createMicroAction(
       task: actionData.task,
       duration_minutes: actionData.durationMinutes,
       related_subjects: actionData.relatedSubjects,
-      completed: actionData.completed
+      completed: actionData.completed,
+      locked: actionData.locked ?? false,
+      locked_at: actionData.lockedAt ? actionData.lockedAt.toISOString() : null,
+      lock_checked_at: actionData.lockCheckedAt ? actionData.lockCheckedAt.toISOString() : null,
+      locked_done: actionData.lockedDone ?? null
     })
     .select()
     .single()
@@ -318,6 +335,10 @@ export async function createMicroAction(
     durationMinutes: data.duration_minutes,
     relatedSubjects: data.related_subjects,
     completed: data.completed,
+    locked: data.locked,
+    lockedAt: data.locked_at ? new Date(data.locked_at) : undefined,
+    lockCheckedAt: data.lock_checked_at ? new Date(data.lock_checked_at) : undefined,
+    lockedDone: data.locked_done ?? undefined,
     createdAt: new Date(data.created_at)
   }
 }
@@ -343,6 +364,39 @@ export async function getTodayMicroAction(userId: string, date: string): Promise
     durationMinutes: data.duration_minutes,
     relatedSubjects: data.related_subjects,
     completed: data.completed,
+    locked: data.locked,
+    lockedAt: data.locked_at ? new Date(data.locked_at) : undefined,
+    lockCheckedAt: data.lock_checked_at ? new Date(data.lock_checked_at) : undefined,
+    lockedDone: data.locked_done ?? undefined,
+    createdAt: new Date(data.created_at)
+  }
+}
+
+export async function getMicroActionForDate(userId: string, date: string): Promise<MicroAction | null> {
+  if (!supabase) return null
+
+  const { data, error } = await supabase
+    .from('micro_actions')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('date', date)
+    .single()
+
+  if (error || !data) return null
+
+  return {
+    id: data.id,
+    userId: data.user_id,
+    verdictId: data.verdict_id,
+    date: data.date,
+    task: data.task,
+    durationMinutes: data.duration_minutes,
+    relatedSubjects: data.related_subjects,
+    completed: data.completed,
+    locked: data.locked,
+    lockedAt: data.locked_at ? new Date(data.locked_at) : undefined,
+    lockCheckedAt: data.lock_checked_at ? new Date(data.lock_checked_at) : undefined,
+    lockedDone: data.locked_done ?? undefined,
     createdAt: new Date(data.created_at)
   }
 }
@@ -353,6 +407,28 @@ export async function completeMicroAction(actionId: string): Promise<void> {
   await supabase
     .from('micro_actions')
     .update({ completed: true })
+    .eq('id', actionId)
+}
+
+export async function lockMicroAction(actionId: string): Promise<void> {
+  if (!supabase) return
+
+  await supabase
+    .from('micro_actions')
+    .update({ locked: true, locked_at: new Date().toISOString() })
+    .eq('id', actionId)
+}
+
+export async function recordLockedMicroActionOutcome(actionId: string, done: boolean): Promise<void> {
+  if (!supabase) return
+
+  await supabase
+    .from('micro_actions')
+    .update({
+      lock_checked_at: new Date().toISOString(),
+      locked_done: done,
+      completed: done
+    })
     .eq('id', actionId)
 }
 
@@ -368,6 +444,7 @@ export async function createWeeklyReality(
     .insert({
       user_id: userId,
       week_start_date: realityData.weekStartDate,
+      confidence_score: realityData.confidenceScore ?? null,
       avoided_weak_subjects: realityData.answers.avoidedWeakSubjects,
       revised_content: realityData.answers.revisedContent,
       ready_for_basics: realityData.answers.readyForBasics,
@@ -388,6 +465,7 @@ export async function createWeeklyReality(
     id: data.id,
     userId: data.user_id,
     weekStartDate: data.week_start_date,
+    confidenceScore: data.confidence_score ?? undefined,
     answers: {
       avoidedWeakSubjects: data.avoided_weak_subjects,
       revisedContent: data.revised_content,
@@ -417,6 +495,7 @@ export async function getWeeklyReality(userId: string, weekStartDate: string): P
     id: data.id,
     userId: data.user_id,
     weekStartDate: data.week_start_date,
+    confidenceScore: data.confidence_score ?? undefined,
     answers: {
       avoidedWeakSubjects: data.avoided_weak_subjects,
       revisedContent: data.revised_content,
@@ -428,6 +507,211 @@ export async function getWeeklyReality(userId: string, weekStartDate: string): P
     trajectoryMessage: data.trajectory_message,
     createdAt: new Date(data.created_at)
   }
+}
+
+// Emotional check-in operations
+export async function getLatestEmotionalCheckIn(userId: string): Promise<EmotionalCheckIn | null> {
+  if (!supabase) return null
+
+  const { data, error } = await supabase
+    .from('emotional_check_ins')
+    .select('*')
+    .eq('user_id', userId)
+    .order('date', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (error || !data) return null
+
+  return {
+    id: data.id,
+    userId: data.user_id,
+    date: data.date,
+    feeling: data.feeling as EmotionalFeeling,
+    createdAt: new Date(data.created_at)
+  }
+}
+
+export async function createEmotionalCheckIn(userId: string, date: string, feeling: EmotionalFeeling): Promise<EmotionalCheckIn | null> {
+  if (!supabase) return null
+
+  const { data, error } = await supabase
+    .from('emotional_check_ins')
+    .insert({ user_id: userId, date, feeling })
+    .select('*')
+    .single()
+
+  if (error || !data) {
+    logError('createEmotionalCheckIn', error || 'No data')
+    return null
+  }
+
+  return {
+    id: data.id,
+    userId: data.user_id,
+    date: data.date,
+    feeling: data.feeling as EmotionalFeeling,
+    createdAt: new Date(data.created_at)
+  }
+}
+
+// Exam tomorrow operations
+export async function getLatestExamTomorrowCheck(userId: string): Promise<ExamTomorrowCheck | null> {
+  if (!supabase) return null
+
+  const { data, error } = await supabase
+    .from('exam_tomorrow_checks')
+    .select('*')
+    .eq('user_id', userId)
+    .order('date', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (error || !data) return null
+
+  return {
+    id: data.id,
+    userId: data.user_id,
+    date: data.date,
+    response: data.response as ExamTomorrowResponse,
+    createdAt: new Date(data.created_at)
+  }
+}
+
+export async function createExamTomorrowCheck(userId: string, date: string, response: ExamTomorrowResponse): Promise<ExamTomorrowCheck | null> {
+  if (!supabase) return null
+
+  const { data, error } = await supabase
+    .from('exam_tomorrow_checks')
+    .insert({ user_id: userId, date, response })
+    .select('*')
+    .single()
+
+  if (error || !data) {
+    logError('createExamTomorrowCheck', error || 'No data')
+    return null
+  }
+
+  return {
+    id: data.id,
+    userId: data.user_id,
+    date: data.date,
+    response: data.response as ExamTomorrowResponse,
+    createdAt: new Date(data.created_at)
+  }
+}
+
+// Monthly snapshot operations
+export async function getMonthlySnapshot(userId: string, monthStartDate: string): Promise<MonthlySnapshot | null> {
+  if (!supabase) return null
+
+  const { data, error } = await supabase
+    .from('monthly_snapshots')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('month_start_date', monthStartDate)
+    .single()
+
+  if (error || !data) return null
+
+  return {
+    id: data.id,
+    userId: data.user_id,
+    monthStartDate: data.month_start_date,
+    avgDailyMinutes: data.avg_daily_minutes,
+    consistencyDays: data.consistency_days,
+    biggestImprovement: data.biggest_improvement,
+    reflection: data.reflection,
+    createdAt: new Date(data.created_at)
+  }
+}
+
+export async function createMonthlySnapshot(userId: string, snapshot: Omit<MonthlySnapshot, 'id' | 'userId' | 'createdAt'>): Promise<MonthlySnapshot | null> {
+  if (!supabase) return null
+
+  const { data, error } = await supabase
+    .from('monthly_snapshots')
+    .insert({
+      user_id: userId,
+      month_start_date: snapshot.monthStartDate,
+      avg_daily_minutes: snapshot.avgDailyMinutes,
+      consistency_days: snapshot.consistencyDays,
+      biggest_improvement: snapshot.biggestImprovement,
+      reflection: snapshot.reflection
+    })
+    .select('*')
+    .single()
+
+  if (error || !data) {
+    logError('createMonthlySnapshot', error || 'No data')
+    return null
+  }
+
+  return {
+    id: data.id,
+    userId: data.user_id,
+    monthStartDate: data.month_start_date,
+    avgDailyMinutes: data.avg_daily_minutes,
+    consistencyDays: data.consistency_days,
+    biggestImprovement: data.biggest_improvement,
+    reflection: data.reflection,
+    createdAt: new Date(data.created_at)
+  }
+}
+
+// Pods operations (RPC)
+export async function createPod(): Promise<{ pod: Pod; joined: boolean } | null> {
+  if (!supabase) return null
+
+  const { data: authData } = await supabase.auth.getUser()
+  const ownerId = authData?.user?.id
+  if (!ownerId) {
+    logError('createPod', 'No authenticated user')
+    return null
+  }
+
+  const { data, error } = await supabase.rpc('create_pod')
+  if (error || !data || (Array.isArray(data) && data.length === 0)) {
+    logError('createPod', error || 'No data')
+    return null
+  }
+
+  const row = Array.isArray(data) ? data[0] : data
+  const pod: Pod = {
+    id: row.pod_id,
+    ownerId,
+    inviteCode: row.invite_code,
+    createdAt: new Date()
+  }
+
+  return { pod, joined: true }
+}
+
+export async function joinPod(inviteCode: string): Promise<string | null> {
+  if (!supabase) return null
+
+  const { data, error } = await supabase.rpc('join_pod', { p_invite_code: inviteCode })
+  if (error || !data) {
+    logError('joinPod', error || 'No data')
+    return null
+  }
+  return String(data)
+}
+
+export async function getPodStatus(podId: string, date: string): Promise<PodStatusRow[]> {
+  if (!supabase) return []
+
+  const { data, error } = await supabase.rpc('get_pod_status', { p_pod_id: podId, p_date: date })
+  if (error || !data) {
+    logError('getPodStatus', error || 'No data')
+    return []
+  }
+
+  return (data as any[]).map((row) => ({
+    userId: row.user_id,
+    checkedIn: Boolean(row.checked_in),
+    verdictStatus: (row.verdict_status as any) ?? null
+  }))
 }
 
 // Cohort stats operations

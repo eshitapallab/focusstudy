@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { db, getOrCreateDeviceId } from '@/lib/dexieClient'
+import { supabase } from '@/lib/supabaseClient'
+import { createPod, joinPod, getPodStatus } from '@/lib/supabaseStudyTrack'
 import { getHapticsEnabled, setHapticsEnabled, isHapticsSupported, triggerHaptic } from '@/lib/haptics'
 import { 
   getSmartNotificationsEnabled, 
@@ -22,13 +24,82 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [hapticsSupported, setHapticsSupported] = useState(false)
 
+  const [podLoading, setPodLoading] = useState(false)
+  const [podError, setPodError] = useState<string | null>(null)
+  const [podId, setPodId] = useState<string | null>(null)
+  const [podInviteCode, setPodInviteCode] = useState<string | null>(null)
+  const [podJoinCode, setPodJoinCode] = useState('')
+  const [podStatus, setPodStatus] = useState<{ userId: string; checkedIn: boolean; verdictStatus: string | null }[]>([])
+  const [podUserId, setPodUserId] = useState<string | null>(null)
+
   useEffect(() => {
     loadSettings()
+    loadPod()
     if ('Notification' in window) {
       setNotificationPermission(Notification.permission)
     }
     setHapticsSupported(isHapticsSupported())
   }, [])
+
+  const loadPod = async () => {
+    if (!supabase) return
+
+    try {
+      setPodLoading(true)
+      setPodError(null)
+
+      const { data: sessionData } = await supabase.auth.getSession()
+      let userId = sessionData?.session?.user?.id
+      if (!userId) {
+        const { error } = await supabase.auth.signInAnonymously()
+        if (error) throw error
+        const { data: sessionData2 } = await supabase.auth.getSession()
+        userId = sessionData2?.session?.user?.id
+      }
+      if (!userId) return
+      setPodUserId(userId)
+
+      // Use last selected pod if available
+      const stored = typeof window !== 'undefined' ? localStorage.getItem('ff_active_pod_id') : null
+      if (stored) {
+        setPodId(stored)
+        const today = new Date().toISOString().split('T')[0]
+        const status = await getPodStatus(stored, today)
+        setPodStatus(status)
+        setPodLoading(false)
+        return
+      }
+
+      // Otherwise find any pod membership
+      const { data: memberships, error: memErr } = await supabase
+        .from('pod_members')
+        .select('pod_id')
+        .eq('user_id', userId)
+        .limit(1)
+
+      if (memErr) throw memErr
+      const firstPod = memberships && memberships.length > 0 ? memberships[0].pod_id : null
+      if (firstPod) {
+        setPodId(firstPod)
+        localStorage.setItem('ff_active_pod_id', firstPod)
+        const today = new Date().toISOString().split('T')[0]
+        const status = await getPodStatus(firstPod, today)
+        setPodStatus(status)
+      }
+    } catch (e: any) {
+      setPodError(typeof e?.message === 'string' ? e.message : 'Failed to load pod')
+    } finally {
+      setPodLoading(false)
+    }
+  }
+
+  const refreshPodStatus = async (explicitPodId?: string) => {
+    const id = explicitPodId || podId
+    if (!id) return
+    const today = new Date().toISOString().split('T')[0]
+    const status = await getPodStatus(id, today)
+    setPodStatus(status)
+  }
 
   const loadSettings = async () => {
     const devId = await getOrCreateDeviceId()
@@ -257,6 +328,153 @@ export default function SettingsPage() {
               </div>
             )}
           </div>
+        </section>
+
+        {/* Micro Accountability Pod */}
+        <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg mb-6">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Micro Accountability Pod</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            Invite-only pod (3–5). See only: checked in today + verdict color.
+          </p>
+
+          {!supabase && (
+            <div className="text-sm text-gray-700 dark:text-gray-300 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+              Supabase is not configured, so pods are unavailable.
+            </div>
+          )}
+
+          {podError && (
+            <div className="text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mb-3">
+              {podError}
+            </div>
+          )}
+
+          {podLoading ? (
+            <div className="text-sm text-gray-700 dark:text-gray-300">Loading pod…</div>
+          ) : podId ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm text-gray-700 dark:text-gray-300 break-all">
+                  <span className="font-semibold">Pod ID:</span> {podId}
+                </div>
+                <button
+                  onClick={() => refreshPodStatus()}
+                  className="px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold hover:bg-gray-200 dark:hover:bg-gray-600"
+                >
+                  Refresh
+                </button>
+              </div>
+
+              {podInviteCode && (
+                <div className="text-sm text-gray-700 dark:text-gray-300 break-all">
+                  <span className="font-semibold">Invite code:</span> {podInviteCode}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                {podStatus.length === 0 ? (
+                  <div className="text-sm text-gray-600 dark:text-gray-400">No status yet.</div>
+                ) : (
+                  podStatus.map((row, idx) => {
+                    const status = row.verdictStatus
+                    const color =
+                      status === 'on-track'
+                        ? 'bg-green-500'
+                        : status === 'at-risk'
+                          ? 'bg-yellow-500'
+                          : status === 'falling-behind'
+                            ? 'bg-red-500'
+                            : 'bg-gray-300'
+
+                    return (
+                      <div
+                        key={row.userId}
+                        className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/40 rounded-lg p-3"
+                      >
+                        <div className="text-sm text-gray-800 dark:text-gray-200">
+                          {row.userId === podUserId ? 'You' : `Member ${idx + 1}`}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-xs text-gray-600 dark:text-gray-300">
+                            {row.checkedIn ? 'Checked in' : 'Not yet'}
+                          </div>
+                          <div className={`w-3 h-3 rounded-full ${color}`} aria-label="Verdict color" />
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+
+              <button
+                onClick={() => {
+                  setPodId(null)
+                  setPodInviteCode(null)
+                  setPodStatus([])
+                  localStorage.removeItem('ff_active_pod_id')
+                }}
+                className="w-full py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200 font-semibold hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Leave pod view
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <button
+                onClick={async () => {
+                  try {
+                    setPodLoading(true)
+                    setPodError(null)
+                    const result = await createPod()
+                    if (!result) throw new Error('Could not create pod')
+                    setPodId(result.pod.id)
+                    setPodInviteCode(result.pod.inviteCode)
+                    localStorage.setItem('ff_active_pod_id', result.pod.id)
+                    await refreshPodStatus(result.pod.id)
+                  } catch (e: any) {
+                    setPodError(typeof e?.message === 'string' ? e.message : 'Failed to create pod')
+                  } finally {
+                    setPodLoading(false)
+                  }
+                }}
+                className="w-full py-3 rounded-xl bg-primary hover:bg-primary-600 text-white font-semibold"
+              >
+                Create a pod
+              </button>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">Join with invite code</label>
+                <div className="flex gap-2">
+                  <input
+                    value={podJoinCode}
+                    onChange={(e) => setPodJoinCode(e.target.value)}
+                    placeholder="e.g. A1B2C3D4"
+                    className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                  />
+                  <button
+                    onClick={async () => {
+                      try {
+                        setPodLoading(true)
+                        setPodError(null)
+                        const id = await joinPod(podJoinCode)
+                        if (!id) throw new Error('Could not join pod')
+                        setPodId(id)
+                        localStorage.setItem('ff_active_pod_id', id)
+                        await refreshPodStatus(id)
+                      } catch (e: any) {
+                        setPodError(typeof e?.message === 'string' ? e.message : 'Failed to join pod')
+                      } finally {
+                        setPodLoading(false)
+                      }
+                    }}
+                    className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold hover:bg-gray-200 dark:hover:bg-gray-600"
+                  >
+                    Join
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </section>
         
         {/* Haptic Feedback Section */}

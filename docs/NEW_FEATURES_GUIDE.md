@@ -153,6 +153,52 @@ setInterval(async () => {
 
 ---
 
+## 5. 🧠 StudyTrack Enhancements (Supabase-backed)
+
+These features live in the StudyTrack flow (`/track`) and persist to Supabase.
+
+### Confidence vs Reality (Weekly)
+- Prompts: “How prepared do you feel right now?” (0–100)
+- Stores `weekly_reality.confidence_score`
+- Displays a gap label: Overconfidence / Underconfidence / Aligned
+
+### Tomorrow Lock
+- Micro-action card includes “Lock this”
+- Next day: asks “Did you do what you locked yesterday?” (Yes/No)
+- Stores lock fields on `micro_actions`: `locked`, `locked_at`, `lock_checked_at`, `locked_done`
+
+### Weak-Subject Detection (Silent)
+- Once a week, shows a quiet nudge based on check-in history
+- Tracks `study_users.last_weak_subject_nudge_at` to avoid spam
+
+### Revision Debt Meter
+- Lightweight Low/Medium/High meter computed from recent recall signals
+
+### Emotional Check-In (1 tap)
+- Every 3–4 days: Calm / Neutral / Draining
+- Stores `emotional_check_ins`
+
+### “If Exam Were Tomorrow” Mode
+- About every 2 weeks: Yes / Maybe / No
+- Stores `exam_tomorrow_checks`
+
+### Memory Snapshots (Monthly)
+- Auto-generated summary persisted in `monthly_snapshots`
+
+### Reset Without Guilt
+- After inactivity: “Reset today? Past days won’t count against you.”
+- Stores `study_users.reset_at` and streak logic ignores older check-ins
+
+### Micro Accountability Pods (3–5 people)
+- Invite-only via code (no chat, no ranking)
+- UI lives in `/settings`
+- Uses Supabase RPC helpers created by the migration:
+  - `create_pod()`
+  - `join_pod(invite_code)`
+  - `get_pod_status(pod_id, date)` (returns only check-in + verdict color)
+
+---
+
 ## Settings Configuration
 
 ### Location

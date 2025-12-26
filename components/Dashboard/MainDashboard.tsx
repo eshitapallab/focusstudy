@@ -13,11 +13,19 @@ import {
   createVerdict,
   getTodayMicroAction,
   createMicroAction,
+  getMicroActionForDate,
+  recordLockedMicroActionOutcome,
   getRecentCheckIns,
   getRecentVerdicts,
   updateStudyUser,
   getWeeklyReality,
   createWeeklyReality,
+  getLatestEmotionalCheckIn,
+  createEmotionalCheckIn,
+  getLatestExamTomorrowCheck,
+  createExamTomorrowCheck,
+  getMonthlySnapshot,
+  createMonthlySnapshot,
   createGamingDetection,
   hasRecentGamingDetection
 } from '@/lib/supabaseStudyTrack'
@@ -25,7 +33,7 @@ import { calculateVerdict } from '@/lib/verdictEngine'
 import { generateMicroAction } from '@/lib/microActionGenerator'
 import { calculateRealityScore, generateTrajectoryMessage } from '@/lib/realityCheck'
 import { detectGamingPatterns, getHonestyPrompt, shouldPromptHonesty } from '@/lib/gamingDetection'
-import { User, DailyCheckIn, Verdict, MicroAction, WeeklyReality } from '@/lib/types'
+import { User, DailyCheckIn, Verdict, MicroAction, WeeklyReality, EmotionalFeeling, ExamTomorrowResponse, MonthlySnapshot } from '@/lib/types'
 import OnboardingFlow from '@/components/Onboarding/OnboardingFlow'
 import DailyCheckInCard from '@/components/CheckIn/DailyCheckInCard'
 import VerdictCard from '@/components/Verdict/VerdictCard'
@@ -48,6 +56,16 @@ export default function Dashboard() {
   const [recentVerdicts, setRecentVerdicts] = useState<Verdict[]>([])
   const [honestyPrompt, setHonestyPrompt] = useState<string | null>(null)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [lockedFollowUpAction, setLockedFollowUpAction] = useState<MicroAction | null>(null)
+  const [weakSubjectNudge, setWeakSubjectNudge] = useState<string | null>(null)
+  const [revisionDebtLevel, setRevisionDebtLevel] = useState<'low' | 'medium' | 'high' | null>(null)
+  const [fakeBusyMessage, setFakeBusyMessage] = useState<string | null>(null)
+  const [showEmotionalCheckIn, setShowEmotionalCheckIn] = useState(false)
+  const [showExamTomorrow, setShowExamTomorrow] = useState(false)
+  const [recentExamTomorrowResponse, setRecentExamTomorrowResponse] = useState<ExamTomorrowResponse | null>(null)
+  const [showResetPrompt, setShowResetPrompt] = useState(false)
+  const [monthlySnapshot, setMonthlySnapshot] = useState<MonthlySnapshot | null>(null)
+  const [peopleLikeYouInsight, setPeopleLikeYouInsight] = useState<string | null>(null)
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -124,6 +142,86 @@ export default function Dashboard() {
         const checkIn = await getDailyCheckIn(supabaseUser.id, today)
         if (mounted) setTodayCheckIn(checkIn)
 
+        // Load broader check-in history for lightweight insights
+        const recentCheckInsForInsights = await getRecentCheckIns(supabaseUser.id, 30)
+
+        // Reset without guilt: prompt after inactivity
+        const mostRecentDate = recentCheckInsForInsights[0]?.date
+        if (mostRecentDate) {
+          const mostRecent = new Date(mostRecentDate)
+          const diffDays = Math.floor((Date.now() - mostRecent.getTime()) / (1000 * 60 * 60 * 24))
+          if (diffDays >= 7) {
+            if (mounted) setShowResetPrompt(true)
+          }
+        }
+
+        // Weak-subject detection (silent, once a week)
+        try {
+          const lastNudgeDays = userData.lastWeakSubjectNudgeAt
+            ? Math.floor((Date.now() - userData.lastWeakSubjectNudgeAt.getTime()) / (1000 * 60 * 60 * 24))
+            : 999
+
+          if (lastNudgeDays >= 7 && recentCheckInsForInsights.length >= 6) {
+            const lastSeenBySubject = new Map<string, string>()
+            const noCounts = new Map<string, number>()
+            const totalCounts = new Map<string, number>()
+
+            for (const c of recentCheckInsForInsights) {
+              totalCounts.set(c.subject, (totalCounts.get(c.subject) || 0) + 1)
+              if (!c.couldRevise) noCounts.set(c.subject, (noCounts.get(c.subject) || 0) + 1)
+              if (!lastSeenBySubject.has(c.subject)) lastSeenBySubject.set(c.subject, c.date)
+            }
+
+            // Longest time since last studied
+            let bestSubject: string | null = null
+            let bestDays = 0
+            for (const [subject, lastDate] of lastSeenBySubject.entries()) {
+              const dt = new Date(lastDate)
+              const days = Math.floor((Date.now() - dt.getTime()) / (1000 * 60 * 60 * 24))
+              if (days > bestDays) {
+                bestDays = days
+                bestSubject = subject
+              }
+            }
+
+            // Highest "No" frequency (if enough samples)
+            let worstRecallSubject: string | null = null
+            let worstRecallRate = 0
+            for (const [subject, total] of totalCounts.entries()) {
+              if (total < 3) continue
+              const no = noCounts.get(subject) || 0
+              const rate = no / total
+              if (rate > worstRecallRate) {
+                worstRecallRate = rate
+                worstRecallSubject = subject
+              }
+            }
+
+            if (bestSubject && bestDays >= 7) {
+              if (mounted) setWeakSubjectNudge(`You haven't touched ${bestSubject} in ${bestDays} days.`)
+              await updateStudyUser(supabaseUser.id, { lastWeakSubjectNudgeAt: new Date() })
+            } else if (worstRecallSubject && worstRecallRate >= 0.6) {
+              if (mounted) setWeakSubjectNudge(`Recall is often "No" for ${worstRecallSubject}. Consider a quick revision.`)
+              await updateStudyUser(supabaseUser.id, { lastWeakSubjectNudgeAt: new Date() })
+            }
+          }
+        } catch (e) {
+          console.warn('Weak-subject detection skipped:', e)
+        }
+
+        // Revision debt meter (simple, no schedules)
+        try {
+          const last14 = recentCheckInsForInsights.slice(0, 14)
+          const debt = Math.max(
+            0,
+            last14.filter((c) => !c.couldRevise).length - last14.filter((c) => c.couldRevise).length
+          )
+          const level = debt >= 6 ? 'high' : debt >= 3 ? 'medium' : 'low'
+          if (mounted) setRevisionDebtLevel(level)
+        } catch (e) {
+          console.warn('Revision debt skipped:', e)
+        }
+
         if (checkIn) {
           // Load verdict
           const todayVerdict = await getTodayVerdict(supabaseUser.id, today)
@@ -132,6 +230,101 @@ export default function Dashboard() {
           // Load micro action
           const action = await getTodayMicroAction(supabaseUser.id, today)
           if (mounted) setMicroAction(action)
+
+          // Tomorrow Lock follow-up: ask about yesterday's locked action
+          const yesterdayDate = (() => {
+            const d = new Date()
+            d.setDate(d.getDate() - 1)
+            return d.toISOString().split('T')[0]
+          })()
+          const yAction = await getMicroActionForDate(supabaseUser.id, yesterdayDate)
+          if (yAction?.locked && !yAction.lockCheckedAt) {
+            if (mounted) setLockedFollowUpAction(yAction)
+          }
+
+          // Fake busy detector (lightweight heuristic)
+          try {
+            const last3 = recentCheckInsForInsights.slice(0, 3)
+            const avgMinutes = last3.length > 0 ? last3.reduce((s, c) => s + c.minutesStudied, 0) / last3.length : 0
+            const yesRate = last3.length > 0 ? last3.filter((c) => c.couldRevise).length / last3.length : 1
+            if (todayVerdict && avgMinutes >= userData.dailyTargetMinutes * 1.1 && yesRate < 0.35) {
+              if (mounted) setFakeBusyMessage("You're spending time, but retention is low. Reduce hours tomorrow.")
+            }
+          } catch (e) {
+            console.warn('Fake busy detector skipped:', e)
+          }
+
+          // Emotional check-in (every 3–4 days)
+          try {
+            const lastEmotion = await getLatestEmotionalCheckIn(supabaseUser.id)
+            if (!lastEmotion) {
+              if (mounted) setShowEmotionalCheckIn(true)
+            } else {
+              const lastDt = new Date(lastEmotion.date)
+              const diffDays = Math.floor((Date.now() - lastDt.getTime()) / (1000 * 60 * 60 * 24))
+              if (diffDays >= 3) {
+                if (mounted) setShowEmotionalCheckIn(true)
+              }
+            }
+          } catch (e) {
+            console.warn('Emotional check-in skipped:', e)
+          }
+
+          // If exam were tomorrow (every ~2 weeks)
+          try {
+            const lastExamTomorrow = await getLatestExamTomorrowCheck(supabaseUser.id)
+            if (!lastExamTomorrow) {
+              if (mounted) setShowExamTomorrow(true)
+            } else {
+              if (mounted) setRecentExamTomorrowResponse(lastExamTomorrow.response)
+              const lastDt = new Date(lastExamTomorrow.date)
+              const diffDays = Math.floor((Date.now() - lastDt.getTime()) / (1000 * 60 * 60 * 24))
+              if (diffDays >= 14) {
+                if (mounted) setShowExamTomorrow(true)
+              }
+            }
+          } catch (e) {
+            console.warn('Exam tomorrow skipped:', e)
+          }
+
+          // Monthly snapshot (generate once per month on first visit)
+          try {
+            const now = new Date()
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+            const monthStartStr = monthStart.toISOString().split('T')[0]
+            const existing = await getMonthlySnapshot(supabaseUser.id, monthStartStr)
+            if (existing) {
+              if (mounted) setMonthlySnapshot(existing)
+            } else {
+              // Generate a simple snapshot from the recent data we already have.
+              const monthCheckIns = recentCheckInsForInsights.filter((c) => new Date(c.date) >= monthStart)
+              const total = monthCheckIns.reduce((s, c) => s + c.minutesStudied, 0)
+              const uniqueDays = new Set(monthCheckIns.map((c) => c.date)).size
+              const daysElapsed = Math.max(1, Math.floor((Date.now() - monthStart.getTime()) / (1000 * 60 * 60 * 24)) + 1)
+              const avgDaily = Math.round(total / daysElapsed)
+
+              const biggestImprovement = monthCheckIns.length === 0
+                ? 'Showing up'
+                : monthCheckIns.filter((c) => c.couldRevise).length >= monthCheckIns.filter((c) => !c.couldRevise).length
+                  ? 'Recall'
+                  : 'Consistency'
+
+              const reflection = uniqueDays >= 10
+                ? 'You are building a real habit. Keep it honest.'
+                : 'Small wins count. One honest check-in at a time.'
+
+              const created = await createMonthlySnapshot(supabaseUser.id, {
+                monthStartDate: monthStartStr,
+                avgDailyMinutes: avgDaily,
+                consistencyDays: uniqueDays,
+                biggestImprovement,
+                reflection
+              })
+              if (created && mounted) setMonthlySnapshot(created)
+            }
+          } catch (e) {
+            console.warn('Monthly snapshot skipped:', e)
+          }
         } else {
           // Show check-in modal
           if (mounted) setShowCheckIn(true)
@@ -211,6 +404,36 @@ export default function Dashboard() {
       subscription.unsubscribe()
     }
   }, [today])
+
+  // People-like-you insight (occasional, non-competitive)
+  useEffect(() => {
+    if (!verdict) return
+
+    try {
+      const key = 'ff_studytrack_people_like_you_last_shown'
+      const last = localStorage.getItem(key)
+      const lastTs = last ? Number(last) : 0
+      const daysSince = lastTs ? Math.floor((Date.now() - lastTs) / (1000 * 60 * 60 * 24)) : 999
+
+      if (daysSince < 7) return
+
+      let message: string | null = null
+      if (verdict.streak >= 7) {
+        message = 'People with a solid streak often improve fastest by keeping revision short and frequent.'
+      } else if (verdict.recallRatio < 0.5) {
+        message = 'People with similar recall signals often benefit from reducing volume and increasing revision.'
+      } else if (verdict.studyMinutes < verdict.targetMinutes * 0.7) {
+        message = 'People who are slightly under target usually stabilize by protecting one small daily session.'
+      }
+
+      if (!message) return
+
+      setPeopleLikeYouInsight(message)
+      localStorage.setItem(key, String(Date.now()))
+    } catch {
+      // ignore localStorage failures
+    }
+  }, [verdict])
 
   const handleOnboardingComplete = async (data: Omit<User, 'id' | 'createdAt'>) => {
     if (!supabase) return
@@ -312,29 +535,33 @@ export default function Dashboard() {
     }
   }
 
-  const handleRealityCheckComplete = async (answers: WeeklyReality['answers']) => {
-    if (!user) return
-
-    try {
-      const score = calculateRealityScore(answers)
-      const message = generateTrajectoryMessage(score)
-      const weekStart = getWeekStartDate(new Date())
-
-      await createWeeklyReality(user.id, {
-        weekStartDate: weekStart,
-        answers,
-        realityScore: score,
-        trajectoryMessage: message
-      })
-
-      await updateStudyUser(user.id, {
-        lastWeeklyRealityCheck: new Date()
-      })
-
-      setShowRealityCheck(false)
-    } catch (error) {
-      console.error('Error completing reality check:', error)
+  const handleRealityCheckSubmit = async (payload: { answers: WeeklyReality['answers']; confidenceScore: number }) => {
+    if (!user) {
+      throw new Error('User not loaded')
     }
+
+    const { answers, confidenceScore } = payload
+
+    const score = calculateRealityScore(answers)
+    const message = generateTrajectoryMessage(score)
+    const weekStart = getWeekStartDate(new Date())
+
+    await createWeeklyReality(user.id, {
+      weekStartDate: weekStart,
+      confidenceScore,
+      answers,
+      realityScore: score,
+      trajectoryMessage: message
+    })
+
+    await updateStudyUser(user.id, {
+      lastWeeklyRealityCheck: new Date()
+    })
+
+    const diff = confidenceScore - score
+    const gap: 'aligned' | 'overconfidence' | 'underconfidence' =
+      Math.abs(diff) < 15 ? 'aligned' : diff > 0 ? 'overconfidence' : 'underconfidence'
+    return { realityScore: score, confidenceScore, gap }
   }
 
   const handleCompleteMicroAction = async () => {
@@ -458,9 +685,168 @@ export default function Dashboard() {
         {/* Weekly Reality Check Modal */}
         {showRealityCheck && (
           <WeeklyRealityCheck 
-            onSubmit={handleRealityCheckComplete}
+            onSubmit={handleRealityCheckSubmit}
             onSkip={() => setShowRealityCheck(false)}
           />
+        )}
+
+        {/* Reset without guilt */}
+        {showResetPrompt && (
+          <div className="bg-white border rounded-xl p-4">
+            <div className="font-semibold text-gray-900">Reset without guilt</div>
+            <div className="text-sm text-gray-700 mt-1">Want to reset today? Past days won't count against you.</div>
+            <button
+              onClick={async () => {
+                if (!user) return
+                await updateStudyUser(user.id, { resetAt: new Date() })
+                setUser({ ...user, resetAt: new Date() })
+                setShowResetPrompt(false)
+              }}
+              className="mt-3 w-full py-2 px-3 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700"
+            >
+              Reset today
+            </button>
+          </div>
+        )}
+
+        {/* Tomorrow Lock follow-up */}
+        {lockedFollowUpAction && (
+          <div className="bg-white border rounded-xl p-4">
+            <div className="font-semibold text-gray-900">Tomorrow Lock</div>
+            <div className="text-sm text-gray-700 mt-1">Did you do what you locked yesterday?</div>
+            <div className="mt-2 text-sm text-gray-600">{lockedFollowUpAction.task}</div>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <button
+                onClick={async () => {
+                  await recordLockedMicroActionOutcome(lockedFollowUpAction.id, true)
+                  setLockedFollowUpAction(null)
+                }}
+                className="py-2 px-3 rounded-lg bg-green-600 text-white font-medium hover:bg-green-700"
+              >
+                Yes
+              </button>
+              <button
+                onClick={async () => {
+                  await recordLockedMicroActionOutcome(lockedFollowUpAction.id, false)
+                  setLockedFollowUpAction(null)
+                }}
+                className="py-2 px-3 rounded-lg bg-gray-100 text-gray-900 font-medium hover:bg-gray-200"
+              >
+                No
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Weak-subject detection */}
+        {weakSubjectNudge && (
+          <div className="bg-white border rounded-xl p-4">
+            <div className="font-semibold text-gray-900">Quiet nudge</div>
+            <div className="text-sm text-gray-700 mt-1">{weakSubjectNudge}</div>
+          </div>
+        )}
+
+        {/* Revision debt meter */}
+        {revisionDebtLevel && (
+          <div className="bg-white border rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <div className="font-semibold text-gray-900">Revision debt</div>
+              <div className="text-sm font-medium text-gray-700">
+                {revisionDebtLevel === 'low' ? 'Low' : revisionDebtLevel === 'medium' ? 'Medium' : 'High'}
+              </div>
+            </div>
+            <div className="text-sm text-gray-600 mt-1">No schedules — just a simple signal.</div>
+          </div>
+        )}
+
+        {/* Fake busy detector */}
+        {fakeBusyMessage && (
+          <div className="bg-white border rounded-xl p-4">
+            <div className="font-semibold text-gray-900">Reality check</div>
+            <div className="text-sm text-gray-700 mt-1">{fakeBusyMessage}</div>
+          </div>
+        )}
+
+        {/* People like you */}
+        {peopleLikeYouInsight && (
+          <div className="bg-white border rounded-xl p-4">
+            <div className="font-semibold text-gray-900">People like you</div>
+            <div className="text-sm text-gray-700 mt-1">{peopleLikeYouInsight}</div>
+          </div>
+        )}
+
+        {/* Emotional check-in */}
+        {showEmotionalCheckIn && (
+          <div className="bg-white border rounded-xl p-4">
+            <div className="font-semibold text-gray-900">How did studying feel today?</div>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {([
+                { key: 'calm', label: 'Calm' },
+                { key: 'neutral', label: 'Neutral' },
+                { key: 'draining', label: 'Draining' }
+              ] as { key: EmotionalFeeling; label: string }[]).map((opt) => (
+                <button
+                  key={opt.key}
+                  onClick={async () => {
+                    if (!user) return
+                    await createEmotionalCheckIn(user.id, today, opt.key)
+                    setShowEmotionalCheckIn(false)
+                  }}
+                  className="py-2 px-3 rounded-lg bg-gray-100 text-gray-900 font-medium hover:bg-gray-200"
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* If exam were tomorrow */}
+        {showExamTomorrow && (
+          <div className="bg-white border rounded-xl p-4">
+            <div className="font-semibold text-gray-900">If exam were tomorrow…</div>
+            <div className="text-sm text-gray-700 mt-1">Could you clear the basics?</div>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {([
+                { key: 'yes', label: 'Yes' },
+                { key: 'maybe', label: 'Maybe' },
+                { key: 'no', label: 'No' }
+              ] as { key: ExamTomorrowResponse; label: string }[]).map((opt) => (
+                <button
+                  key={opt.key}
+                  onClick={async () => {
+                    if (!user) return
+                    await createExamTomorrowCheck(user.id, today, opt.key)
+                    setRecentExamTomorrowResponse(opt.key)
+                    setShowExamTomorrow(false)
+                  }}
+                  className="py-2 px-3 rounded-lg bg-gray-100 text-gray-900 font-medium hover:bg-gray-200"
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {recentExamTomorrowResponse && !showExamTomorrow && (
+          <div className="bg-white border rounded-xl p-4">
+            <div className="font-semibold text-gray-900">Exam tomorrow (last answer)</div>
+            <div className="text-sm text-gray-700 mt-1">
+              {recentExamTomorrowResponse === 'yes' ? 'Yes' : recentExamTomorrowResponse === 'maybe' ? 'Maybe' : 'No'}
+            </div>
+          </div>
+        )}
+
+        {/* Monthly snapshot */}
+        {monthlySnapshot && (
+          <div className="bg-white border rounded-xl p-4">
+            <div className="font-semibold text-gray-900">Memory snapshot</div>
+            <div className="text-sm text-gray-700 mt-2">Average daily minutes: {monthlySnapshot.avgDailyMinutes}</div>
+            <div className="text-sm text-gray-700">Consistency: {monthlySnapshot.consistencyDays} day(s) this month</div>
+            <div className="text-sm text-gray-700">Biggest improvement: {monthlySnapshot.biggestImprovement}</div>
+            <div className="text-sm text-gray-600 mt-2">{monthlySnapshot.reflection}</div>
+          </div>
         )}
 
         {/* Honesty Prompt */}

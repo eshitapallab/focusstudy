@@ -22,11 +22,19 @@ interface VerdictResult {
 /**
  * Calculate the current study streak
  */
-function calculateStreak(checkIns: DailyCheckIn[]): number {
+function calculateStreak(checkIns: DailyCheckIn[], resetAt?: Date): number {
   if (checkIns.length === 0) return 0
+
+  const filtered = resetAt
+    ? checkIns.filter((c) => {
+        const d = new Date(c.date)
+        return d.getTime() >= resetAt.getTime()
+      })
+    : checkIns
+  if (filtered.length === 0) return 0
   
   // Sort by date descending
-  const sorted = [...checkIns].sort((a, b) => b.date.localeCompare(a.date))
+  const sorted = [...filtered].sort((a, b) => b.date.localeCompare(a.date))
   
   let streak = 0
   const today = new Date().toISOString().split('T')[0]
@@ -77,11 +85,20 @@ function calculateDaysToExam(examDate?: Date): number | undefined {
 /**
  * Detect consistency issues (gaps in recent days)
  */
-function hasConsistencyIssues(checkIns: DailyCheckIn[]): boolean {
+function hasConsistencyIssues(checkIns: DailyCheckIn[], resetAt?: Date): boolean {
   if (checkIns.length < 3) return false
+
+  const filtered = resetAt
+    ? checkIns.filter((c) => {
+        const d = new Date(c.date)
+        return d.getTime() >= resetAt.getTime()
+      })
+    : checkIns
+
+  if (filtered.length < 3) return false
   
   // Check if there are gaps in the last 7 days
-  const dates = checkIns.map(c => c.date).sort()
+  const dates = filtered.map(c => c.date).sort()
   let gaps = 0
   
   for (let i = 1; i < dates.length; i++) {
@@ -133,8 +150,8 @@ export async function calculateVerdict(input: VerdictInput): Promise<VerdictResu
   }
   
   // Factor 3: Consistency (streak and gaps)
-  const streak = calculateStreak(recentCheckIns)
-  const hasGaps = hasConsistencyIssues(recentCheckIns)
+  const streak = calculateStreak(recentCheckIns, user.resetAt)
+  const hasGaps = hasConsistencyIssues(recentCheckIns, user.resetAt)
   
   if (streak >= 7) {
     points += 2
