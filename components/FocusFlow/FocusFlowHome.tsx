@@ -266,6 +266,25 @@ export default function FocusFlowHome() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl p-1 shadow-sm border border-white/50 dark:border-gray-700/50">
               <Link
+                href="/"
+                className="min-w-touch min-h-touch p-3 hover:bg-white dark:hover:bg-gray-700 rounded-xl transition-all"
+                aria-label="Home"
+              >
+                <svg className="w-5 h-5 text-text-secondary dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10.5L12 3l9 7.5V21a1 1 0 01-1 1h-5v-7H9v7H4a1 1 0 01-1-1v-10.5z" />
+                </svg>
+              </Link>
+              <Link
+                href="/track"
+                className="min-w-touch min-h-touch p-3 hover:bg-white dark:hover:bg-gray-700 rounded-xl transition-all"
+                aria-label="StudyTrack"
+              >
+                <svg className="w-5 h-5 text-text-secondary dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 11l3 3L22 4" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                </svg>
+              </Link>
+              <Link
                 href="/planner"
                 className="min-w-touch min-h-touch p-3 hover:bg-white dark:hover:bg-gray-700 rounded-xl transition-all"
                 aria-label="View Calendar"

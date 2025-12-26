@@ -60,7 +60,20 @@ export async function getStudyUser(userId: string): Promise<User | null> {
     .eq('id', userId)
     .single()
 
-  if (error || !data) return null
+  if (error) {
+    logError('getStudyUser', error)
+
+    // If the table doesn't exist / schema isn't exposed, Supabase PostgREST often returns 404.
+    // Throw so the UI can show actionable setup steps instead of silently treating it as "no profile".
+    const status = (error as any)?.status
+    const message = String((error as any)?.message || '')
+    if (status === 404 || message.toLowerCase().includes('could not find') || message.toLowerCase().includes('schema cache')) {
+      throw new Error('StudyTrack database tables are not available (migration not applied or public schema not exposed).')
+    }
+
+    return null
+  }
+  if (!data) return null
 
   return {
     id: data.id,

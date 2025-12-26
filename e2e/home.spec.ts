@@ -21,6 +21,12 @@ test('studytrack option navigates to /track and renders', async ({ page }) => {
   await expect(page).toHaveURL(/\/track$/)
 
   // StudyTrack may show onboarding, dashboard, or a setup error depending on env+DB.
+  // It can also show a short-lived loading state while auth/session initializes.
+  const loadingText = page.getByText('Loading your dashboard...')
+  if (await loadingText.count()) {
+    await loadingText.waitFor({ state: 'detached', timeout: 15000 }).catch(() => {})
+  }
+
   const candidates = [
     'StudyTrack',
     "Today's Check-In",

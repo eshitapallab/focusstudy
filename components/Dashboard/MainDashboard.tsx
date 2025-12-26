@@ -172,12 +172,18 @@ export default function Dashboard() {
         console.error('Error loading dashboard:', error)
         if (mounted) {
           const message = error instanceof Error ? error.message : 'Unexpected error while loading.'
+          const isSchemaMissing = message.toLowerCase().includes('database tables are not available')
           setSetupError({
             title: 'Unable to load StudyTrack',
             message,
             steps: [
               'Verify Supabase env vars are set for this deployment.',
-              'Ensure the StudyTrack SQL migration has been run in Supabase (tables + RLS).',
+              ...(isSchemaMissing
+                ? [
+                    'Run supabase/migrations/002_studytrack_schema.sql in Supabase SQL Editor (creates study_users and related tables).',
+                    'In Supabase Settings → API, ensure exposed schemas include public.',
+                  ]
+                : ['Ensure the StudyTrack SQL migration has been run in Supabase (tables + RLS).']),
               'Try reloading /track.'
             ]
           })
@@ -409,8 +415,34 @@ export default function Dashboard() {
       {/* Header */}
       <header className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 py-4">
-          <h1 className="text-xl font-bold text-gray-900">StudyTrack</h1>
-          <p className="text-sm text-gray-600">Preparing for {user.exam}</p>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">StudyTrack</h1>
+              <p className="text-sm text-gray-600">Preparing for {user.exam}</p>
+            </div>
+            <div className="flex items-center gap-1 bg-gray-50 rounded-2xl p-1 border">
+              <a
+                href="/"
+                className="min-w-touch min-h-touch p-3 hover:bg-white rounded-xl transition-all"
+                aria-label="Home"
+              >
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10.5L12 3l9 7.5V21a1 1 0 01-1 1h-5v-7H9v7H4a1 1 0 01-1-1v-10.5z" />
+                </svg>
+              </a>
+              <a
+                href="/focus"
+                className="min-w-touch min-h-touch p-3 hover:bg-white rounded-xl transition-all"
+                aria-label="Timer"
+              >
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 21a8 8 0 100-16 8 8 0 000 16z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3h6" />
+                </svg>
+              </a>
+            </div>
+          </div>
         </div>
       </header>
 
