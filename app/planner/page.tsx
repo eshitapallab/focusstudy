@@ -288,14 +288,12 @@ export default function PlannerCalendarPage() {
                       </div>
                     </div>
 
-                    {!action.completed && (
-                      <div className="pt-3 border-t border-gray-200 dark:border-gray-700 mt-3">
-                        <MicroActionActions
-                          action={action}
-                          onUpdate={loadFocusActionsForMonth}
-                        />
-                      </div>
-                    )}
+                    <div className="pt-3 border-t border-gray-200 dark:border-gray-700 mt-3">
+                      <MicroActionActions
+                        action={action}
+                        onUpdate={loadFocusActionsForMonth}
+                      />
+                    </div>
                   </div>
                 ))}
                 {selectedDateSessions.map(session => (
