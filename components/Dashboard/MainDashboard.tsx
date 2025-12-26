@@ -820,15 +820,15 @@ export default function Dashboard() {
                   <span className="text-sm font-medium text-gray-500">Status:</span>
                   <span className={`text-sm font-semibold ${
                     verdict.status === 'on-track' ? 'text-green-700' :
-                    verdict.status === 'needs-push' ? 'text-amber-700' :
+                    verdict.status === 'at-risk' ? 'text-amber-700' :
                     'text-orange-700'
                   }`}>
                     {verdict.status === 'falling-behind' ? '⚠ Adjust Course' :
-                     verdict.status === 'needs-push' ? '→ Needs Push' :
+                     verdict.status === 'at-risk' ? '→ At Risk' :
                      '✓ On Track'}
                   </span>
                 </div>
-                <p className="text-sm text-gray-600">{verdict.message}</p>
+                <p className="text-sm text-gray-600">{verdict.reasons.join('. ')}</p>
               </div>
               <div className="text-right">
                 <div className="text-lg font-bold text-gray-900">{verdict.studyMinutes} min</div>
