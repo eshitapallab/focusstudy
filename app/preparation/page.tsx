@@ -63,12 +63,16 @@ export default function PreparationPage() {
 
       if (!supabase) return
 
-      // Get user's exam info (from existing daily_check_ins or new profile field)
-      const { data: userData } = await supabase
-        .from('user_profiles')
-        .select('target_exam, exam_date')
-        .eq('user_id', user!.id)
-        .single()
+      // Get user's exam info (StudyTrack profile)
+      const { data: userData, error: userError } = await supabase
+        .from('study_users')
+        .select('exam, exam_date')
+        .eq('id', user!.id)
+        .maybeSingle()
+
+      if (userError) throw userError
+
+      const selectedExam = String(userData?.exam || '').trim()
 
       if (userData?.exam_date) {
         const examDate = new Date(userData.exam_date)
@@ -78,12 +82,33 @@ export default function PreparationPage() {
         setDaysToExam(diffDays)
       }
 
-      // Load syllabus topics for user's exam
+      // Load syllabus topics for the selected exam
+      if (!selectedExam) {
+        setTopics([])
+        setSubjects([])
+        setPreparedness(new Map())
+        return
+      }
+
+      const { data: template, error: templateError } = await supabase
+        .from('syllabus_templates')
+        .select('id')
+        .eq('exam', selectedExam)
+        .maybeSingle()
+
+      if (templateError || !template?.id) {
+        setTopics([])
+        setSubjects([])
+        setPreparedness(new Map())
+        return
+      }
+
       const { data: topicsData, error: topicsError } = await supabase
         .from('syllabus_topics')
         .select('*')
+        .eq('syllabus_id', template.id)
         .order('subject', { ascending: true })
-        .order('name', { ascending: true })
+        .order('display_order', { ascending: true })
 
       if (topicsError) throw topicsError
 

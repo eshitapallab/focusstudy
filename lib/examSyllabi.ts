@@ -19,26 +19,20 @@ export const EXAM_SYLLABI: { [key: string]: ExamSyllabus } = {
     subjects: [
       'History',
       'Geography',
-      'Polity & Governance',
+      'Polity',
       'Economics',
-      'Environment & Ecology',
-      'Science & Technology',
-      'Current Affairs',
-      'Ethics & Integrity',
-      'Indian Society',
-      'Internal Security'
+      'Environment',
+      'Science & Tech',
+      'Current Affairs'
     ],
     marksDistribution: {
       'History': 80,
       'Geography': 80,
-      'Polity & Governance': 80,
+      'Polity': 80,
       'Economics': 80,
-      'Environment & Ecology': 60,
-      'Science & Technology': 60,
-      'Current Affairs': 80,
-      'Ethics & Integrity': 60,
-      'Indian Society': 40,
-      'Internal Security': 40
+      'Environment': 60,
+      'Science & Tech': 60,
+      'Current Affairs': 80
     },
     totalMarks: 400
   },
@@ -63,14 +57,12 @@ export const EXAM_SYLLABI: { [key: string]: ExamSyllabus } = {
     subjects: [
       'Physics',
       'Chemistry',
-      'Biology - Botany',
-      'Biology - Zoology'
+      'Biology'
     ],
     marksDistribution: {
       'Physics': 180,
       'Chemistry': 180,
-      'Biology - Botany': 180,
-      'Biology - Zoology': 180
+      'Biology': 360
     },
     totalMarks: 720
   },
@@ -78,18 +70,18 @@ export const EXAM_SYLLABI: { [key: string]: ExamSyllabus } = {
   'SSC CGL/CHSL': {
     exam: 'SSC CGL/CHSL',
     subjects: [
-      'General Intelligence & Reasoning',
+      'Reasoning',
       'General Awareness',
       'Quantitative Aptitude',
-      'English Language',
-      'Computer Knowledge'
+      'English',
+      'Computer Awareness'
     ],
     marksDistribution: {
-      'General Intelligence & Reasoning': 50,
+      'Reasoning': 50,
       'General Awareness': 50,
       'Quantitative Aptitude': 50,
-      'English Language': 50,
-      'Computer Knowledge': 25
+      'English': 50,
+      'Computer Awareness': 25
     },
     totalMarks: 200
   },
@@ -99,12 +91,12 @@ export const EXAM_SYLLABI: { [key: string]: ExamSyllabus } = {
     subjects: [
       'Engineering Mathematics',
       'General Aptitude',
-      'Technical Core Subject'
+      'Core (CS)'
     ],
     marksDistribution: {
       'Engineering Mathematics': 15,
       'General Aptitude': 15,
-      'Technical Core Subject': 70
+      'Core (CS)': 70
     },
     totalMarks: 100
   },
@@ -112,14 +104,14 @@ export const EXAM_SYLLABI: { [key: string]: ExamSyllabus } = {
   'CAT': {
     exam: 'CAT',
     subjects: [
-      'Verbal Ability & Reading Comprehension',
-      'Data Interpretation & Logical Reasoning',
-      'Quantitative Ability'
+      'VARC',
+      'DILR',
+      'Quant'
     ],
     marksDistribution: {
-      'Verbal Ability & Reading Comprehension': 66,
-      'Data Interpretation & Logical Reasoning': 66,
-      'Quantitative Ability': 66
+      'VARC': 66,
+      'DILR': 66,
+      'Quant': 66
     },
     totalMarks: 198
   },
@@ -127,18 +119,18 @@ export const EXAM_SYLLABI: { [key: string]: ExamSyllabus } = {
   'Banking (IBPS/SBI)': {
     exam: 'Banking (IBPS/SBI)',
     subjects: [
-      'Reasoning Ability',
+      'Reasoning',
       'Quantitative Aptitude',
-      'English Language',
-      'General Awareness - Banking',
-      'Computer Knowledge'
+      'English',
+      'General Awareness',
+      'Computer Awareness'
     ],
     marksDistribution: {
-      'Reasoning Ability': 50,
+      'Reasoning': 50,
       'Quantitative Aptitude': 50,
-      'English Language': 40,
-      'General Awareness - Banking': 40,
-      'Computer Knowledge': 20
+      'English': 40,
+      'General Awareness': 40,
+      'Computer Awareness': 20
     },
     totalMarks: 200
   },
@@ -147,46 +139,34 @@ export const EXAM_SYLLABI: { [key: string]: ExamSyllabus } = {
     exam: 'CA Foundation/Inter/Final',
     subjects: [
       'Accounting',
-      'Business Law',
-      'Business Economics',
-      'Business Mathematics',
-      'Corporate Law',
-      'Taxation',
-      'Auditing',
-      'Financial Management',
-      'Cost & Management Accounting',
-      'Strategic Management'
+      'Law',
+      'Economics',
+      'Quantitative Aptitude'
     ],
     marksDistribution: {
       'Accounting': 100,
-      'Business Law': 100,
-      'Business Economics': 100,
-      'Business Mathematics': 100,
-      'Corporate Law': 100,
-      'Taxation': 100,
-      'Auditing': 100,
-      'Financial Management': 100,
-      'Cost & Management Accounting': 100,
-      'Strategic Management': 100
+      'Law': 100,
+      'Economics': 100,
+      'Quantitative Aptitude': 100
     },
-    totalMarks: 800
+    totalMarks: 300
   },
 
   'CLAT': {
     exam: 'CLAT',
     subjects: [
-      'English Language',
-      'Current Affairs & GK',
+      'English',
+      'Current Affairs',
       'Legal Reasoning',
       'Logical Reasoning',
-      'Quantitative Techniques'
+      'Quant'
     ],
     marksDistribution: {
-      'English Language': 40,
-      'Current Affairs & GK': 50,
+      'English': 40,
+      'Current Affairs': 50,
       'Legal Reasoning': 50,
       'Logical Reasoning': 40,
-      'Quantitative Techniques': 20
+      'Quant': 20
     },
     totalMarks: 200
   },
@@ -195,21 +175,13 @@ export const EXAM_SYLLABI: { [key: string]: ExamSyllabus } = {
     exam: 'NDA',
     subjects: [
       'Mathematics',
-      'General Ability - English',
-      'General Ability - Physics',
-      'General Ability - Chemistry',
-      'General Ability - GK',
-      'General Ability - History',
-      'General Ability - Geography'
+      'English',
+      'General Knowledge'
     ],
     marksDistribution: {
       'Mathematics': 300,
-      'General Ability - English': 100,
-      'General Ability - Physics': 100,
-      'General Ability - Chemistry': 100,
-      'General Ability - GK': 100,
-      'General Ability - History': 100,
-      'General Ability - Geography': 100
+      'English': 100,
+      'General Knowledge': 500
     },
     totalMarks: 900
   }
