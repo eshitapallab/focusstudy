@@ -2,14 +2,11 @@
 
 import { useMemo } from 'react'
 import { 
-  format, 
-  startOfMonth, 
-  endOfMonth, 
-  eachDayOfInterval, 
-  getDay,
-  isSameDay,
-  startOfWeek,
-  addDays
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  getDay
 } from 'date-fns'
 
 interface HeatmapProps {
@@ -77,7 +74,7 @@ export default function Heatmap({ sessions, months = 3 }: HeatmapProps) {
     currentWeek.push({ date: new Date(0), minutes: -1, sessions: 0 })
   }
   
-  heatmapData.forEach((day, i) => {
+  heatmapData.forEach((day) => {
     currentWeek.push(day)
     if (currentWeek.length === 7) {
       weeks.push(currentWeek)
@@ -103,56 +100,55 @@ export default function Heatmap({ sessions, months = 3 }: HeatmapProps) {
       </p>
       
       <div className="overflow-x-auto">
-        <div className="inline-block min-w-full">
-          {/* Day labels */}
-          <div className="flex gap-1 mb-2">
-            <div className="w-8"></div>
-            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
-              <div key={i} className="w-4 text-xs text-text-secondary dark:text-gray-400 text-center font-medium">
-                {day}
-              </div>
-            ))}
-          </div>
-          
-          {/* Heatmap grid */}
-          <div className="space-y-1">
-            {weeks.map((week, weekIdx) => (
-              <div key={weekIdx} className="flex gap-1 items-center">
-                {/* Week label */}
-                <div className="w-8 text-xs text-text-secondary dark:text-gray-400">
-                  {weekIdx === 0 || week[0].minutes === -1 ? '' : format(week[0].date, 'MMM d')}
+        <div className="w-fit mx-auto">
+          {/* Heatmap grid (weeks as columns) */}
+          <div className="flex">
+            {/* Day labels */}
+            <div className="flex flex-col gap-1 pr-2">
+              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day) => (
+                <div
+                  key={day}
+                  className="h-4 md:h-5 w-4 text-xs text-text-secondary dark:text-gray-400 flex items-center justify-end font-medium"
+                >
+                  {day}
                 </div>
-                
-                {/* Days */}
-                {week.map((day, dayIdx) => (
-                  <div
-                    key={dayIdx}
-                    className={`w-4 h-4 rounded-sm transition-all hover:ring-2 hover:ring-primary cursor-pointer relative group ${
-                      day.minutes === -1 ? 'bg-transparent' : getIntensityClass(day.minutes)
-                    }`}
-                    title={day.minutes >= 0 ? `${format(day.date, 'MMM d')}: ${day.minutes} min` : ''}
-                  >
-                    {day.minutes >= 0 && (
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
-                        {format(day.date, 'MMM d')}<br />
-                        {day.minutes} min · {day.sessions} session{day.sessions !== 1 ? 's' : ''}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ))}
+              ))}
+            </div>
+
+            {/* Week columns */}
+            <div className="flex gap-1">
+              {weeks.map((week, weekIdx) => (
+                <div key={weekIdx} className="flex flex-col gap-1">
+                  {week.map((day, dayIdx) => (
+                    <div
+                      key={dayIdx}
+                      className={`w-4 h-4 md:w-5 md:h-5 rounded-sm transition-all hover:ring-2 hover:ring-primary cursor-pointer relative group ${
+                        day.minutes === -1 ? 'bg-transparent' : getIntensityClass(day.minutes)
+                      }`}
+                      title={day.minutes >= 0 ? `${format(day.date, 'MMM d')}: ${day.minutes} min` : ''}
+                    >
+                      {day.minutes >= 0 && (
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                          {format(day.date, 'MMM d')}<br />
+                          {day.minutes} min · {day.sessions} session{day.sessions !== 1 ? 's' : ''}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
           
           {/* Legend */}
           <div className="flex items-center gap-2 mt-4 text-xs text-text-secondary dark:text-gray-400">
             <span>Less</span>
             <div className="flex gap-1">
-              <div className="w-4 h-4 bg-gray-100 dark:bg-gray-800 opacity-40 rounded-sm"></div>
-              <div className="w-4 h-4 bg-primary/25 rounded-sm"></div>
-              <div className="w-4 h-4 bg-primary/50 rounded-sm"></div>
-              <div className="w-4 h-4 bg-primary/75 rounded-sm"></div>
-              <div className="w-4 h-4 bg-primary rounded-sm"></div>
+              <div className="w-4 h-4 md:w-5 md:h-5 bg-gray-100 dark:bg-gray-800 opacity-40 rounded-sm"></div>
+              <div className="w-4 h-4 md:w-5 md:h-5 bg-primary/25 rounded-sm"></div>
+              <div className="w-4 h-4 md:w-5 md:h-5 bg-primary/50 rounded-sm"></div>
+              <div className="w-4 h-4 md:w-5 md:h-5 bg-primary/75 rounded-sm"></div>
+              <div className="w-4 h-4 md:w-5 md:h-5 bg-primary rounded-sm"></div>
             </div>
             <span>More</span>
           </div>
