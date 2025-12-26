@@ -352,7 +352,9 @@ export async function getTodayMicroAction(userId: string, date: string): Promise
     .select('*')
     .eq('user_id', userId)
     .eq('date', date)
-    .single()
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
 
   if (error || !data) return null
 
@@ -381,9 +383,54 @@ export async function getMicroActionForDate(userId: string, date: string): Promi
     .select('*')
     .eq('user_id', userId)
     .eq('date', date)
-    .single()
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
 
   if (error || !data) return null
+
+  return {
+    id: data.id,
+    userId: data.user_id,
+    verdictId: data.verdict_id,
+    date: data.date,
+    task: data.task,
+    durationMinutes: data.duration_minutes,
+    relatedSubjects: data.related_subjects,
+    completed: data.completed,
+    locked: data.locked,
+    lockedAt: data.locked_at ? new Date(data.locked_at) : undefined,
+    lockCheckedAt: data.lock_checked_at ? new Date(data.lock_checked_at) : undefined,
+    lockedDone: data.locked_done ?? undefined,
+    createdAt: new Date(data.created_at)
+  }
+}
+
+export async function updateMicroAction(
+  actionId: string,
+  updates: Partial<Pick<MicroAction, 'task' | 'durationMinutes' | 'relatedSubjects' | 'verdictId' | 'completed' | 'locked'>>
+): Promise<MicroAction | null> {
+  if (!supabase) return null
+
+  const updateData: any = {}
+  if (updates.task !== undefined) updateData.task = updates.task
+  if (updates.durationMinutes !== undefined) updateData.duration_minutes = updates.durationMinutes
+  if (updates.relatedSubjects !== undefined) updateData.related_subjects = updates.relatedSubjects
+  if (updates.verdictId !== undefined) updateData.verdict_id = updates.verdictId
+  if (updates.completed !== undefined) updateData.completed = updates.completed
+  if (updates.locked !== undefined) updateData.locked = updates.locked
+
+  const { data, error } = await supabase
+    .from('micro_actions')
+    .update(updateData)
+    .eq('id', actionId)
+    .select('*')
+    .maybeSingle()
+
+  if (error || !data) {
+    logError('updateMicroAction', error || 'No data returned')
+    return null
+  }
 
   return {
     id: data.id,

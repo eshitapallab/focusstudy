@@ -14,6 +14,7 @@ import {
   createVerdict,
   getTodayMicroAction,
   createMicroAction,
+  updateMicroAction,
   getMicroActionForDate,
   recordLockedMicroActionOutcome,
   getRecentCheckIns,
@@ -263,15 +264,14 @@ export default function Dashboard() {
               const recentCheckInsForAction = await getRecentCheckIns(supabaseUser.id, 7)
               const newAction = generateMicroAction(recentCheckInsForAction, todayVerdict, userData.exam)
               
-              // Update the existing action in database
-              action = await createMicroAction(supabaseUser.id, {
+              // Update the existing action in database (avoid duplicates)
+              action = (await updateMicroAction(action.id, {
                 verdictId: todayVerdict.id,
-                date: today,
                 task: newAction.task,
                 durationMinutes: newAction.durationMinutes,
                 relatedSubjects: newAction.relatedSubjects,
                 completed: action.completed
-              })
+              })) || action
             }
           }
           
