@@ -714,20 +714,22 @@ export default function Dashboard() {
               )}
             </div>
             
-            {(weakSubjectNudge || (revisionDebtLevel && revisionDebtLevel !== 'low') || recentExamTomorrowResponse === 'no') && (
-              <div className="mb-4 text-sm text-gray-700 space-y-1">
-                <p className="font-medium text-gray-900">Why this matters:</p>
-                <ul className="list-disc list-inside space-y-0.5 text-gray-600">
-                  {weakSubjectNudge && <li>{weakSubjectNudge}</li>}
-                  {revisionDebtLevel && revisionDebtLevel !== 'low' && (
-                    <li>Revision load is {revisionDebtLevel}</li>
-                  )}
-                  {recentExamTomorrowResponse === 'no' && (
-                    <li>Exam readiness needs work</li>
-                  )}
-                </ul>
-              </div>
-            )}
+            <div className="mb-4 text-sm text-gray-700 space-y-1">
+              <p className="font-medium text-gray-900">Why this matters:</p>
+              <ul className="list-disc list-inside space-y-0.5 text-gray-600">
+                {microAction.relatedSubjects && microAction.relatedSubjects.length > 0 && (
+                  <li>{microAction.relatedSubjects[0]} contributes ~15–20 marks</li>
+                )}
+                {todayCheckIn && !todayCheckIn.couldRevise && (
+                  <li>This topic shows weak retention</li>
+                )}
+                {revisionDebtLevel && revisionDebtLevel !== 'low' ? (
+                  <li>{microAction.durationMinutes || 20} minutes here has high return right now</li>
+                ) : (
+                  <li>Building momentum early prevents last-minute gaps</li>
+                )}
+              </ul>
+            </div>
             
             <div className="flex gap-2">
               <button
@@ -735,7 +737,7 @@ export default function Dashboard() {
                 disabled={microAction.completed}
                 className="flex-1 py-2.5 px-4 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
               >
-                {microAction.completed ? '✓ Done' : 'Mark Done'}
+                {microAction.completed ? '✓ Completed' : `Start ${microAction.durationMinutes || 20}-min Revision`}
               </button>
               <button
                 onClick={async () => {
@@ -755,9 +757,9 @@ export default function Dashboard() {
                   })
                   alert('Locked for tomorrow')
                 }}
-                className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors"
+                className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors whitespace-nowrap"
               >
-                Lock
+                Lock for Tomorrow
               </button>
             </div>
           </div>
@@ -792,7 +794,30 @@ export default function Dashboard() {
         )}
 
         {/* ============================================================================
-             BIGGEST RISK (Marks leak indicator)
+             MARKS AT RISK (Small but powerful outcome linkage)
+             ============================================================================ */}
+        
+        {(revisionDebtLevel === 'high' || recentExamTomorrowResponse === 'no' || (todayCheckIn && !todayCheckIn.couldRevise)) && microAction && (
+          <div className="bg-amber-50 border border-amber-300 rounded-lg p-3">
+            <div className="flex items-start gap-2">
+              <div className="text-lg">🎯</div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-amber-900">Marks at Risk Right Now</h3>
+                <p className="text-xs text-amber-800 mt-0.5">
+                  {microAction.relatedSubjects && microAction.relatedSubjects.length > 0 
+                    ? `${microAction.relatedSubjects[0]} (revision gap)` 
+                    : 'Weak retention areas'}
+                </p>
+                <p className="text-xs text-amber-700 font-medium mt-1">
+                  Fixing this could protect ~10–15 marks.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================================
+             BIGGEST RISK (Fake busy indicator)
              ============================================================================ */}
         
         {fakeBusyMessage && (
@@ -829,6 +854,16 @@ export default function Dashboard() {
                   </span>
                 </div>
                 <p className="text-sm text-gray-600">{verdict.reasons.join('. ')}</p>
+                {verdict.status !== 'on-track' && todayCheckIn && todayCheckIn.couldRevise && (
+                  <p className="text-xs text-gray-500 mt-1.5 italic">
+                    You know the material, but coverage is insufficient for the time left.
+                  </p>
+                )}
+                {verdict.status !== 'on-track' && (!todayCheckIn || !todayCheckIn.couldRevise) && (
+                  <p className="text-xs text-gray-500 mt-1.5 italic">
+                    Retention is weakening — prioritize revision over new topics.
+                  </p>
+                )}
               </div>
               <div className="text-right">
                 <div className="text-lg font-bold text-gray-900">{verdict.studyMinutes} min</div>
@@ -843,55 +878,36 @@ export default function Dashboard() {
              ============================================================================ */}
         
         <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <h3 className="font-semibold text-gray-900 mb-3">📊 Preparation State</h3>
-          <div className="space-y-2 text-sm">
-            {todayCheckIn && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Recall today:</span>
-                <span className={`font-medium ${todayCheckIn.couldRevise ? 'text-green-700' : 'text-orange-700'}`}>
-                  {todayCheckIn.couldRevise ? 'Strong' : 'Needs work'}
-                </span>
-              </div>
-            )}
-            {revisionDebtLevel && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Revision load:</span>
-                <span className={`font-medium ${
-                  revisionDebtLevel === 'high' ? 'text-orange-700' :
-                  revisionDebtLevel === 'medium' ? 'text-amber-700' :
-                  'text-green-700'
-                }`}>
-                  {revisionDebtLevel === 'low' ? 'Low' : revisionDebtLevel === 'medium' ? 'Medium' : 'High'}
-                </span>
-              </div>
-            )}
-            {recentExamTomorrowResponse && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Exam readiness:</span>
-                <span className={`font-medium ${
-                  recentExamTomorrowResponse === 'yes' ? 'text-green-700' :
-                  recentExamTomorrowResponse === 'maybe' ? 'text-amber-700' :
-                  'text-orange-700'
-                }`}>
-                  {recentExamTomorrowResponse === 'yes' ? 'Ready' : 
-                   recentExamTomorrowResponse === 'maybe' ? 'Uncertain' : 'Needs work'}
-                </span>
-              </div>
-            )}
-            {monthlySnapshot && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Consistency:</span>
-                <span className="font-medium text-gray-900">{monthlySnapshot.consistencyDays} days this month</span>
-              </div>
-            )}
-            {user.examDate && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Time left:</span>
-                <span className="font-medium text-gray-900">
-                  {Math.ceil((user.examDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days
-                </span>
-              </div>
-            )}
+          <h3 className="font-semibold text-gray-900 mb-3">📊 Preparation Diagnosis</h3>
+          <div className="space-y-1.5 text-sm">
+            <div className="flex items-start gap-2">
+              <span className="text-gray-600 font-medium min-w-[80px]">Strength:</span>
+              <span className="text-gray-900">
+                {todayCheckIn && todayCheckIn.couldRevise ? 'Recall stability' :
+                 monthlySnapshot && monthlySnapshot.consistencyDays >= 20 ? 'High consistency' :
+                 verdict && verdict.streak >= 7 ? `${verdict.streak}-day streak` :
+                 'Building momentum'}
+              </span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-gray-600 font-medium min-w-[80px]">Risk:</span>
+              <span className="text-gray-900">
+                {revisionDebtLevel === 'high' ? 'Insufficient coverage' :
+                 recentExamTomorrowResponse === 'no' ? 'Exam readiness gap' :
+                 todayCheckIn && !todayCheckIn.couldRevise ? 'Retention weakening' :
+                 'Routine drift'}
+              </span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-gray-600 font-medium min-w-[80px]">Constraint:</span>
+              <span className="text-gray-900">
+                {user.examDate 
+                  ? `${Math.ceil((user.examDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days remaining`
+                  : monthlySnapshot
+                  ? `${monthlySnapshot.consistencyDays}/30 days used this month`
+                  : 'Time management critical'}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -983,8 +999,8 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Peer Comparison - Collapsed by default */}
-        {user.peerComparisonEnabled && verdict && (
+        {/* Peer Comparison - Hidden until meaningful data */}
+        {user.peerComparisonEnabled && verdict && monthlySnapshot && monthlySnapshot.consistencyDays >= 7 ? (
           <details className="bg-white border border-gray-200 rounded-xl">
             <summary className="p-4 cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
               Peer comparison
@@ -1003,7 +1019,16 @@ export default function Dashboard() {
               />
             </div>
           </details>
-        )}
+        ) : user.peerComparisonEnabled && monthlySnapshot && monthlySnapshot.consistencyDays < 7 ? (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center">
+            <p className="text-xs text-gray-600">
+              Peer benchmarks unlock after 7 honest check-ins
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {monthlySnapshot.consistencyDays}/7 completed
+            </p>
+          </div>
+        ) : null}
 
         {/* People like you insight */}
         {peopleLikeYouInsight && (
@@ -1014,13 +1039,13 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Share Snapshot - Minimal */}
+        {/* Share Snapshot - Optional, secondary */}
         {verdict && (
-          <details className="bg-white border border-gray-200 rounded-xl">
-            <summary className="p-4 cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
-              Share today's progress
+          <details className="bg-gray-50 border border-gray-200 rounded-lg">
+            <summary className="p-3 cursor-pointer text-xs font-medium text-gray-500 hover:text-gray-700">
+              Optional: Share a snapshot for accountability
             </summary>
-            <div className="px-4 pb-4">
+            <div className="px-3 pb-3">
               <ShareSnapshot
                 status={verdict.status}
                 hoursStudied={Math.round(verdict.studyMinutes / 60 * 10) / 10}
