@@ -34,7 +34,7 @@ import { calculateVerdict } from '@/lib/verdictEngine'
 import { generateMicroAction } from '@/lib/microActionGenerator'
 import { calculateRealityScore, generateTrajectoryMessage } from '@/lib/realityCheck'
 import { detectGamingPatterns, getHonestyPrompt, shouldPromptHonesty } from '@/lib/gamingDetection'
-import { getSubjectMarks, getSubjectPercentage } from '@/lib/examSyllabi'
+import { getSubjectMarks, getSubjectPercentage, getExamSubjects } from '@/lib/examSyllabi'
 import { User, DailyCheckIn, Verdict, MicroAction, WeeklyReality, EmotionalFeeling, ExamTomorrowResponse, MonthlySnapshot } from '@/lib/types'
 import OnboardingFlow from '@/components/Onboarding/OnboardingFlow'
 import DailyCheckInCard from '@/components/CheckIn/DailyCheckInCard'
@@ -229,9 +229,38 @@ export default function Dashboard() {
           const todayVerdict = await getTodayVerdict(supabaseUser.id, today)
           if (mounted) setVerdict(todayVerdict)
 
-          // Load micro action
+          // Load micro action and validate it matches current exam
           const action = await getTodayMicroAction(supabaseUser.id, today)
-          if (mounted) setMicroAction(action)
+          
+          // Check if action's subjects are valid for current exam
+          let validAction = action
+          if (action && todayVerdict) {
+            const validSubjects = getExamSubjects(userData.exam)
+            const actionSubjects = action.relatedSubjects || []
+            
+            // If action has subjects that don't match current exam, regenerate
+            const hasInvalidSubjects = actionSubjects.some(subj => 
+              subj !== 'Other' && !validSubjects.includes(subj)
+            )
+            
+            if (hasInvalidSubjects) {
+              console.log('Regenerating micro-action - subjects invalid for current exam')
+              const recentCheckInsForAction = await getRecentCheckIns(supabaseUser.id, 7)
+              const newAction = generateMicroAction(recentCheckInsForAction, todayVerdict, userData.exam)
+              
+              // Update the existing action in database
+              validAction = await createMicroAction(supabaseUser.id, {
+                verdictId: todayVerdict.id,
+                date: today,
+                task: newAction.task,
+                durationMinutes: newAction.durationMinutes,
+                relatedSubjects: newAction.relatedSubjects,
+                completed: action.completed
+              })
+            }
+          }
+          
+          if (mounted) setMicroAction(validAction)
 
           // Tomorrow Lock follow-up: ask about yesterday's locked action
           const yesterdayDate = (() => {
