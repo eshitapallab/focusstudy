@@ -8,7 +8,7 @@ import {
   eachDayOfInterval,
   addWeeks,
   isSameDay,
-  startOfMonth
+  getDay
 } from 'date-fns'
 
 interface HeatmapProps {
@@ -61,32 +61,53 @@ export default function Heatmap({ sessions, months = 3 }: HeatmapProps) {
   const maxMinutes = Math.max(...heatmapData.map(d => d.minutes), 1)
   
   const getIntensityClass = (minutes: number) => {
-    if (minutes === 0) return 'bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
+    if (minutes === 0) return 'bg-gray-100 dark:bg-gray-800'
     const ratio = minutes / maxMinutes
-    if (ratio > 0.75) return 'bg-emerald-500 dark:bg-emerald-600 border border-emerald-600 dark:border-emerald-500'
-    if (ratio > 0.5) return 'bg-emerald-400 dark:bg-emerald-700 border border-emerald-500 dark:border-emerald-600'
-    if (ratio > 0.25) return 'bg-emerald-300 dark:bg-emerald-800 border border-emerald-400 dark:border-emerald-700'
-    return 'bg-emerald-200 dark:bg-emerald-900 border border-emerald-300 dark:border-emerald-800'
+    if (ratio > 0.75) return 'bg-emerald-600 dark:bg-emerald-500'
+    if (ratio > 0.5) return 'bg-emerald-500 dark:bg-emerald-600'
+    if (ratio > 0.25) return 'bg-emerald-400 dark:bg-emerald-700'
+    return 'bg-emerald-300 dark:bg-emerald-800'
   }
   
-  // Group into weeks
-  const weeks: Date[][] = []
-  for (let i = 0; i < heatmapData.length; i += 7) {
-    weeks.push(heatmapData.slice(i, i + 7).map(d => d.date))
+  // Group into weeks (7 days each)
+  const weeks: Array<Array<{ date: Date; minutes: number; sessions: number }>> = []
+  let currentWeek: Array<{ date: Date; minutes: number; sessions: number }> = []
+  
+  // Pad to start on Sunday
+  if (heatmapData.length > 0) {
+    const firstDayOfWeek = getDay(heatmapData[0].date)
+    for (let i = 0; i < firstDayOfWeek; i++) {
+      currentWeek.push({ date: new Date(0), minutes: -1, sessions: 0 })
+    }
+  }
+  
+  heatmapData.forEach((day) => {
+    currentWeek.push(day)
+    if (currentWeek.length === 7) {
+      weeks.push([...currentWeek])
+      currentWeek = []
+    }
+  })
+  
+  // Pad end of last week
+  if (currentWeek.length > 0) {
+    while (currentWeek.length < 7) {
+      currentWeek.push({ date: new Date(0), minutes: -1, sessions: 0 })
+    }
+    weeks.push(currentWeek)
   }
 
   // Calculate month markers
   const monthMarkers: { label: string; weekIndex: number }[] = []
-  let lastMonth = -1
+  let lastMonth = ''
   weeks.forEach((week, idx) => {
-    const firstDay = week[0]
-    const month = firstDay.getMonth()
-    if (month !== lastMonth && idx > 0) {
-      monthMarkers.push({
-        label: format(firstDay, 'MMM yyyy'),
-        weekIndex: idx
-      })
-      lastMonth = month
+    const firstValidDay = week.find(d => d.minutes >= 0)
+    if (firstValidDay) {
+      const monthLabel = format(firstValidDay.date, 'MMM yyyy')
+      if (monthLabel !== lastMonth) {
+        monthMarkers.push({ label: monthLabel, weekIndex: idx })
+        lastMonth = monthLabel
+      }
     }
   })
 
@@ -106,29 +127,27 @@ export default function Heatmap({ sessions, months = 3 }: HeatmapProps) {
       <div className="overflow-x-auto">
         <div className="inline-block">
           {/* Month markers */}
-          {monthMarkers.length > 0 && (
-            <div className="flex mb-3 pl-12">
-              {monthMarkers.map(({ label, weekIndex }) => (
-                <div
-                  key={`${label}-${weekIndex}`}
-                  className="text-xs font-semibold text-gray-700 dark:text-gray-300"
-                  style={{ 
-                    marginLeft: weekIndex === 0 ? 0 : `${(weekIndex * 20)}px`,
-                  }}
-                >
-                  {label}
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="flex gap-3 mb-3 ml-16">
+            {monthMarkers.map(({ label, weekIndex }) => (
+              <div
+                key={`${label}-${weekIndex}`}
+                className="text-xs font-semibold text-gray-700 dark:text-gray-300"
+                style={{ 
+                  marginLeft: weekIndex === 0 ? 0 : `${weekIndex * 24}px`
+                }}
+              >
+                {label}
+              </div>
+            ))}
+          </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             {/* Day labels */}
-            <div className="flex flex-col justify-between py-1">
-              {['Mon', 'Wed', 'Fri'].map((day) => (
+            <div className="flex flex-col gap-1.5 justify-start pt-0.5">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
                 <div
                   key={day}
-                  className="text-xs font-medium text-gray-600 dark:text-gray-400 h-5 flex items-center"
+                  className="text-xs font-medium text-gray-600 dark:text-gray-400 h-5 flex items-center justify-end pr-2 w-10"
                 >
                   {day}
                 </div>
@@ -136,27 +155,28 @@ export default function Heatmap({ sessions, months = 3 }: HeatmapProps) {
             </div>
 
             {/* Week columns */}
-            <div className="flex gap-1">
+            <div className="flex gap-1.5">
               {weeks.map((week, weekIdx) => (
-                <div key={weekIdx} className="flex flex-col gap-1">
-                  {week.map((date) => {
-                    const dayData = heatmapData.find(d => isSameDay(d.date, date))
-                    if (!dayData) return null
+                <div key={weekIdx} className="flex flex-col gap-1.5">
+                  {week.map((day, dayIdx) => {
+                    if (day.minutes === -1) {
+                      return <div key={dayIdx} className="w-5 h-5" />
+                    }
 
                     return (
                       <div
-                        key={date.toISOString()}
-                        className={`w-4 h-4 rounded transition-all hover:ring-2 hover:ring-emerald-400 dark:hover:ring-emerald-500 hover:scale-125 cursor-pointer relative group ${
-                          getIntensityClass(dayData.minutes)
+                        key={dayIdx}
+                        className={`w-5 h-5 rounded transition-all hover:ring-2 hover:ring-emerald-500 hover:ring-offset-1 dark:hover:ring-emerald-400 hover:scale-110 cursor-pointer relative group ${
+                          getIntensityClass(day.minutes)
                         }`}
                       >
                         {/* Tooltip */}
                         <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-950 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-30 shadow-xl">
-                          <div className="font-bold text-sm">{format(date, 'EEE, MMM d')}</div>
+                          <div className="font-bold">{format(day.date, 'EEE, MMM d, yyyy')}</div>
                           <div className="mt-1 text-gray-300">
-                            {dayData.minutes > 0 ? (
+                            {day.minutes > 0 ? (
                               <>
-                                {dayData.minutes} min · {dayData.sessions} session{dayData.sessions !== 1 ? 's' : ''}
+                                {day.minutes} min · {day.sessions} session{day.sessions !== 1 ? 's' : ''}
                               </>
                             ) : (
                               'No study time'
@@ -172,14 +192,14 @@ export default function Heatmap({ sessions, months = 3 }: HeatmapProps) {
           </div>
           
           {/* Legend */}
-          <div className="flex items-center gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 ml-16">
             <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Less</span>
             <div className="flex gap-1.5">
-              <div className="w-4 h-4 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded"></div>
-              <div className="w-4 h-4 bg-emerald-200 dark:bg-emerald-900 border border-emerald-300 dark:border-emerald-800 rounded"></div>
-              <div className="w-4 h-4 bg-emerald-300 dark:bg-emerald-800 border border-emerald-400 dark:border-emerald-700 rounded"></div>
-              <div className="w-4 h-4 bg-emerald-400 dark:bg-emerald-700 border border-emerald-500 dark:border-emerald-600 rounded"></div>
-              <div className="w-4 h-4 bg-emerald-500 dark:bg-emerald-600 border border-emerald-600 dark:border-emerald-500 rounded"></div>
+              <div className="w-5 h-5 bg-gray-100 dark:bg-gray-800 rounded"></div>
+              <div className="w-5 h-5 bg-emerald-300 dark:bg-emerald-800 rounded"></div>
+              <div className="w-5 h-5 bg-emerald-400 dark:bg-emerald-700 rounded"></div>
+              <div className="w-5 h-5 bg-emerald-500 dark:bg-emerald-600 rounded"></div>
+              <div className="w-5 h-5 bg-emerald-600 dark:bg-emerald-500 rounded"></div>
             </div>
             <span className="text-xs font-medium text-gray-600 dark:text-gray-400">More</span>
           </div>
