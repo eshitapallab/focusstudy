@@ -230,10 +230,25 @@ export default function Dashboard() {
           if (mounted) setVerdict(todayVerdict)
 
           // Load micro action and validate it matches current exam
-          const action = await getTodayMicroAction(supabaseUser.id, today)
+          let action = await getTodayMicroAction(supabaseUser.id, today)
+          
+          // If no action exists and we have a verdict, generate one
+          if (!action && todayVerdict) {
+            console.log('Generating micro-action - none exists for today')
+            const recentCheckInsForAction = await getRecentCheckIns(supabaseUser.id, 7)
+            const newAction = generateMicroAction(recentCheckInsForAction, todayVerdict, userData.exam)
+            
+            action = await createMicroAction(supabaseUser.id, {
+              verdictId: todayVerdict.id,
+              date: today,
+              task: newAction.task,
+              durationMinutes: newAction.durationMinutes,
+              relatedSubjects: newAction.relatedSubjects,
+              completed: false
+            })
+          }
           
           // Check if action's subjects are valid for current exam
-          let validAction = action
           if (action && todayVerdict) {
             const validSubjects = getExamSubjects(userData.exam)
             const actionSubjects = action.relatedSubjects || []
@@ -249,7 +264,7 @@ export default function Dashboard() {
               const newAction = generateMicroAction(recentCheckInsForAction, todayVerdict, userData.exam)
               
               // Update the existing action in database
-              validAction = await createMicroAction(supabaseUser.id, {
+              action = await createMicroAction(supabaseUser.id, {
                 verdictId: todayVerdict.id,
                 date: today,
                 task: newAction.task,
@@ -260,7 +275,7 @@ export default function Dashboard() {
             }
           }
           
-          if (mounted) setMicroAction(validAction)
+          if (mounted) setMicroAction(action)
 
           // Tomorrow Lock follow-up: ask about yesterday's locked action
           const yesterdayDate = (() => {
