@@ -690,11 +690,219 @@ export default function Dashboard() {
           />
         )}
 
-        {/* Reset without guilt */}
+        {/* ============================================================================
+             TOP SECTION: TODAY'S DIRECTIVE (Action-first hierarchy)
+             ============================================================================ */}
+        
+        {/* Micro Action - PRIMARY CARD (Biggest, first, most actionable) */}
+        {microAction && (
+          <div className="bg-white border-2 border-indigo-200 rounded-2xl p-6 shadow-sm">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-2xl flex-shrink-0">
+                🎯
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-gray-900">Focus for Next Session</h2>
+                <p className="text-sm text-gray-600 mt-0.5">{microAction.durationMinutes || 20}–{(microAction.durationMinutes || 20) + 10} min</p>
+              </div>
+            </div>
+            
+            <div className="bg-indigo-50 rounded-xl p-4 mb-4">
+              <p className="text-base font-semibold text-indigo-900">{microAction.task}</p>
+              {microAction.relatedSubjects && microAction.relatedSubjects.length > 0 && (
+                <p className="text-sm text-indigo-700 mt-1">Subject: {microAction.relatedSubjects.join(', ')}</p>
+              )}
+            </div>
+            
+            {(weakSubjectNudge || (revisionDebtLevel && revisionDebtLevel !== 'low') || recentExamTomorrowResponse === 'no') && (
+              <div className="mb-4 text-sm text-gray-700 space-y-1">
+                <p className="font-medium text-gray-900">Why this matters:</p>
+                <ul className="list-disc list-inside space-y-0.5 text-gray-600">
+                  {weakSubjectNudge && <li>{weakSubjectNudge}</li>}
+                  {revisionDebtLevel && revisionDebtLevel !== 'low' && (
+                    <li>Revision load is {revisionDebtLevel}</li>
+                  )}
+                  {recentExamTomorrowResponse === 'no' && (
+                    <li>Exam readiness needs work</li>
+                  )}
+                </ul>
+              </div>
+            )}
+            
+            <div className="flex gap-2">
+              <button
+                onClick={handleCompleteMicroAction}
+                disabled={microAction.completed}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              >
+                {microAction.completed ? '✓ Done' : 'Mark Done'}
+              </button>
+              <button
+                onClick={async () => {
+                  if (!user || !microAction) return
+                  await createMicroAction(user.id, {
+                    verdictId: microAction.verdictId,
+                    date: (() => {
+                      const tomorrow = new Date()
+                      tomorrow.setDate(tomorrow.getDate() + 1)
+                      return tomorrow.toISOString().split('T')[0]
+                    })(),
+                    task: microAction.task,
+                    durationMinutes: microAction.durationMinutes,
+                    relatedSubjects: microAction.relatedSubjects,
+                    locked: true,
+                    completed: false
+                  })
+                  alert('Locked for tomorrow')
+                }}
+                className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors"
+              >
+                Lock
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Tomorrow Lock follow-up (if exists) */}
+        {lockedFollowUpAction && (
+          <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
+            <div className="font-semibold text-amber-900 mb-2">Yesterday's locked action</div>
+            <div className="text-sm text-amber-800 mb-3">{lockedFollowUpAction.task}</div>
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  await recordLockedMicroActionOutcome(lockedFollowUpAction.id, true)
+                  setLockedFollowUpAction(null)
+                }}
+                className="flex-1 py-2 px-3 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700"
+              >
+                Done
+              </button>
+              <button
+                onClick={async () => {
+                  await recordLockedMicroActionOutcome(lockedFollowUpAction.id, false)
+                  setLockedFollowUpAction(null)
+                }}
+                className="flex-1 py-2 px-3 rounded-lg bg-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-300"
+              >
+                Skipped
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================================
+             BIGGEST RISK (Marks leak indicator)
+             ============================================================================ */}
+        
+        {fakeBusyMessage && (
+          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <div className="text-2xl">🧯</div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-orange-900 mb-1">Biggest Risk Right Now</h3>
+                <p className="text-sm text-orange-800 mb-2">{fakeBusyMessage}</p>
+                <p className="text-sm text-orange-700 font-medium">Fix: Reduce hours, focus on recall quality</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================================
+             SECONDARY: STATUS (Small, calm, informational)
+             ============================================================================ */}
+        
+        {verdict && (
+          <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm font-medium text-gray-500">Status:</span>
+                  <span className={`text-sm font-semibold ${
+                    verdict.status === 'on-track' ? 'text-green-700' :
+                    verdict.status === 'needs-push' ? 'text-amber-700' :
+                    'text-orange-700'
+                  }`}>
+                    {verdict.status === 'falling-behind' ? '⚠ Adjust Course' :
+                     verdict.status === 'needs-push' ? '→ Needs Push' :
+                     '✓ On Track'}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600">{verdict.message}</p>
+              </div>
+              <div className="text-right">
+                <div className="text-lg font-bold text-gray-900">{verdict.studyMinutes} min</div>
+                <div className="text-xs text-gray-500">today</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================================
+             PREP STATE (Merged signals)
+             ============================================================================ */}
+        
+        <div className="bg-white border border-gray-200 rounded-xl p-4">
+          <h3 className="font-semibold text-gray-900 mb-3">📊 Preparation State</h3>
+          <div className="space-y-2 text-sm">
+            {todayCheckIn && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Recall today:</span>
+                <span className={`font-medium ${todayCheckIn.couldRevise ? 'text-green-700' : 'text-orange-700'}`}>
+                  {todayCheckIn.couldRevise ? 'Strong' : 'Needs work'}
+                </span>
+              </div>
+            )}
+            {revisionDebtLevel && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Revision load:</span>
+                <span className={`font-medium ${
+                  revisionDebtLevel === 'high' ? 'text-orange-700' :
+                  revisionDebtLevel === 'medium' ? 'text-amber-700' :
+                  'text-green-700'
+                }`}>
+                  {revisionDebtLevel === 'low' ? 'Low' : revisionDebtLevel === 'medium' ? 'Medium' : 'High'}
+                </span>
+              </div>
+            )}
+            {recentExamTomorrowResponse && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Exam readiness:</span>
+                <span className={`font-medium ${
+                  recentExamTomorrowResponse === 'yes' ? 'text-green-700' :
+                  recentExamTomorrowResponse === 'maybe' ? 'text-amber-700' :
+                  'text-orange-700'
+                }`}>
+                  {recentExamTomorrowResponse === 'yes' ? 'Ready' : 
+                   recentExamTomorrowResponse === 'maybe' ? 'Uncertain' : 'Needs work'}
+                </span>
+              </div>
+            )}
+            {monthlySnapshot && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Consistency:</span>
+                <span className="font-medium text-gray-900">{monthlySnapshot.consistencyDays} days this month</span>
+              </div>
+            )}
+            {user.examDate && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Time left:</span>
+                <span className="font-medium text-gray-900">
+                  {Math.ceil((user.examDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ============================================================================
+             OPTIONAL INTERACTIONS (Collapsed/minimal)
+             ============================================================================ */}
+        
+        {/* Reset prompt */}
         {showResetPrompt && (
-          <div className="bg-white border rounded-xl p-4">
-            <div className="font-semibold text-gray-900">Reset without guilt</div>
-            <div className="text-sm text-gray-700 mt-1">Want to reset today? Past days won't count against you.</div>
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+            <p className="text-sm text-gray-700 mb-2">Been away for a bit? No judgment. Start fresh today.</p>
             <button
               onClick={async () => {
                 if (!user) return
@@ -702,84 +910,18 @@ export default function Dashboard() {
                 setUser({ ...user, resetAt: new Date() })
                 setShowResetPrompt(false)
               }}
-              className="mt-3 w-full py-2 px-3 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700"
+              className="w-full py-2 px-3 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
             >
               Reset today
             </button>
           </div>
         )}
 
-        {/* Tomorrow Lock follow-up */}
-        {lockedFollowUpAction && (
-          <div className="bg-white border rounded-xl p-4">
-            <div className="font-semibold text-gray-900">Tomorrow Lock</div>
-            <div className="text-sm text-gray-700 mt-1">Did you do what you locked yesterday?</div>
-            <div className="mt-2 text-sm text-gray-600">{lockedFollowUpAction.task}</div>
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <button
-                onClick={async () => {
-                  await recordLockedMicroActionOutcome(lockedFollowUpAction.id, true)
-                  setLockedFollowUpAction(null)
-                }}
-                className="py-2 px-3 rounded-lg bg-green-600 text-white font-medium hover:bg-green-700"
-              >
-                Yes
-              </button>
-              <button
-                onClick={async () => {
-                  await recordLockedMicroActionOutcome(lockedFollowUpAction.id, false)
-                  setLockedFollowUpAction(null)
-                }}
-                className="py-2 px-3 rounded-lg bg-gray-100 text-gray-900 font-medium hover:bg-gray-200"
-              >
-                No
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Weak-subject detection */}
-        {weakSubjectNudge && (
-          <div className="bg-white border rounded-xl p-4">
-            <div className="font-semibold text-gray-900">Quiet nudge</div>
-            <div className="text-sm text-gray-700 mt-1">{weakSubjectNudge}</div>
-          </div>
-        )}
-
-        {/* Revision debt meter */}
-        {revisionDebtLevel && (
-          <div className="bg-white border rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <div className="font-semibold text-gray-900">Revision debt</div>
-              <div className="text-sm font-medium text-gray-700">
-                {revisionDebtLevel === 'low' ? 'Low' : revisionDebtLevel === 'medium' ? 'Medium' : 'High'}
-              </div>
-            </div>
-            <div className="text-sm text-gray-600 mt-1">No schedules — just a simple signal.</div>
-          </div>
-        )}
-
-        {/* Fake busy detector */}
-        {fakeBusyMessage && (
-          <div className="bg-white border rounded-xl p-4">
-            <div className="font-semibold text-gray-900">Reality check</div>
-            <div className="text-sm text-gray-700 mt-1">{fakeBusyMessage}</div>
-          </div>
-        )}
-
-        {/* People like you */}
-        {peopleLikeYouInsight && (
-          <div className="bg-white border rounded-xl p-4">
-            <div className="font-semibold text-gray-900">People like you</div>
-            <div className="text-sm text-gray-700 mt-1">{peopleLikeYouInsight}</div>
-          </div>
-        )}
-
         {/* Emotional check-in */}
         {showEmotionalCheckIn && (
-          <div className="bg-white border rounded-xl p-4">
-            <div className="font-semibold text-gray-900">How did studying feel today?</div>
-            <div className="mt-3 grid grid-cols-3 gap-2">
+          <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <p className="text-sm font-medium text-gray-900 mb-2">How did studying feel today?</p>
+            <div className="flex gap-2">
               {([
                 { key: 'calm', label: 'Calm' },
                 { key: 'neutral', label: 'Neutral' },
@@ -792,7 +934,7 @@ export default function Dashboard() {
                     await createEmotionalCheckIn(user.id, today, opt.key)
                     setShowEmotionalCheckIn(false)
                   }}
-                  className="py-2 px-3 rounded-lg bg-gray-100 text-gray-900 font-medium hover:bg-gray-200"
+                  className="flex-1 py-2 px-3 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200"
                 >
                   {opt.label}
                 </button>
@@ -803,10 +945,9 @@ export default function Dashboard() {
 
         {/* If exam were tomorrow */}
         {showExamTomorrow && (
-          <div className="bg-white border rounded-xl p-4">
-            <div className="font-semibold text-gray-900">If exam were tomorrow…</div>
-            <div className="text-sm text-gray-700 mt-1">Could you clear the basics?</div>
-            <div className="mt-3 grid grid-cols-3 gap-2">
+          <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <p className="text-sm font-medium text-gray-900 mb-2">If exam were tomorrow, could you clear the basics?</p>
+            <div className="flex gap-2">
               {([
                 { key: 'yes', label: 'Yes' },
                 { key: 'maybe', label: 'Maybe' },
@@ -820,7 +961,7 @@ export default function Dashboard() {
                     setRecentExamTomorrowResponse(opt.key)
                     setShowExamTomorrow(false)
                   }}
-                  className="py-2 px-3 rounded-lg bg-gray-100 text-gray-900 font-medium hover:bg-gray-200"
+                  className="flex-1 py-2 px-3 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200"
                 >
                   {opt.label}
                 </button>
@@ -829,75 +970,65 @@ export default function Dashboard() {
           </div>
         )}
 
-        {recentExamTomorrowResponse && !showExamTomorrow && (
-          <div className="bg-white border rounded-xl p-4">
-            <div className="font-semibold text-gray-900">Exam tomorrow (last answer)</div>
-            <div className="text-sm text-gray-700 mt-1">
-              {recentExamTomorrowResponse === 'yes' ? 'Yes' : recentExamTomorrowResponse === 'maybe' ? 'Maybe' : 'No'}
-            </div>
-          </div>
-        )}
-
-        {/* Monthly snapshot */}
-        {monthlySnapshot && (
-          <div className="bg-white border rounded-xl p-4">
-            <div className="font-semibold text-gray-900">Memory snapshot</div>
-            <div className="text-sm text-gray-700 mt-2">Average daily minutes: {monthlySnapshot.avgDailyMinutes}</div>
-            <div className="text-sm text-gray-700">Consistency: {monthlySnapshot.consistencyDays} day(s) this month</div>
-            <div className="text-sm text-gray-700">Biggest improvement: {monthlySnapshot.biggestImprovement}</div>
-            <div className="text-sm text-gray-600 mt-2">{monthlySnapshot.reflection}</div>
-          </div>
-        )}
-
         {/* Honesty Prompt */}
         {honestyPrompt && (
-          <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-4 text-center">
-            <p className="text-amber-900 font-medium">{honestyPrompt}</p>
+          <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-4">
+            <p className="text-sm text-amber-900 font-medium mb-2">{honestyPrompt}</p>
             <button
               onClick={() => setHonestyPrompt(null)}
-              className="mt-3 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
+              className="w-full py-2 px-3 bg-amber-600 text-white text-sm rounded-lg hover:bg-amber-700"
             >
               I understand
             </button>
           </div>
         )}
 
-        {/* Today's Verdict */}
-        {verdict && (
-          <VerdictCard verdict={verdict} tone="neutral" />
-        )}
-
-        {/* Micro Action */}
-        {microAction && (
-          <MicroActionCard
-            action={microAction}
-            onComplete={handleCompleteMicroAction}
-          />
-        )}
-
-        {/* Peer Comparison */}
+        {/* Peer Comparison - Collapsed by default */}
         {user.peerComparisonEnabled && verdict && (
-          <PeerComparison
-            exam={user.exam}
-            todayMinutes={verdict.studyMinutes}
-            enabled={user.peerComparisonEnabled}
-            onToggle={async () => {
-              await updateStudyUser(user.id, {
-                peerComparisonEnabled: !user.peerComparisonEnabled
-              })
-              setUser({ ...user, peerComparisonEnabled: !user.peerComparisonEnabled })
-            }}
-          />
+          <details className="bg-white border border-gray-200 rounded-xl">
+            <summary className="p-4 cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
+              Peer comparison
+            </summary>
+            <div className="px-4 pb-4">
+              <PeerComparison
+                exam={user.exam}
+                todayMinutes={verdict.studyMinutes}
+                enabled={user.peerComparisonEnabled}
+                onToggle={async () => {
+                  await updateStudyUser(user.id, {
+                    peerComparisonEnabled: !user.peerComparisonEnabled
+                  })
+                  setUser({ ...user, peerComparisonEnabled: !user.peerComparisonEnabled })
+                }}
+              />
+            </div>
+          </details>
         )}
 
-        {/* Share Snapshot */}
+        {/* People like you insight */}
+        {peopleLikeYouInsight && (
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
+            <p className="text-xs text-gray-600">
+              <span className="font-medium text-gray-700">People like you:</span> {peopleLikeYouInsight}
+            </p>
+          </div>
+        )}
+
+        {/* Share Snapshot - Minimal */}
         {verdict && (
-          <ShareSnapshot
-            status={verdict.status}
-            hoursStudied={Math.round(verdict.studyMinutes / 60 * 10) / 10}
-            exam={user.exam}
-            streak={verdict.streak}
-          />
+          <details className="bg-white border border-gray-200 rounded-xl">
+            <summary className="p-4 cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
+              Share today's progress
+            </summary>
+            <div className="px-4 pb-4">
+              <ShareSnapshot
+                status={verdict.status}
+                hoursStudied={Math.round(verdict.studyMinutes / 60 * 10) / 10}
+                exam={user.exam}
+                streak={verdict.streak}
+              />
+            </div>
+          </details>
         )}
 
         {/* Safety Check */}
