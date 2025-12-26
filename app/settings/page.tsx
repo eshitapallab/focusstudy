@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
+import AppNav from '@/components/Navigation/AppNav'
 import { db, getOrCreateDeviceId } from '@/lib/dexieClient'
 import { supabase } from '@/lib/supabaseClient'
 import { createPod, joinPod, getPodStatus } from '@/lib/supabaseStudyTrack'
@@ -192,25 +192,19 @@ export default function SettingsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-primary-50 to-white dark:from-gray-900 dark:to-gray-800">
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
+    <main className="min-h-screen bg-gradient-to-b from-primary-50 to-white dark:from-gray-900 dark:to-gray-800 pb-20">
+      <AppNav />
+      
+      <div className="container mx-auto px-4 py-6 max-w-2xl">
         {/* Header */}
-        <header className="mb-8">
-          <div className="flex items-center gap-4 mb-4">
-            <Link
-              href="/"
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-              aria-label="Back to Home"
-            >
-              <svg className="w-6 h-6 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </Link>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              Settings
-            </h1>
-          </div>
-        </header>
+        <div className="mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            Settings
+          </h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Customize your FocusStudy experience
+          </p>
+        </div>
 
         {/* Notifications Section */}
         <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg mb-6">

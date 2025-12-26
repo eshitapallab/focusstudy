@@ -8,14 +8,13 @@ import ReflectionModal from '@/components/ReflectionModal'
 import PlannerModal from '@/components/PlannerModal'
 import TodayList from '@/components/TodayList'
 import AuthModal from '@/components/Auth/AuthModal'
-import UserMenu from '@/components/Auth/UserMenu'
 import GoalProgress from '@/components/GoalProgress'
+import AppNav from '@/components/Navigation/AppNav'
 import FocusStudyLogo from '@/components/FocusStudyLogo'
 import SmartNotificationsInit from '@/components/SmartNotificationsInit'
 import { db, shouldPromptForAccount } from '@/lib/dexieClient'
 import { calculateActualDuration } from '@/lib/timer'
 import { format } from 'date-fns'
-import Link from 'next/link'
 
 export default function FocusFlowHome() {
   const { state, start, pause, resume, stop, logDistraction, getDistractionCount, reconciliationMessage, dismissReconciliationMessage } = useTimer()
@@ -231,91 +230,15 @@ export default function FocusFlowHome() {
       {/* Initialize smart notifications */}
       <SmartNotificationsInit />
 
-      <div className="container mx-auto px-4 py-8 max-w-2xl relative">
-        {/* Header */}
-        <header className="mb-8">
-          {/* Top row: Branding and Sign In */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent rounded-full blur-lg opacity-40" />
-                <div className="relative bg-white dark:bg-gray-800 p-2 rounded-full shadow-lg">
-                  <FocusStudyLogo size={32} color="#6366F1" className="flex-shrink-0" />
-                </div>
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-primary via-purple-500 to-accent bg-clip-text text-transparent whitespace-nowrap">
-                  FocusStudy
-                </h1>
-                <p className="text-xs text-text-secondary dark:text-gray-400 whitespace-nowrap">
-                  {format(new Date(), 'EEEE, MMM d')}
-                </p>
-              </div>
-            </div>
-            {!user && (
-              <Link
-                href="/auth"
-                className="px-4 py-2 bg-gradient-to-r from-primary to-accent hover:from-primary-600 hover:to-accent-600 text-white text-sm font-semibold rounded-xl transition-all shadow-lg shadow-primary/25 flex-shrink-0 transform hover:scale-105 active:scale-95"
-              >
-                Sign In ✨
-              </Link>
-            )}
-          </div>
+      <AppNav user={user} showAuthButton={true} />
 
-          {/* Bottom row: Navigation icons and User Menu */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl p-1 shadow-sm border border-white/50 dark:border-gray-700/50">
-              <Link
-                href="/"
-                className="min-w-touch min-h-touch p-3 hover:bg-white dark:hover:bg-gray-700 rounded-xl transition-all"
-                aria-label="Home"
-              >
-                <svg className="w-5 h-5 text-text-secondary dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10.5L12 3l9 7.5V21a1 1 0 01-1 1h-5v-7H9v7H4a1 1 0 01-1-1v-10.5z" />
-                </svg>
-              </Link>
-              <Link
-                href="/track"
-                className="min-w-touch min-h-touch p-3 hover:bg-white dark:hover:bg-gray-700 rounded-xl transition-all"
-                aria-label="StudyTrack"
-              >
-                <svg className="w-5 h-5 text-text-secondary dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 11l3 3L22 4" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
-                </svg>
-              </Link>
-              <Link
-                href="/planner"
-                className="min-w-touch min-h-touch p-3 hover:bg-white dark:hover:bg-gray-700 rounded-xl transition-all"
-                aria-label="View Calendar"
-              >
-                <svg className="w-5 h-5 text-text-secondary dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </Link>
-              <Link
-                href="/analytics"
-                className="min-w-touch min-h-touch p-3 hover:bg-white dark:hover:bg-gray-700 rounded-xl transition-all"
-                aria-label="View Analytics"
-              >
-                <svg className="w-5 h-5 text-text-secondary dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </Link>
-              <Link
-                href="/settings"
-                className="min-w-touch min-h-touch p-3 hover:bg-white dark:hover:bg-gray-700 rounded-xl transition-all"
-                aria-label="Settings"
-              >
-                <svg className="w-5 h-5 text-text-secondary dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </Link>
-            </div>
-            {user && <UserMenu />}
-          </div>
-        </header>
+      <div className="container mx-auto px-4 py-6 max-w-2xl relative pb-20">
+        {/* Date display */}
+        <div className="text-center mb-6">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            {format(new Date(), 'EEEE, MMMM d, yyyy')}
+          </p>
+        </div>
 
         {/* Sync Status Banner */}
         {syncInProgress && (

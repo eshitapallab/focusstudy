@@ -1,20 +1,21 @@
 import type { Metadata, Viewport } from 'next'
 import { AuthProvider } from '@/hooks/useAuth'
+import BottomNav from '@/components/Navigation/BottomNav'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'FocusFlow - Study Timer & Exam Prep',
+  title: 'FocusStudy - Study Timer & Exam Prep',
   description: 'All-in-one study companion: Pomodoro timer with analytics and exam accountability system with daily check-ins, verdicts, and peer comparison.',
   manifest: '/manifest.json',
   keywords: ['study timer', 'pomodoro', 'exam prep', 'accountability', 'focus', 'productivity'],
-  authors: [{ name: 'FocusFlow' }],
+  authors: [{ name: 'FocusStudy' }],
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'FocusFlow',
+    title: 'FocusStudy',
   },
   openGraph: {
-    title: 'FocusFlow - Study Timer & Exam Prep',
+    title: 'FocusStudy - Study Timer & Exam Prep',
     description: 'Study smarter with integrated timer and exam accountability',
     type: 'website',
   },
@@ -35,9 +36,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="antialiased">
+      <body className="antialiased pb-safe">
         <AuthProvider>
           {children}
+          <BottomNav />
         </AuthProvider>
       </body>
     </html>

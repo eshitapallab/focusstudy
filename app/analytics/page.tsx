@@ -1,14 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { db } from '@/lib/dexieClient'
 import { calculateActualDuration } from '@/lib/timer'
+import AppNav from '@/components/Navigation/AppNav'
+import FocusStudyLogo from '@/components/FocusStudyLogo'
 import WeekTrend from '@/components/Analytics/WeekTrend'
 import Heatmap from '@/components/Analytics/Heatmap'
 import SubjectBreakdown from '@/components/Analytics/SubjectBreakdown'
 import ComparisonMode from '@/components/ComparisonMode'
-import FocusStudyLogo from '@/components/FocusStudyLogo'
-import Link from 'next/link'
 
 export default function AnalyticsPage() {
   const [sessions, setSessions] = useState<any[]>([])
@@ -55,7 +56,8 @@ export default function AnalyticsPage() {
   
   if (loading) {
     return (
-      <main className="min-h-screen bg-background dark:from-gray-900 dark:to-gray-800">
+      <main className="min-h-screen bg-background dark:from-gray-900 dark:to-gray-800 pb-20">
+        <AppNav />
         <div className="container mx-auto px-4 py-8 max-w-6xl">
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="text-center">
@@ -76,29 +78,18 @@ export default function AnalyticsPage() {
   const labeledSessions = sessionsWithMetadata.filter(s => s.metadata?.subject).length
 
   return (
-    <main className="min-h-screen bg-background dark:from-gray-900 dark:to-gray-800">
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+    <main className="min-h-screen bg-background dark:from-gray-900 dark:to-gray-800 pb-20">
+      <AppNav />
+      
+      <div className="container mx-auto px-4 py-6 max-w-6xl">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-4 mb-4">
-            <Link 
-              href="/"
-              className="p-2 hover:bg-surface dark:hover:bg-gray-800 rounded-lg transition-colors"
-            >
-              <svg className="w-6 h-6 text-text-secondary dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </Link>
-            <FocusStudyLogo size={32} color="#4F7CAC" className="sm:w-10 sm:h-10 w-8 h-8" />
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-text-primary dark:text-white">
-                Analytics
-              </h1>
-              <p className="text-text-secondary dark:text-gray-400 text-xs sm:text-sm">
-                Your study patterns and insights
-              </p>
-            </div>
-          </div>
+        <div className="mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold text-text-primary dark:text-white mb-2">
+            Analytics
+          </h1>
+          <p className="text-text-secondary dark:text-gray-400 text-sm md:text-base">
+            Your study patterns and insights
+          </p>
         </div>
 
         {/* No data state */}

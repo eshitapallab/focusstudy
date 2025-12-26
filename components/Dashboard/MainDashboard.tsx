@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import AppNav from '@/components/Navigation/AppNav'
 import { supabase } from '@/lib/supabaseClient'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import {
@@ -639,41 +640,24 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto px-4 py-4">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">StudyTrack</h1>
-              <p className="text-sm text-gray-600">Preparing for {user.exam}</p>
-            </div>
-            <div className="flex items-center gap-1 bg-gray-50 rounded-2xl p-1 border">
-              <a
-                href="/"
-                className="min-w-touch min-h-touch p-3 hover:bg-white rounded-xl transition-all"
-                aria-label="Home"
-              >
-                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10.5L12 3l9 7.5V21a1 1 0 01-1 1h-5v-7H9v7H4a1 1 0 01-1-1v-10.5z" />
-                </svg>
-              </a>
-              <a
-                href="/focus"
-                className="min-w-touch min-h-touch p-3 hover:bg-white rounded-xl transition-all"
-                aria-label="Timer"
-              >
-                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 21a8 8 0 100-16 8 8 0 000 16z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3h6" />
-                </svg>
-              </a>
-            </div>
-          </div>
-        </div>
-      </header>
+      <AppNav user={{ email: user.email, isAnonymous: user.isAnonymous }} />
 
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+        {/* User info header */}
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">StudyTrack</h2>
+              <p className="text-sm text-gray-600">Preparing for {user.exam}</p>
+            </div>
+            {verdict && (
+              <div className="text-right">
+                <div className="text-2xl">{verdict.streak > 0 ? '🔥' : '📚'}</div>
+                <div className="text-xs text-gray-500">{verdict.streak} day streak</div>
+              </div>
+            )}
+          </div>
+        </div>
         {/* Daily Check-in Modal */}
         {showCheckIn && (
           <DailyCheckInCard

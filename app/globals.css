@@ -26,6 +26,24 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Safe area insets for mobile devices */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0.5rem);
+}
+
+/* Minimum touch target size for mobile accessibility */
+.min-w-touch {
+  min-width: 44px;
+}
+
+.min-h-touch {
+  min-height: 44px;
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
