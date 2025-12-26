@@ -218,6 +218,58 @@ export interface RecoveryPath {
   accepted: boolean
 }
 
+// ============================================================================
+// Mistake Intelligence System (MIS)
+// ============================================================================
+
+export type MISTestType = 'mock' | 'sectional' | 'pyq'
+export type MISMistakeType =
+  | 'concept'
+  | 'memory'
+  | 'calculation'
+  | 'misread'
+  | 'time-pressure'
+  | 'strategy'
+
+export type MISAvoidability = 'easily' | 'possibly' | 'hard'
+export type MISConfidenceLevel = 'high' | 'medium' | 'low'
+
+export interface MISTest {
+  id: string
+  userId: string
+  testName: string
+  testType: MISTestType
+  date: string // YYYY-MM-DD
+  totalMarks?: number
+  marksObtained?: number
+  createdAt: Date
+}
+
+export interface MISLoggedMistake {
+  id: string
+  userId: string
+  testId: string
+  topicId: string
+  mistakeType: MISMistakeType
+  avoidability: MISAvoidability
+  confidenceLevel?: MISConfidenceLevel
+  repeated?: boolean
+  createdAt: Date
+}
+
+export interface MarkLeakEstimate {
+  userId: string
+  subject: string
+  topic: string
+  mistakeType: MISMistakeType | 'silly' | 'unknown'
+  frequency: number
+  avoidableCount: number
+  lastSeenAt: Date
+  estimatedMarksLost: number
+  fixabilityScore: number
+  priorityRank: number
+}
+
 // Layer 3: Verdict Change
 export interface VerdictChange {
   id: string

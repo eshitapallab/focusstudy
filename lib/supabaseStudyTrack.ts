@@ -6,6 +6,13 @@ import type {
   WeeklyReality,
   Verdict,
   MicroAction,
+  MISTest,
+  MISLoggedMistake,
+  MarkLeakEstimate,
+  MISTestType,
+  MISMistakeType,
+  MISAvoidability,
+  MISConfidenceLevel,
   CohortStats,
   GamingDetection,
   EmotionalCheckIn,
@@ -16,6 +23,8 @@ import type {
   Pod,
   PodStatusRow
 } from './types'
+
+import type { SyllabusTopic } from './preparationState.types'
 
 // User operations
 export async function createStudyUser(userId: string, userData: Omit<User, 'id' | 'createdAt'>): Promise<User | null> {
@@ -518,6 +527,173 @@ export async function deleteMicroAction(actionId: string): Promise<void> {
     .from('micro_actions')
     .delete()
     .eq('id', actionId)
+}
+
+// ============================================================================
+// Mistake Intelligence System (MIS)
+// ============================================================================
+
+export async function getSyllabusTopicsForExam(exam: string): Promise<SyllabusTopic[]> {
+  if (!supabase) return []
+
+  // Find the canonical syllabus template for this exam.
+  const { data: template, error: templateError } = await supabase
+    .from('syllabus_templates')
+    .select('id')
+    .eq('exam', exam)
+    .maybeSingle()
+
+  if (templateError || !template?.id) return []
+
+  const { data, error } = await supabase
+    .from('syllabus_topics')
+    .select('*')
+    .eq('syllabus_id', template.id)
+    .order('subject', { ascending: true })
+    .order('display_order', { ascending: true })
+
+  if (error || !data) return []
+
+  return (data as any[]).map(row => ({
+    id: row.id,
+    syllabusId: row.syllabus_id,
+    parentId: row.parent_id ?? undefined,
+    code: row.code,
+    name: row.name,
+    subject: row.subject,
+    examWeight: row.exam_weight,
+    avgQuestionsPerYear: Number(row.avg_questions_per_year ?? 0),
+    lastAskedYear: row.last_asked_year ?? undefined,
+    estimatedHours: Number(row.estimated_hours ?? 1.0),
+    difficulty: row.difficulty,
+    prerequisites: row.prerequisites ?? [],
+    displayOrder: row.display_order ?? 0,
+    createdAt: new Date(row.created_at)
+  }))
+}
+
+export async function createMISTest(
+  userId: string,
+  test: Omit<MISTest, 'id' | 'userId' | 'createdAt'>
+): Promise<MISTest | null> {
+  if (!supabase) return null
+
+  const { data, error } = await supabase
+    .from('mock_tests')
+    .insert({
+      user_id: userId,
+      test_name: test.testName,
+      test_type: test.testType,
+      test_date: test.date,
+      total_marks: test.totalMarks ?? null,
+      scored_marks: test.marksObtained ?? null
+    })
+    .select('*')
+    .single()
+
+  if (error || !data) {
+    logError('createMISTest', error || 'No data returned')
+    return null
+  }
+
+  return {
+    id: data.id,
+    userId: data.user_id,
+    testName: data.test_name,
+    testType: data.test_type as MISTestType,
+    date: data.test_date,
+    totalMarks: data.total_marks ?? undefined,
+    marksObtained: data.scored_marks ?? undefined,
+    createdAt: new Date(data.created_at)
+  }
+}
+
+function estimateMarksLostPerMistake(exam: string): number {
+  const e = (exam || '').toLowerCase()
+  if (e.includes('upsc')) return 2
+  if (e.includes('jee') || e.includes('neet')) return 4
+  if (e.includes('cat')) return 1
+  if (e.includes('gate')) return 1
+  if (e.includes('bank')) return 1
+  // SSC & most objective tests: 1–2 marks; default to 2 to stay conservative.
+  if (e.includes('ssc')) return 2
+  return 2
+}
+
+export async function logMISMistakes(
+  userId: string,
+  userExam: string,
+  testId: string,
+  mistakes: Array<{
+    topicId: string
+    mistakeType: MISMistakeType
+    avoidability: MISAvoidability
+    confidenceLevel?: MISConfidenceLevel
+    repeated?: boolean
+  }>
+): Promise<MISLoggedMistake[]> {
+  if (!supabase) return []
+
+  const marksLost = estimateMarksLostPerMistake(userExam)
+
+  const { data, error } = await supabase
+    .from('mock_mistakes')
+    .insert(
+      mistakes.map(m => ({
+        user_id: userId,
+        mock_id: testId,
+        topic_id: m.topicId,
+        mistake_type: m.mistakeType,
+        avoidability: m.avoidability,
+        confidence_level: m.confidenceLevel ?? null,
+        repeated: m.repeated ?? null,
+        marks_lost: marksLost
+      }))
+    )
+    .select('*')
+
+  if (error || !data) {
+    logError('logMISMistakes', error || 'No data returned')
+    return []
+  }
+
+  return (data as any[]).map(row => ({
+    id: row.id,
+    userId: row.user_id,
+    testId: row.mock_id,
+    topicId: row.topic_id,
+    mistakeType: row.mistake_type,
+    avoidability: row.avoidability,
+    confidenceLevel: row.confidence_level ?? undefined,
+    repeated: row.repeated ?? undefined,
+    createdAt: new Date(row.created_at)
+  }))
+}
+
+export async function getTopMarkLeaks(userId: string, limit: number = 3): Promise<MarkLeakEstimate[]> {
+  if (!supabase) return []
+
+  const { data, error } = await supabase
+    .from('mark_leak_estimates')
+    .select('*')
+    .eq('user_id', userId)
+    .order('priority_rank', { ascending: true })
+    .limit(limit)
+
+  if (error || !data) return []
+
+  return (data as any[]).map(row => ({
+    userId: row.user_id,
+    subject: row.subject,
+    topic: row.topic,
+    mistakeType: row.mistake_type,
+    frequency: row.frequency,
+    avoidableCount: row.avoidable_count,
+    lastSeenAt: new Date(row.last_seen_at),
+    estimatedMarksLost: Number(row.estimated_marks_lost ?? 0),
+    fixabilityScore: Number(row.fixability_score ?? 0.6),
+    priorityRank: row.priority_rank
+  }))
 }
 
 export async function lockMicroAction(actionId: string): Promise<void> {

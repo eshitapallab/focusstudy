@@ -29,14 +29,15 @@ import {
   getMonthlySnapshot,
   createMonthlySnapshot,
   createGamingDetection,
-  hasRecentGamingDetection
+  hasRecentGamingDetection,
+  getTopMarkLeaks
 } from '@/lib/supabaseStudyTrack'
 import { calculateVerdict } from '@/lib/verdictEngine'
 import { generateMicroAction } from '@/lib/microActionGenerator'
 import { calculateRealityScore, generateTrajectoryMessage } from '@/lib/realityCheck'
 import { detectGamingPatterns, getHonestyPrompt, shouldPromptHonesty } from '@/lib/gamingDetection'
 import { getSubjectMarks, getSubjectPercentage, getExamSubjects } from '@/lib/examSyllabi'
-import { User, DailyCheckIn, Verdict, MicroAction, WeeklyReality, EmotionalFeeling, ExamTomorrowResponse, MonthlySnapshot } from '@/lib/types'
+import { User, DailyCheckIn, Verdict, MicroAction, WeeklyReality, EmotionalFeeling, ExamTomorrowResponse, MonthlySnapshot, MarkLeakEstimate } from '@/lib/types'
 import OnboardingFlow from '@/components/Onboarding/OnboardingFlow'
 import DailyCheckInCard from '@/components/CheckIn/DailyCheckInCard'
 import VerdictCard from '@/components/Verdict/VerdictCard'
@@ -45,6 +46,8 @@ import WeeklyRealityCheck from '@/components/Reality/WeeklyRealityCheck'
 import PeerComparison from '@/components/Peer/PeerComparison'
 import ShareSnapshot from '@/components/Share/ShareSnapshot'
 import SafetyPrompt from '@/components/Safety/SafetyPrompt'
+import LogTestMistakesModal from '@/components/MIS/LogTestMistakesModal'
+import MarkLeaksCard from '@/components/MIS/MarkLeaksCard'
 
 export default function Dashboard() {
   const router = useRouter()
@@ -69,8 +72,19 @@ export default function Dashboard() {
   const [showResetPrompt, setShowResetPrompt] = useState(false)
   const [monthlySnapshot, setMonthlySnapshot] = useState<MonthlySnapshot | null>(null)
   const [peopleLikeYouInsight, setPeopleLikeYouInsight] = useState<string | null>(null)
+  const [showMISLog, setShowMISLog] = useState(false)
+  const [markLeaks, setMarkLeaks] = useState<MarkLeakEstimate[]>([])
 
   const today = new Date().toISOString().split('T')[0]
+
+  const refreshMarkLeaks = async (userId: string) => {
+    try {
+      const leaks = await getTopMarkLeaks(userId, 5)
+      setMarkLeaks(leaks)
+    } catch {
+      // keep silent; dashboard should still work without MIS
+    }
+  }
 
   // Auth listener
   useEffect(() => {
@@ -136,6 +150,10 @@ export default function Dashboard() {
             setLoading(false)
           }
           return
+        }
+
+        if (mounted) {
+          refreshMarkLeaks(supabaseUser.id)
         }
 
         if (!mounted) return
@@ -702,6 +720,13 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center gap-3">
               <button
+                onClick={() => setShowMISLog(true)}
+                className="px-3 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors"
+                title="Log test mistakes"
+              >
+                + Log mistakes
+              </button>
+              <button
                 onClick={() => router.push('/settings')}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                 title="Edit profile"
@@ -877,6 +902,8 @@ export default function Dashboard() {
             </details>
           </div>
         )}
+
+        {markLeaks.length > 0 && <MarkLeaksCard leaks={markLeaks} />}
 
         {/* Tomorrow Lock follow-up (if exists) */}
         {lockedFollowUpAction && (
@@ -1128,6 +1155,16 @@ export default function Dashboard() {
               I understand
             </button>
           </div>
+        )}
+
+        {showMISLog && (
+          <LogTestMistakesModal
+            user={user}
+            onClose={() => setShowMISLog(false)}
+            onLogged={async () => {
+              await refreshMarkLeaks(user.id)
+            }}
+          />
         )}
 
         {/* Peer Comparison - Hidden until meaningful data */}
