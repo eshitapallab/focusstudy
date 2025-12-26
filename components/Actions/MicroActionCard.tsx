@@ -2,17 +2,68 @@
 
 import { MicroAction } from '@/lib/types'
 import { completeMicroAction, lockMicroAction } from '@/lib/supabaseStudyTrack'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import { getSubjectMeta, getExamDayRules, getLastPhaseGuidance, getDaysToExam } from '@/lib/examSyllabi'
 
 interface MicroActionCardProps {
   action: MicroAction
   onComplete?: () => void
+  examName?: string
+  examDate?: string
+  subject?: string
 }
 
-export default function MicroActionCard({ action, onComplete }: MicroActionCardProps) {
+export default function MicroActionCard({ action, onComplete, examName, examDate, subject }: MicroActionCardProps) {
   const [completing, setCompleting] = useState(false)
   const [locking, setLocking] = useState(false)
   const [locked, setLocked] = useState(Boolean(action.locked))
+
+  // Get contextual guidance based on exam and subject
+  const contextualGuidance = useMemo(() => {
+    if (!examName) return null
+
+    const daysToExam = examDate ? getDaysToExam(examDate) : null
+    const subjectMeta = subject ? getSubjectMeta(examName, subject) : null
+    const examDayRules = getExamDayRules(examName)
+    const lastPhaseGuidance = getLastPhaseGuidance(examName)
+
+    // Priority 1: Exam day rules (≤7 days)
+    if (daysToExam !== null && daysToExam <= 7 && examDayRules && examDayRules.length > 0) {
+      // Show one rule per day based on date
+      const dayIndex = Math.max(0, 7 - daysToExam) % examDayRules.length
+      const rule = examDayRules[dayIndex]
+      return {
+        type: 'exam-rule' as const,
+        content: rule.rule,
+        trigger: rule.trigger,
+        daysLeft: daysToExam
+      }
+    }
+
+    // Priority 2: Last phase guidance (≤10 days)
+    if (daysToExam !== null && daysToExam <= 10 && lastPhaseGuidance && lastPhaseGuidance.length > 0) {
+      // Rotate guidance based on session
+      const guidanceIndex = new Date().getDate() % lastPhaseGuidance.length
+      return {
+        type: 'last-phase' as const,
+        content: lastPhaseGuidance[guidanceIndex],
+        daysLeft: daysToExam
+      }
+    }
+
+    // Priority 3: Subject-specific exam tip (when studying a subject)
+    if (subjectMeta && subjectMeta.examTips && subjectMeta.examTips.length > 0) {
+      // One tip per session - use hour to rotate
+      const tipIndex = new Date().getHours() % subjectMeta.examTips.length
+      return {
+        type: 'exam-tip' as const,
+        content: subjectMeta.examTips[tipIndex],
+        subject: subject
+      }
+    }
+
+    return null
+  }, [examName, examDate, subject])
 
   const handleComplete = async () => {
     setCompleting(true)
@@ -72,6 +123,53 @@ export default function MicroActionCard({ action, onComplete }: MicroActionCardP
             {action.durationMinutes} minutes
           </span>
         </div>
+
+        {/* Contextual Guidance - appears only when relevant */}
+        {contextualGuidance && (
+          <div className={`rounded-lg p-3 text-sm ${
+            contextualGuidance.type === 'exam-rule' 
+              ? 'bg-amber-50 border border-amber-200'
+              : contextualGuidance.type === 'last-phase'
+              ? 'bg-purple-50 border border-purple-200'
+              : 'bg-indigo-50 border border-indigo-200'
+          }`}>
+            {contextualGuidance.type === 'exam-rule' && (
+              <>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-amber-600 font-medium">
+                    ⚡ {contextualGuidance.daysLeft} day{contextualGuidance.daysLeft !== 1 ? 's' : ''} to exam
+                  </span>
+                </div>
+                <p className="text-amber-800 text-xs mb-1">
+                  <span className="font-medium">If:</span> {contextualGuidance.trigger}
+                </p>
+                <p className="text-amber-900 font-medium">
+                  → {contextualGuidance.content}
+                </p>
+              </>
+            )}
+            {contextualGuidance.type === 'last-phase' && (
+              <>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-purple-600 font-medium">
+                    🎯 Final stretch — {contextualGuidance.daysLeft} days left
+                  </span>
+                </div>
+                <p className="text-purple-800">{contextualGuidance.content}</p>
+              </>
+            )}
+            {contextualGuidance.type === 'exam-tip' && contextualGuidance.subject && (
+              <>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-indigo-600 font-medium text-xs uppercase tracking-wide">
+                    {contextualGuidance.subject}
+                  </span>
+                </div>
+                <p className="text-indigo-800">{contextualGuidance.content}</p>
+              </>
+            )}
+          </div>
+        )}
 
         {locked && (
           <div className="bg-white/70 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">

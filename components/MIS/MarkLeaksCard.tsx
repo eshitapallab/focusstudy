@@ -2,14 +2,16 @@
 
 import type { MarkLeakEstimate } from '@/lib/types'
 import { getMISPrescription } from '@/lib/misPrescriptions'
+import { getTypicalMistakes } from '@/lib/examSyllabi'
 
 interface MarkLeaksCardProps {
   leaks: MarkLeakEstimate[]
   onUseAsFocus?: (leak: MarkLeakEstimate) => void
   onLockForTomorrow?: (leak: MarkLeakEstimate) => void
+  examName?: string
 }
 
-export default function MarkLeaksCard({ leaks, onUseAsFocus, onLockForTomorrow }: MarkLeaksCardProps) {
+export default function MarkLeaksCard({ leaks, onUseAsFocus, onLockForTomorrow, examName }: MarkLeaksCardProps) {
   if (!leaks || leaks.length === 0) return null
 
   return (
@@ -26,6 +28,14 @@ export default function MarkLeaksCard({ leaks, onUseAsFocus, onLockForTomorrow }
       <div className="space-y-3">
         {leaks.slice(0, 5).map((l) => {
           const p = getMISPrescription(l)
+          
+          // Check if this matches a typical mistake pattern for the exam
+          const typicalMistakes = examName ? getTypicalMistakes(examName, l.subject) : []
+          const matchingTypical = typicalMistakes.find(typical => {
+            const keywords = typical.toLowerCase().split(/\s+/).filter(k => k.length > 3)
+            const mistakeText = `${l.topic} ${l.mistakeType}`.toLowerCase()
+            return keywords.some(k => mistakeText.includes(k))
+          })
 
           return (
             <div key={`${l.topic}:${l.mistakeType}`} className="bg-gray-50 dark:bg-gray-900 rounded-xl p-3">
@@ -37,6 +47,13 @@ export default function MarkLeaksCard({ leaks, onUseAsFocus, onLockForTomorrow }
                   <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">
                     {labelMistakeType(l.mistakeType)} • {l.avoidableCount}/{l.frequency} avoidable
                   </div>
+                  {/* Show if this matches a known typical mistake pattern */}
+                  {matchingTypical && (
+                    <div className="text-xs text-amber-700 dark:text-amber-400 mt-1 flex items-center gap-1">
+                      <span>⚠️</span>
+                      <span>Known pattern: {matchingTypical}</span>
+                    </div>
+                  )}
                 </div>
                 <div className="shrink-0 text-right">
                   <div className="text-sm font-bold text-gray-900 dark:text-white">~{Math.round(l.estimatedMarksLost)} marks</div>

@@ -38,7 +38,7 @@ import { calculateVerdict } from '@/lib/verdictEngine'
 import { generateMicroAction } from '@/lib/microActionGenerator'
 import { calculateRealityScore, generateTrajectoryMessage } from '@/lib/realityCheck'
 import { detectGamingPatterns, getHonestyPrompt, shouldPromptHonesty } from '@/lib/gamingDetection'
-import { getSubjectMarks, getSubjectPercentage, getExamSubjects, isKnownExam } from '@/lib/examSyllabi'
+import { getSubjectMarks, getSubjectPercentage, getExamSubjects, isKnownExam, getSubjectMeta, getExamDayRules, getLastPhaseGuidance, getDaysToExam } from '@/lib/examSyllabi'
 import { User, DailyCheckIn, Verdict, MicroAction, WeeklyReality, EmotionalFeeling, ExamTomorrowResponse, MonthlySnapshot, MarkLeakEstimate, MistakeTrendSignal } from '@/lib/types'
 import OnboardingFlow from '@/components/Onboarding/OnboardingFlow'
 import DailyCheckInCard from '@/components/CheckIn/DailyCheckInCard'
@@ -845,6 +845,69 @@ export default function Dashboard() {
                 )}
               </ul>
             </div>
+
+            {/* Contextual Micro-Guidance - shows ONLY when relevant */}
+            {(() => {
+              const subject = microAction.relatedSubjects?.[0]
+              const examDateStr = user.examDate ? format(user.examDate, 'yyyy-MM-dd') : undefined
+              const daysToExam = examDateStr ? getDaysToExam(examDateStr) : null
+              const subjectMeta = subject ? getSubjectMeta(user.exam, subject) : null
+              const examDayRules = getExamDayRules(user.exam)
+              const lastPhaseGuidance = getLastPhaseGuidance(user.exam)
+
+              // Priority 1: Exam day rules (≤7 days)
+              if (daysToExam !== null && daysToExam <= 7 && examDayRules && examDayRules.length > 0) {
+                const dayIndex = Math.max(0, 7 - daysToExam) % examDayRules.length
+                const rule = examDayRules[dayIndex]
+                return (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-amber-600 font-semibold text-sm">
+                        ⚡ {daysToExam} day{daysToExam !== 1 ? 's' : ''} to exam
+                      </span>
+                    </div>
+                    <p className="text-amber-800 text-xs mb-1">
+                      <span className="font-medium">If:</span> {rule.trigger}
+                    </p>
+                    <p className="text-amber-900 font-medium text-sm">
+                      → {rule.rule}
+                    </p>
+                  </div>
+                )
+              }
+
+              // Priority 2: Last phase guidance (≤10 days)
+              if (daysToExam !== null && daysToExam <= 10 && lastPhaseGuidance && lastPhaseGuidance.length > 0) {
+                const guidanceIndex = new Date().getDate() % lastPhaseGuidance.length
+                return (
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-purple-600 font-semibold text-sm">
+                        🎯 Final stretch — {daysToExam} days left
+                      </span>
+                    </div>
+                    <p className="text-purple-800 text-sm">{lastPhaseGuidance[guidanceIndex]}</p>
+                  </div>
+                )
+              }
+
+              // Priority 3: Subject-specific exam tip (when studying a subject)
+              if (subject && subjectMeta?.examTips && subjectMeta.examTips.length > 0) {
+                const tipIndex = new Date().getHours() % subjectMeta.examTips.length
+                return (
+                  <div className="bg-indigo-50/50 border border-indigo-200 rounded-lg p-3 mb-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-indigo-600 font-medium text-xs uppercase tracking-wide">
+                        {subject}
+                      </span>
+                    </div>
+                    <p className="text-indigo-800 text-sm">{subjectMeta.examTips[tipIndex]}</p>
+                  </div>
+                )
+              }
+
+              return null
+            })()}
             
             <div className="flex gap-2 mb-3">
               <button
@@ -919,6 +982,7 @@ export default function Dashboard() {
         {markLeaks.length > 0 && (
           <MarkLeaksCard
             leaks={markLeaks}
+            examName={user.exam}
             onUseAsFocus={async (leak) => {
               if (!user) return
               const p = getMISPrescription(leak)
