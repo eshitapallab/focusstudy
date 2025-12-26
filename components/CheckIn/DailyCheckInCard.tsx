@@ -1,19 +1,33 @@
 'use client'
 
 import { useState } from 'react'
-import { SUBJECT_PRESETS, DailyCheckIn } from '@/lib/types'
+import { DailyCheckIn } from '@/lib/types'
+import { getExamSubjects } from '@/lib/examSyllabi'
 
 interface DailyCheckInCardProps {
   onSubmit: (data: Omit<DailyCheckIn, 'id' | 'userId' | 'createdAt' | 'date'>) => Promise<void>
   onClose?: () => void
+  userExam?: string
 }
 
-export default function DailyCheckInCard({ onSubmit, onClose }: DailyCheckInCardProps) {
+export default function DailyCheckInCard({ onSubmit, onClose, userExam }: DailyCheckInCardProps) {
   const [subject, setSubject] = useState('')
   const [customSubject, setCustomSubject] = useState('')
   const [minutes, setMinutes] = useState(60)
   const [couldRevise, setCouldRevise] = useState<boolean | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  
+  // Get exam-specific subjects or fallback to generic list
+  const examSubjects = userExam ? [...getExamSubjects(userExam), 'Other'] : [
+    'Mathematics',
+    'Physics',
+    'Chemistry',
+    'Biology',
+    'History',
+    'Geography',
+    'Economics',
+    'Other'
+  ]
 
   const selectedSubject = subject === 'Other' ? customSubject : subject
   const isComplete = selectedSubject && minutes > 0 && couldRevise !== null
@@ -60,8 +74,8 @@ export default function DailyCheckInCard({ onSubmit, onClose }: DailyCheckInCard
               <span className="text-sm font-medium text-gray-700 mb-2 block">
                 What did you study?
               </span>
-              <div className="grid grid-cols-2 gap-2">
-                {SUBJECT_PRESETS.map((sub) => (
+              <div className="grid grid-cols-2 gap-2 max-h-80 overflow-y-auto">
+                {examSubjects.map((sub) => (
                   <button
                     key={sub}
                     onClick={() => {

@@ -1,31 +1,100 @@
 import { DailyCheckIn, MicroAction, Verdict } from './types'
+import { getSubjectMarks, getExamSubjects } from './examSyllabi'
 
 /**
  * Generate a single micro-action based on recent study patterns and verdict
+ * Uses real exam data - no dummy recommendations
  */
 export function generateMicroAction(
   recentCheckIns: DailyCheckIn[],
-  verdict: Verdict
+  verdict: Verdict,
+  userExam?: string
 ): Omit<MicroAction, 'id' | 'userId' | 'verdictId' | 'date' | 'createdAt' | 'completed'> {
   
   const targetMinutes = verdict.targetMinutes
   
+  // If no check-ins exist, recommend first session
+  if (recentCheckIns.length === 0) {
+    const examSubjects = userExam ? getExamSubjects(userExam) : []
+    const firstSubject = examSubjects.length > 0 ? examSubjects[0] : 'any subject'
+    
+    return {
+      task: `Start with ${firstSubject}`,
+      durationMinutes: Math.min(30, targetMinutes),
+      relatedSubjects: examSubjects.length > 0 ? [examSubjects[0]] : []
+    }
+  }
+  
   // Analyze recent subjects and identify patterns
   const subjectFrequency = new Map<string, number>()
   const subjectMinutes = new Map<string, number>()
+  const subjectLastStudied = new Map<string, Date>()
   
   recentCheckIns.forEach(checkIn => {
     const count = subjectFrequency.get(checkIn.subject) || 0
     const minutes = subjectMinutes.get(checkIn.subject) || 0
+    const lastDate = subjectLastStudied.get(checkIn.subject)
+    const currentDate = new Date(checkIn.date)
     
     subjectFrequency.set(checkIn.subject, count + 1)
     subjectMinutes.set(checkIn.subject, minutes + checkIn.minutesStudied)
+    
+    if (!lastDate || currentDate > lastDate) {
+      subjectLastStudied.set(checkIn.subject, currentDate)
+    }
   })
   
-  // Find subjects that need attention
-  const subjects = Array.from(subjectFrequency.keys())
+  // Strategy 1: PRIORITY - Fix weak recall subjects (retention risk)
+  const weakRecallSubjects = recentCheckIns
+    .filter(c => !c.couldRevise)
+    .map(c => c.subject)
+    .filter((s, i, arr) => arr.indexOf(s) === i)
   
-  // Strategy 1: Revise recently studied subjects (if they exist)
+  if (weakRecallSubjects.length > 0) {
+    const subject = weakRecallSubjects[0]
+    const subjectMarks = userExam ? getSubjectMarks(userExam, subject) : 0
+    const duration = Math.min(25, Math.round(targetMinutes * 0.4))
+    
+    return {
+      task: `Deep revision of ${subject}${subjectMarks > 0 ? ` (${subjectMarks} marks)` : ''}`,
+      durationMinutes: duration,
+      relatedSubjects: [subject]
+    }
+  }
+  
+  // Strategy 2: Balance coverage - find neglected high-value subjects
+  const examSubjects = userExam ? getExamSubjects(userExam) : []
+  const studiedSubjects = Array.from(subjectFrequency.keys())
+  
+  // Find subjects from exam syllabus that haven't been studied recently
+  const neglectedSubjects = examSubjects.filter(examSubj => {
+    const lastStudied = subjectLastStudied.get(examSubj)
+    if (!lastStudied) return true // Never studied
+    
+    const daysSince = (Date.now() - lastStudied.getTime()) / (1000 * 60 * 60 * 24)
+    return daysSince > 3 // Not studied in last 3 days
+  })
+  
+  if (neglectedSubjects.length > 0) {
+    // Prioritize by marks weightage
+    const sortedByMarks = neglectedSubjects
+      .map(subj => ({
+        subject: subj,
+        marks: userExam ? getSubjectMarks(userExam, subj) : 0
+      }))
+      .sort((a, b) => b.marks - a.marks)
+    
+    const bestSubject = sortedByMarks[0]
+    const duration = Math.min(20, Math.round(targetMinutes * 0.35))
+    
+    return {
+      task: `Cover ${bestSubject.subject}${bestSubject.marks > 0 ? ` (${bestSubject.marks} marks)` : ''}`,
+      durationMinutes: duration,
+      relatedSubjects: [bestSubject.subject]
+    }
+  }
+  
+  // Strategy 3: Revise recently studied subjects (spaced repetition)
   if (recentCheckIns.length > 0) {
     const mostRecentSubjects = recentCheckIns
       .slice(0, 3)
@@ -34,58 +103,51 @@ export function generateMicroAction(
     
     if (mostRecentSubjects.length >= 2) {
       const duration = Math.min(20, Math.round(targetMinutes * 0.3))
+      const subjects = mostRecentSubjects.slice(0, 2)
+      const totalMarks = subjects.reduce((sum, s) => 
+        sum + (userExam ? getSubjectMarks(userExam, s) : 0), 0
+      )
+      
       return {
-        task: `Tomorrow: Revise ${mostRecentSubjects.slice(0, 2).join(' & ')} (${duration} min)`,
+        task: `Revise ${subjects.join(' & ')}${totalMarks > 0 ? ` (${totalMarks} marks)` : ''}`,
         durationMinutes: duration,
-        relatedSubjects: mostRecentSubjects.slice(0, 2)
+        relatedSubjects: subjects
       }
     } else if (mostRecentSubjects.length === 1) {
+      const subject = mostRecentSubjects[0]
+      const subjectMarks = userExam ? getSubjectMarks(userExam, subject) : 0
       const duration = Math.min(20, Math.round(targetMinutes * 0.3))
+      
       return {
-        task: `Tomorrow: Revise ${mostRecentSubjects[0]} (${duration} min)`,
+        task: `Revise ${subject}${subjectMarks > 0 ? ` (${subjectMarks} marks)` : ''}`,
         durationMinutes: duration,
-        relatedSubjects: mostRecentSubjects
+        relatedSubjects: [subject]
       }
     }
   }
   
-  // Strategy 2: Focus on weak recall subjects
-  const weakRecallSubjects = recentCheckIns
-    .filter(c => !c.couldRevise)
-    .map(c => c.subject)
-    .filter((s, i, arr) => arr.indexOf(s) === i)
-  
-  if (weakRecallSubjects.length > 0) {
-    const subject = weakRecallSubjects[0]
-    const duration = Math.min(25, Math.round(targetMinutes * 0.4))
-    return {
-      task: `Tomorrow: Deep review of ${subject} (${duration} min)`,
-      durationMinutes: duration,
-      relatedSubjects: [subject]
-    }
-  }
-  
-  // Strategy 3: Balance subjects (find least studied)
-  if (subjects.length > 1) {
-    const sortedByMinutes = Array.from(subjectMinutes.entries())
-      .sort((a, b) => a[1] - b[1])
-    
+  // Strategy 4: Balance by time - find least studied subject
+  const subjectsByTime = Array.from(subjectMinutes.entries())
+  if (subjectsByTime.length > 1) {
+    const sortedByMinutes = subjectsByTime.sort((a, b) => a[1] - b[1])
     const leastStudied = sortedByMinutes[0][0]
+    const subjectMarks = userExam ? getSubjectMarks(userExam, leastStudied) : 0
     const duration = Math.min(20, Math.round(targetMinutes * 0.35))
     
     return {
-      task: `Tomorrow: Focus on ${leastStudied} (${duration} min)`,
+      task: `Focus on ${leastStudied}${subjectMarks > 0 ? ` (${subjectMarks} marks)` : ''}`,
       durationMinutes: duration,
       relatedSubjects: [leastStudied]
     }
   }
   
-  // Fallback: Generic micro-action
+  // Fallback: Use most recent subject
   const duration = Math.min(20, Math.round(targetMinutes * 0.3))
+  const allSubjects = Array.from(subjectFrequency.keys())
   return {
-    task: `Tomorrow: Quick revision session (${duration} min)`,
+    task: `Continue revision session`,
     durationMinutes: duration,
-    relatedSubjects: subjects.length > 0 ? [subjects[0]] : []
+    relatedSubjects: allSubjects.length > 0 ? [allSubjects[0]] : []
   }
 }
 

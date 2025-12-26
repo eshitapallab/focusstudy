@@ -34,6 +34,7 @@ import { calculateVerdict } from '@/lib/verdictEngine'
 import { generateMicroAction } from '@/lib/microActionGenerator'
 import { calculateRealityScore, generateTrajectoryMessage } from '@/lib/realityCheck'
 import { detectGamingPatterns, getHonestyPrompt, shouldPromptHonesty } from '@/lib/gamingDetection'
+import { getSubjectMarks, getSubjectPercentage } from '@/lib/examSyllabi'
 import { User, DailyCheckIn, Verdict, MicroAction, WeeklyReality, EmotionalFeeling, ExamTomorrowResponse, MonthlySnapshot } from '@/lib/types'
 import OnboardingFlow from '@/components/Onboarding/OnboardingFlow'
 import DailyCheckInCard from '@/components/CheckIn/DailyCheckInCard'
@@ -505,8 +506,8 @@ export default function Dashboard() {
 
       setVerdict(newVerdict)
 
-      // Generate micro action
-      const action = await generateMicroAction([checkIn, ...recentCheckIns], newVerdict)
+      // Generate micro action using real exam data
+      const action = await generateMicroAction([checkIn, ...recentCheckIns], newVerdict, user.exam)
       const newMicroAction = await createMicroAction(user.id, {
         verdictId: newVerdict.id,
         date: today,
@@ -679,6 +680,7 @@ export default function Dashboard() {
           <DailyCheckInCard
             onSubmit={handleCheckInSubmit}
             onClose={() => setShowCheckIn(false)}
+            userExam={user.exam}
           />
         )}
 
@@ -717,9 +719,17 @@ export default function Dashboard() {
             <div className="mb-4 text-sm text-gray-700 space-y-1">
               <p className="font-medium text-gray-900">Why this matters:</p>
               <ul className="list-disc list-inside space-y-0.5 text-gray-600">
-                {microAction.relatedSubjects && microAction.relatedSubjects.length > 0 && (
-                  <li>{microAction.relatedSubjects[0]} contributes ~15–20 marks</li>
-                )}
+                {microAction.relatedSubjects && microAction.relatedSubjects.length > 0 && (() => {
+                  const subject = microAction.relatedSubjects[0]
+                  const marks = getSubjectMarks(user.exam, subject)
+                  const percentage = getSubjectPercentage(user.exam, subject)
+                  return (
+                    <li>
+                      {subject} contributes {marks > 0 ? `${marks} marks` : '~15–20 marks'}
+                      {percentage > 0 && ` (${percentage}% of total)`}
+                    </li>
+                  )
+                })()}
                 {todayCheckIn && !todayCheckIn.couldRevise && (
                   <li>This topic shows weak retention</li>
                 )}
@@ -767,12 +777,20 @@ export default function Dashboard() {
             
             <button
               onClick={() => {
+                const subject = microAction.relatedSubjects && microAction.relatedSubjects.length > 0 
+                  ? microAction.relatedSubjects[0]
+                  : null
+                const marks = subject ? getSubjectMarks(user.exam, subject) : 0
+                const percentage = subject ? getSubjectPercentage(user.exam, subject) : 0
+                
                 const explanation = [
-                  microAction.relatedSubjects && microAction.relatedSubjects.length > 0 
-                    ? `• ${microAction.relatedSubjects[0]} has higher mark return right now`
+                  subject && marks > 0
+                    ? `• ${subject} has ${marks} marks (${percentage}% of total) - higher strategic value right now`
+                    : subject
+                    ? `• ${subject} shows higher strategic value based on your recent performance`
                     : '• This topic shows higher strategic value',
-                  '• Other subjects show lower risk or better stability',
-                  '• Time left favors quick revision wins'
+                  '• Other subjects show better retention or recent coverage',
+                  '• Time left favors quick high-return revisions'
                 ].join('\n')
                 alert(`Why ${microAction.task}?\n\n${explanation}`)
               }}
@@ -830,7 +848,16 @@ export default function Dashboard() {
                   If left unaddressed, this topic often costs 1–2 questions.
                 </p>
                 <p className="text-xs text-amber-800 font-medium">
-                  Fixing it now could protect ~10–15 marks.
+                  {(() => {
+                    if (microAction.relatedSubjects && microAction.relatedSubjects.length > 0) {
+                      const marks = getSubjectMarks(user.exam, microAction.relatedSubjects[0])
+                      if (marks > 0) {
+                        const atRisk = Math.floor(marks * 0.3) // Assume 30% at risk
+                        return `Fixing it now could protect ~${atRisk}–${atRisk + 5} marks.`
+                      }
+                    }
+                    return 'Fixing it now could protect ~10–15 marks.'
+                  })()}
                 </p>
               </div>
             </div>
