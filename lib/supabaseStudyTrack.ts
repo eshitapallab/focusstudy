@@ -9,6 +9,7 @@ import type {
   MISTest,
   MISLoggedMistake,
   MarkLeakEstimate,
+  MistakeTrendSignal,
   MISTestType,
   MISMistakeType,
   MISAvoidability,
@@ -693,6 +694,37 @@ export async function getTopMarkLeaks(userId: string, limit: number = 3): Promis
     estimatedMarksLost: Number(row.estimated_marks_lost ?? 0),
     fixabilityScore: Number(row.fixability_score ?? 0.6),
     priorityRank: row.priority_rank
+  }))
+}
+
+export async function getRisingMistakeSignals(userId: string, limit: number = 3): Promise<MistakeTrendSignal[]> {
+  if (!supabase) return []
+
+  const { data, error } = await supabase
+    .from('mistake_trend_signals')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('trend', 'rising')
+    .order('recent_count', { ascending: false })
+    .order('marks_delta', { ascending: false })
+    .limit(limit)
+
+  if (error || !data) return []
+
+  return (data as any[]).map(row => ({
+    userId: row.user_id,
+    subject: row.subject,
+    topic: row.topic,
+    mistakeType: row.mistake_type,
+    recentCount: Number(row.recent_count ?? 0),
+    previousCount: Number(row.previous_count ?? 0),
+    recentMarksLost: Number(row.recent_marks_lost ?? 0),
+    previousMarksLost: Number(row.previous_marks_lost ?? 0),
+    countDelta: Number(row.count_delta ?? 0),
+    marksDelta: Number(row.marks_delta ?? 0),
+    recentAvoidable: Number(row.recent_avoidable ?? 0),
+    lastSeenAt: new Date(row.last_seen_at),
+    trend: row.trend
   }))
 }
 

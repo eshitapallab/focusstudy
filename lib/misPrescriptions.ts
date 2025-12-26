@@ -1,6 +1,8 @@
 import type { MarkLeakEstimate } from './types'
 
-export function getMISPrescription(leak: MarkLeakEstimate): {
+export function getMISPrescription(
+  leak: Pick<MarkLeakEstimate, 'subject' | 'topic' | 'mistakeType'>
+): {
   title: string
   steps: string[]
   suggestedMinutes: number

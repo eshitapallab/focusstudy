@@ -30,14 +30,15 @@ import {
   createMonthlySnapshot,
   createGamingDetection,
   hasRecentGamingDetection,
-  getTopMarkLeaks
+  getTopMarkLeaks,
+  getRisingMistakeSignals
 } from '@/lib/supabaseStudyTrack'
 import { calculateVerdict } from '@/lib/verdictEngine'
 import { generateMicroAction } from '@/lib/microActionGenerator'
 import { calculateRealityScore, generateTrajectoryMessage } from '@/lib/realityCheck'
 import { detectGamingPatterns, getHonestyPrompt, shouldPromptHonesty } from '@/lib/gamingDetection'
 import { getSubjectMarks, getSubjectPercentage, getExamSubjects } from '@/lib/examSyllabi'
-import { User, DailyCheckIn, Verdict, MicroAction, WeeklyReality, EmotionalFeeling, ExamTomorrowResponse, MonthlySnapshot, MarkLeakEstimate } from '@/lib/types'
+import { User, DailyCheckIn, Verdict, MicroAction, WeeklyReality, EmotionalFeeling, ExamTomorrowResponse, MonthlySnapshot, MarkLeakEstimate, MistakeTrendSignal } from '@/lib/types'
 import OnboardingFlow from '@/components/Onboarding/OnboardingFlow'
 import DailyCheckInCard from '@/components/CheckIn/DailyCheckInCard'
 import VerdictCard from '@/components/Verdict/VerdictCard'
@@ -48,6 +49,7 @@ import ShareSnapshot from '@/components/Share/ShareSnapshot'
 import SafetyPrompt from '@/components/Safety/SafetyPrompt'
 import LogTestMistakesModal from '@/components/MIS/LogTestMistakesModal'
 import MarkLeaksCard from '@/components/MIS/MarkLeaksCard'
+import MistakeTrendsCard from '@/components/MIS/MistakeTrendsCard'
 import { getMISPrescription } from '@/lib/misPrescriptions'
 
 export default function Dashboard() {
@@ -75,6 +77,7 @@ export default function Dashboard() {
   const [peopleLikeYouInsight, setPeopleLikeYouInsight] = useState<string | null>(null)
   const [showMISLog, setShowMISLog] = useState(false)
   const [markLeaks, setMarkLeaks] = useState<MarkLeakEstimate[]>([])
+  const [risingSignals, setRisingSignals] = useState<MistakeTrendSignal[]>([])
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -84,6 +87,15 @@ export default function Dashboard() {
       setMarkLeaks(leaks)
     } catch {
       // keep silent; dashboard should still work without MIS
+    }
+  }
+
+  const refreshRisingSignals = async (userId: string) => {
+    try {
+      const signals = await getRisingMistakeSignals(userId, 3)
+      setRisingSignals(signals)
+    } catch {
+      // silent
     }
   }
 
@@ -155,6 +167,7 @@ export default function Dashboard() {
 
         if (mounted) {
           refreshMarkLeaks(supabaseUser.id)
+          refreshRisingSignals(supabaseUser.id)
         }
 
         if (!mounted) return
@@ -953,6 +966,37 @@ export default function Dashboard() {
           />
         )}
 
+        {risingSignals.length > 0 && (
+          <MistakeTrendsCard
+            signals={risingSignals}
+            onUseAsFocus={async (signal) => {
+              if (!user) return
+              const p = getMISPrescription(signal)
+
+              if (microAction) {
+                const updated = await updateMicroAction(microAction.id, {
+                  task: p.microActionTask,
+                  durationMinutes: p.suggestedMinutes,
+                  relatedSubjects: [p.relatedSubject]
+                })
+
+                if (updated) setMicroAction(updated)
+              } else if (verdict) {
+                const created = await createMicroAction(user.id, {
+                  verdictId: verdict.id,
+                  date: today,
+                  task: p.microActionTask,
+                  durationMinutes: p.suggestedMinutes,
+                  relatedSubjects: [p.relatedSubject],
+                  completed: false
+                })
+
+                if (created) setMicroAction(created)
+              }
+            }}
+          />
+        )}
+
         {/* Tomorrow Lock follow-up (if exists) */}
         {lockedFollowUpAction && (
           <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
@@ -1211,6 +1255,7 @@ export default function Dashboard() {
             onClose={() => setShowMISLog(false)}
             onLogged={async () => {
               await refreshMarkLeaks(user.id)
+              await refreshRisingSignals(user.id)
             }}
           />
         )}

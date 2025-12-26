@@ -270,6 +270,24 @@ export interface MarkLeakEstimate {
   priorityRank: number
 }
 
+export type MISTrend = 'rising' | 'flat' | 'falling'
+
+export interface MistakeTrendSignal {
+  userId: string
+  subject: string
+  topic: string
+  mistakeType: MISMistakeType | 'silly' | 'unknown'
+  recentCount: number
+  previousCount: number
+  recentMarksLost: number
+  previousMarksLost: number
+  countDelta: number
+  marksDelta: number
+  recentAvoidable: number
+  lastSeenAt: Date
+  trend: MISTrend
+}
+
 // Layer 3: Verdict Change
 export interface VerdictChange {
   id: string
