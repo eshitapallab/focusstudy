@@ -1,63 +1,20 @@
 {
-  "name": "FocusStudy - Calm Study Timer & Focus Tracker",
-  "short_name": "FocusStudy",
-  "description": "A calm, supportive study timer with guilt-free tracking and focus analytics. Study mindfully.",
+  "name": "StudyTrack - Exam Prep Accountability",
+  "short_name": "StudyTrack",
+  "description": "Daily check-ins and honest feedback for exam preparation",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F7F9FC",
-  "theme_color": "#4F7CAC",
+  "background_color": "#FFFFFF",
+  "theme_color": "#3B82F6",
   "orientation": "portrait",
   "scope": "/",
-  "categories": ["productivity", "education", "lifestyle"],
-  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7",
-  "screenshots": [
-    {
-      "src": "/screenshot-timer.png",
-      "sizes": "540x720",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Calm timer screen with circular progress ring"
-    },
-    {
-      "src": "/screenshot-analytics.png",
-      "sizes": "540x720",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Analytics dashboard with supportive insights"
-    }
-  ],
+  "categories": ["productivity", "education"],
   "shortcuts": [
     {
-      "name": "Start Study Session",
-      "short_name": "Start",
-      "description": "Begin a calm focus session",
-      "url": "/?start=true",
-      "icons": [
-        {
-          "src": "/icon-192.svg",
-          "sizes": "192x192",
-          "type": "image/svg+xml"
-        }
-      ]
-    },
-    {
-      "name": "View Analytics",
-      "short_name": "Analytics",
-      "description": "View your study insights",
-      "url": "/analytics",
-      "icons": [
-        {
-          "src": "/icon-192.svg",
-          "sizes": "192x192",
-          "type": "image/svg+xml"
-        }
-      ]
-    },
-    {
-      "name": "Settings",
-      "short_name": "Settings",
-      "description": "Manage notifications and preferences",
-      "url": "/settings",
+      "name": "Daily Check-In",
+      "short_name": "Check-In",
+      "description": "Complete today's study check-in",
+      "url": "/?checkin=true",
       "icons": [
         {
           "src": "/icon-192.svg",
@@ -83,3 +40,4 @@
   ],
   "prefer_related_applications": false
 }
+
