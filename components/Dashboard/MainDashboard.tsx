@@ -702,16 +702,16 @@ export default function Dashboard() {
                 🎯
               </div>
               <div className="flex-1">
-                <h2 className="text-xl font-bold text-gray-900">Focus for Next Session</h2>
-                <p className="text-sm text-gray-600 mt-0.5">{microAction.durationMinutes || 20}–{(microAction.durationMinutes || 20) + 10} min</p>
+                <h2 className="text-xl font-bold text-gray-900">Next Best Use of 20 Minutes</h2>
+                <p className="text-sm text-gray-600 mt-0.5">High-return action for your current state</p>
               </div>
             </div>
             
             <div className="bg-indigo-50 rounded-xl p-4 mb-4">
-              <p className="text-base font-semibold text-indigo-900">{microAction.task}</p>
-              {microAction.relatedSubjects && microAction.relatedSubjects.length > 0 && (
-                <p className="text-sm text-indigo-700 mt-1">Subject: {microAction.relatedSubjects.join(', ')}</p>
-              )}
+              <p className="text-base font-semibold text-indigo-900">
+                {microAction.task} — High-return revision
+              </p>
+              <p className="text-sm text-indigo-700 mt-1">{microAction.durationMinutes || 20} min</p>
             </div>
             
             <div className="mb-4 text-sm text-gray-700 space-y-1">
@@ -725,19 +725,21 @@ export default function Dashboard() {
                 )}
                 {revisionDebtLevel && revisionDebtLevel !== 'low' ? (
                   <li>{microAction.durationMinutes || 20} minutes here has high return right now</li>
+                ) : user.examDate && Math.ceil((user.examDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) <= 5 ? (
+                  <li>Prevents last-minute revision overload in the final {Math.ceil((user.examDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days</li>
                 ) : (
-                  <li>Building momentum early prevents last-minute gaps</li>
+                  <li>Prevents last-minute revision overload</li>
                 )}
               </ul>
             </div>
             
-            <div className="flex gap-2">
+            <div className="flex gap-2 mb-3">
               <button
                 onClick={handleCompleteMicroAction}
                 disabled={microAction.completed}
                 className="flex-1 py-2.5 px-4 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
               >
-                {microAction.completed ? '✓ Completed' : `Start ${microAction.durationMinutes || 20}-min Revision`}
+                {microAction.completed ? '✓ Completed — Good choice' : `Start ${microAction.durationMinutes || 20}-min Revision`}
               </button>
               <button
                 onClick={async () => {
@@ -762,6 +764,22 @@ export default function Dashboard() {
                 Lock for Tomorrow
               </button>
             </div>
+            
+            <button
+              onClick={() => {
+                const explanation = [
+                  microAction.relatedSubjects && microAction.relatedSubjects.length > 0 
+                    ? `• ${microAction.relatedSubjects[0]} has higher mark return right now`
+                    : '• This topic shows higher strategic value',
+                  '• Other subjects show lower risk or better stability',
+                  '• Time left favors quick revision wins'
+                ].join('\n')
+                alert(`Why ${microAction.task}?\n\n${explanation}`)
+              }}
+              className="text-xs text-indigo-600 hover:text-indigo-800 underline"
+            >
+              Why not another subject?
+            </button>
           </div>
         )}
 
@@ -808,8 +826,11 @@ export default function Dashboard() {
                     ? `${microAction.relatedSubjects[0]} (revision gap)` 
                     : 'Weak retention areas'}
                 </p>
-                <p className="text-xs text-amber-700 font-medium mt-1">
-                  Fixing this could protect ~10–15 marks.
+                <p className="text-xs text-amber-700 mt-1">
+                  If left unaddressed, this topic often costs 1–2 questions.
+                </p>
+                <p className="text-xs text-amber-800 font-medium">
+                  Fixing it now could protect ~10–15 marks.
                 </p>
               </div>
             </div>
@@ -833,12 +854,15 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Divider between Action Zone and Context Zone */}
+        <div className="border-t border-gray-200 my-1"></div>
+
         {/* ============================================================================
              SECONDARY: STATUS (Small, calm, informational)
              ============================================================================ */}
         
         {verdict && (
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
+          <div className="bg-white border border-gray-100 rounded-xl p-4">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
@@ -855,12 +879,12 @@ export default function Dashboard() {
                 </div>
                 <p className="text-sm text-gray-600">{verdict.reasons.join('. ')}</p>
                 {verdict.status !== 'on-track' && todayCheckIn && todayCheckIn.couldRevise && (
-                  <p className="text-xs text-gray-500 mt-1.5 italic">
-                    You know the material, but coverage is insufficient for the time left.
+                  <p className="text-xs text-gray-600 mt-1.5 italic">
+                    You're retaining what you study,<br />but the remaining syllabus needs targeted coverage.
                   </p>
                 )}
                 {verdict.status !== 'on-track' && (!todayCheckIn || !todayCheckIn.couldRevise) && (
-                  <p className="text-xs text-gray-500 mt-1.5 italic">
+                  <p className="text-xs text-gray-600 mt-1.5 italic">
                     Retention is weakening — prioritize revision over new topics.
                   </p>
                 )}
@@ -877,12 +901,12 @@ export default function Dashboard() {
              PREP STATE (Merged signals)
              ============================================================================ */}
         
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
+        <div className="bg-white border border-gray-100 rounded-xl p-4">
           <h3 className="font-semibold text-gray-900 mb-3">📊 Preparation Diagnosis</h3>
           <div className="space-y-1.5 text-sm">
             <div className="flex items-start gap-2">
-              <span className="text-gray-600 font-medium min-w-[80px]">Strength:</span>
-              <span className="text-gray-900">
+              <span className="text-gray-700 font-medium min-w-[80px]">Strength:</span>
+              <span className="text-gray-900 font-medium">
                 {todayCheckIn && todayCheckIn.couldRevise ? 'Recall stability' :
                  monthlySnapshot && monthlySnapshot.consistencyDays >= 20 ? 'High consistency' :
                  verdict && verdict.streak >= 7 ? `${verdict.streak}-day streak` :
@@ -890,8 +914,8 @@ export default function Dashboard() {
               </span>
             </div>
             <div className="flex items-start gap-2">
-              <span className="text-gray-600 font-medium min-w-[80px]">Risk:</span>
-              <span className="text-gray-900">
+              <span className="text-gray-700 font-medium min-w-[80px]">Risk:</span>
+              <span className="text-gray-900 font-medium">
                 {revisionDebtLevel === 'high' ? 'Insufficient coverage' :
                  recentExamTomorrowResponse === 'no' ? 'Exam readiness gap' :
                  todayCheckIn && !todayCheckIn.couldRevise ? 'Retention weakening' :
@@ -899,8 +923,8 @@ export default function Dashboard() {
               </span>
             </div>
             <div className="flex items-start gap-2">
-              <span className="text-gray-600 font-medium min-w-[80px]">Constraint:</span>
-              <span className="text-gray-900">
+              <span className="text-gray-700 font-medium min-w-[80px]">Constraint:</span>
+              <span className="text-gray-900 font-medium">
                 {user.examDate 
                   ? `${Math.ceil((user.examDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days remaining`
                   : monthlySnapshot
