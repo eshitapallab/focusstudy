@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import AppNav from '@/components/Navigation/AppNav'
+import StudyTrackSettings from '@/components/StudyTrack/StudyTrackSettings'
 import { db, getOrCreateDeviceId } from '@/lib/dexieClient'
 import { supabase } from '@/lib/supabaseClient'
 import { createPod, joinPod, getPodStatus } from '@/lib/supabaseStudyTrack'
@@ -207,6 +208,11 @@ export default function SettingsPage() {
             Customize your FocusStudy experience
           </p>
         </div>
+
+        {/* StudyTrack Settings */}
+        <section className="mb-6">
+          <StudyTrackSettings />
+        </section>
 
         {/* Notifications Section */}
         <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg mb-6">

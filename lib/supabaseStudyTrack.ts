@@ -104,6 +104,7 @@ export async function updateStudyUser(userId: string, updates: Partial<User>): P
   if (!supabase) return
   
   const updateData: any = {}
+  if (updates.exam !== undefined) updateData.exam = updates.exam
   if (updates.examDate !== undefined) updateData.exam_date = updates.examDate?.toISOString()
   if (updates.dailyTargetMinutes !== undefined) updateData.daily_target_minutes = updates.dailyTargetMinutes
   if (updates.peerComparisonEnabled !== undefined) updateData.peer_comparison_enabled = updates.peerComparisonEnabled
