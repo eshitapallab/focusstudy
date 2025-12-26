@@ -13,6 +13,14 @@ export interface User {
   lastWeeklyRealityCheck?: Date
   lastWeakSubjectNudgeAt?: Date
   resetAt?: Date
+  // Layer 1-5 enhancements
+  tonePreference?: 'calm' | 'direct' | 'coach'
+  truthIndex?: number
+  truthIndexUpdatedAt?: Date
+  pausedAt?: Date
+  pauseReason?: string
+  onboardingCompleted?: boolean
+  zeroStateViewed?: boolean
 }
 
 // Daily check-in entry
@@ -41,6 +49,8 @@ export interface WeeklyReality {
   }
   realityScore: number // 0-100
   trajectoryMessage: string
+  summaryNarrative?: string // Layer 1: Weekly journey story
+  progressMetaphor?: string // Layer 1: Visual progress bar
   createdAt: Date
 }
 
@@ -77,6 +87,8 @@ export interface MicroAction {
   lockedAt?: Date
   lockCheckedAt?: Date
   lockedDone?: boolean
+  decisionReliefMode?: boolean // Layer 2: "Decide for me" mode
+  cognitiveLoad?: 'low' | 'medium' | 'high'
 }
 
 export type EmotionalFeeling = 'calm' | 'neutral' | 'draining'
@@ -172,15 +184,84 @@ export interface OnboardingState {
 
 // Exam presets
 export const EXAM_PRESETS = [
-  'UPSC',
-  'JEE',
-  'NEET',
-  'SSC',
+  'UPSC Civil Services',
+  'JEE Main/Advanced',
+  'NEET UG',
+  'SSC CGL/CHSL',
   'GATE',
   'CAT',
-  'Banking',
+  'Banking (IBPS/SBI)',
+  'CA Foundation/Inter/Final',
+  'CLAT',
+  'NDA',
   'Other'
 ]
+
+// Layer 2: Focus Quality Check
+export interface FocusQualityCheck {
+  id: string
+  userId: string
+  date: string
+  statedHours: number
+  focusLevel: 'deep' | 'mixed' | 'distracted'
+  createdAt: Date
+}
+
+// Layer 2: Recovery Path
+export interface RecoveryPath {
+  id: string
+  userId: string
+  createdAt: Date
+  daysInactive: number
+  recommendedDays: number
+  dailyMinutes: number
+  accepted: boolean
+}
+
+// Layer 3: Verdict Change
+export interface VerdictChange {
+  id: string
+  userId: string
+  date: string
+  fromStatus: VerdictStatus
+  toStatus: VerdictStatus
+  reasons: string[]
+  createdAt: Date
+}
+
+// Layer 3: Silent Win
+export interface SilentWin {
+  id: string
+  userId: string
+  date: string
+  winType: string
+  description: string
+  shown: boolean
+  createdAt: Date
+}
+
+// Layer 4: Mentor Share
+export interface MentorShare {
+  id: string
+  userId: string
+  shareCode: string
+  mentorName?: string
+  active: boolean
+  createdAt: Date
+  expiresAt?: Date
+  lastViewedAt?: Date
+}
+
+// Layer 4: Cohort Benchmark
+export interface CohortBenchmark {
+  id: string
+  exam: string
+  monthStart: string
+  avgRecallImprovement: number
+  avgConsistencyImprovement: number
+  participantCount: number
+  createdAt: Date
+}
 
 // Subject presets (common subjects)
 export const SUBJECT_PRESETS = [
