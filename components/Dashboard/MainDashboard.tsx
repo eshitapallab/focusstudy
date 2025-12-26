@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { addDays, format } from 'date-fns'
 import AppNav from '@/components/Navigation/AppNav'
 import { supabase } from '@/lib/supabaseClient'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
@@ -79,7 +80,8 @@ export default function Dashboard() {
   const [markLeaks, setMarkLeaks] = useState<MarkLeakEstimate[]>([])
   const [risingSignals, setRisingSignals] = useState<MistakeTrendSignal[]>([])
 
-  const today = new Date().toISOString().split('T')[0]
+  const toISODate = (d: Date) => format(d, 'yyyy-MM-dd')
+  const today = toISODate(new Date())
 
   const refreshMarkLeaks = async (userId: string) => {
     try {
@@ -311,9 +313,7 @@ export default function Dashboard() {
 
           // Tomorrow Lock follow-up: ask about yesterday's locked action
           const yesterdayDate = (() => {
-            const d = new Date()
-            d.setDate(d.getDate() - 1)
-            return d.toISOString().split('T')[0]
+            return toISODate(addDays(new Date(), -1))
           })()
           const yAction = await getMicroActionForDate(supabaseUser.id, yesterdayDate)
           if (yAction?.locked && !yAction.lockCheckedAt) {
@@ -369,7 +369,7 @@ export default function Dashboard() {
           try {
             const now = new Date()
             const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-            const monthStartStr = monthStart.toISOString().split('T')[0]
+            const monthStartStr = toISODate(monthStart)
             const existing = await getMonthlySnapshot(supabaseUser.id, monthStartStr)
             if (existing) {
               if (mounted) setMonthlySnapshot(existing)
@@ -859,9 +859,7 @@ export default function Dashboard() {
                   await createMicroAction(user.id, {
                     verdictId: microAction.verdictId,
                     date: (() => {
-                      const tomorrow = new Date()
-                      tomorrow.setDate(tomorrow.getDate() + 1)
-                      return tomorrow.toISOString().split('T')[0]
+                      return toISODate(addDays(new Date(), 1))
                     })(),
                     task: microAction.task,
                     durationMinutes: microAction.durationMinutes,
@@ -948,12 +946,10 @@ export default function Dashboard() {
             onLockForTomorrow={async (leak) => {
               if (!user || !verdict) return
               const p = getMISPrescription(leak)
-              const tomorrow = new Date()
-              tomorrow.setDate(tomorrow.getDate() + 1)
 
               await createMicroAction(user.id, {
                 verdictId: verdict.id,
-                date: tomorrow.toISOString().split('T')[0],
+                date: toISODate(addDays(new Date(), 1)),
                 task: p.microActionTask,
                 durationMinutes: p.suggestedMinutes,
                 relatedSubjects: [p.relatedSubject],
@@ -1343,5 +1339,5 @@ function getWeekStartDate(date: Date): string {
   const day = d.getDay()
   const diff = d.getDate() - day + (day === 0 ? -6 : 1) // Adjust to Monday
   const weekStart = new Date(d.setDate(diff))
-  return weekStart.toISOString().split('T')[0]
+  return format(weekStart, 'yyyy-MM-dd')
 }
