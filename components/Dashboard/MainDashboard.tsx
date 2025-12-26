@@ -37,7 +37,7 @@ import { calculateVerdict } from '@/lib/verdictEngine'
 import { generateMicroAction } from '@/lib/microActionGenerator'
 import { calculateRealityScore, generateTrajectoryMessage } from '@/lib/realityCheck'
 import { detectGamingPatterns, getHonestyPrompt, shouldPromptHonesty } from '@/lib/gamingDetection'
-import { getSubjectMarks, getSubjectPercentage, getExamSubjects } from '@/lib/examSyllabi'
+import { getSubjectMarks, getSubjectPercentage, getExamSubjects, isKnownExam } from '@/lib/examSyllabi'
 import { User, DailyCheckIn, Verdict, MicroAction, WeeklyReality, EmotionalFeeling, ExamTomorrowResponse, MonthlySnapshot, MarkLeakEstimate, MistakeTrendSignal } from '@/lib/types'
 import OnboardingFlow from '@/components/Onboarding/OnboardingFlow'
 import DailyCheckInCard from '@/components/CheckIn/DailyCheckInCard'
@@ -281,8 +281,8 @@ export default function Dashboard() {
             })
           }
           
-          // Check if action's subjects are valid for current exam
-          if (action && todayVerdict) {
+          // Check if action's subjects are valid for current exam (only for known presets)
+          if (action && todayVerdict && isKnownExam(userData.exam)) {
             const validSubjects = getExamSubjects(userData.exam)
             const actionSubjects = action.relatedSubjects || []
             

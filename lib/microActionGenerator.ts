@@ -12,10 +12,15 @@ export function generateMicroAction(
 ): Omit<MicroAction, 'id' | 'userId' | 'verdictId' | 'date' | 'createdAt' | 'completed'> {
   
   const targetMinutes = verdict.targetMinutes
+  const examSubjects = userExam ? getExamSubjects(userExam) : []
+  const hasExamSubjectList = examSubjects.length > 0
+  const isValidForExam = (subject: string) => {
+    if (!hasExamSubjectList) return true
+    return subject === 'Other' || examSubjects.includes(subject)
+  }
   
   // If no check-ins exist, recommend first session
   if (recentCheckIns.length === 0) {
-    const examSubjects = userExam ? getExamSubjects(userExam) : []
     const firstSubject = examSubjects.length > 0 ? examSubjects[0] : 'any subject'
     
     return {
@@ -31,6 +36,8 @@ export function generateMicroAction(
   const subjectLastStudied = new Map<string, Date>()
   
   recentCheckIns.forEach(checkIn => {
+    if (!isValidForExam(checkIn.subject)) return
+
     const count = subjectFrequency.get(checkIn.subject) || 0
     const minutes = subjectMinutes.get(checkIn.subject) || 0
     const lastDate = subjectLastStudied.get(checkIn.subject)
@@ -48,6 +55,7 @@ export function generateMicroAction(
   const weakRecallSubjects = recentCheckIns
     .filter(c => !c.couldRevise)
     .map(c => c.subject)
+    .filter(isValidForExam)
     .filter((s, i, arr) => arr.indexOf(s) === i)
   
   if (weakRecallSubjects.length > 0) {
@@ -63,7 +71,6 @@ export function generateMicroAction(
   }
   
   // Strategy 2: Balance coverage - find neglected high-value subjects
-  const examSubjects = userExam ? getExamSubjects(userExam) : []
   const studiedSubjects = Array.from(subjectFrequency.keys())
   
   // Find subjects from exam syllabus that haven't been studied recently
@@ -147,7 +154,7 @@ export function generateMicroAction(
   return {
     task: `Continue revision session`,
     durationMinutes: duration,
-    relatedSubjects: allSubjects.length > 0 ? [allSubjects[0]] : []
+    relatedSubjects: allSubjects.length > 0 ? [allSubjects[0]] : examSubjects.length > 0 ? [examSubjects[0]] : []
   }
 }
 

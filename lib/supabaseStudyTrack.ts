@@ -805,8 +805,9 @@ export async function getWeeklyReality(userId: string, weekStartDate: string): P
     .select('*')
     .eq('user_id', userId)
     .eq('week_start_date', weekStartDate)
-    .single()
+    .maybeSingle()
 
+  // When no row exists, maybeSingle returns { data: null, error: null }.
   if (error || !data) return null
 
   return {

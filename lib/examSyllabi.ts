@@ -188,6 +188,14 @@ export const EXAM_SYLLABI: { [key: string]: ExamSyllabus } = {
 }
 
 /**
+ * Whether we have a known subject taxonomy for this exam.
+ * For custom exams we intentionally return false.
+ */
+export function isKnownExam(exam: string): boolean {
+  return Boolean(EXAM_SYLLABI[exam])
+}
+
+/**
  * Get subjects for a specific exam
  */
 export function getExamSubjects(exam: string): string[] {
