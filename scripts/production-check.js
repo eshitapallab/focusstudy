@@ -14,10 +14,41 @@ console.log(chalk.yellow('1. Checking environment configuration...'))
 const envExample = path.join(__dirname, '..', '.env.example')
 const envLocal = path.join(__dirname, '..', '.env.local')
 
+const REQUIRED_ENV_VARS = [
+  'NEXT_PUBLIC_SUPABASE_URL',
+  'NEXT_PUBLIC_SUPABASE_ANON_KEY'
+]
+
+const isCI = Boolean(process.env.CI)
+const isVercel = Boolean(process.env.VERCEL)
+const shouldReadEnvFile = !isCI && !isVercel
+
+function hasAllRequiredEnvVars() {
+  return REQUIRED_ENV_VARS.every((key) => {
+    const value = process.env[key]
+    return typeof value === 'string' && value.trim().length > 0
+  })
+}
+
 if (!fs.existsSync(envLocal)) {
-  console.log(chalk.red('   ✗ .env.local not found'))
-  console.log(chalk.gray('   → Copy .env.example to .env.local and fill in values'))
-  errors++
+  if (shouldReadEnvFile) {
+    console.log(chalk.red('   ✗ .env.local not found'))
+    console.log(chalk.gray('   → Copy .env.example to .env.local and fill in values'))
+    errors++
+  } else {
+    const missing = REQUIRED_ENV_VARS.filter((key) => {
+      const value = process.env[key]
+      return typeof value !== 'string' || value.trim().length === 0
+    })
+
+    if (missing.length > 0) {
+      console.log(chalk.red(`   ✗ Missing required environment variables: ${missing.join(', ')}`))
+      console.log(chalk.gray('   → Add these in your Vercel Project Settings → Environment Variables'))
+      errors++
+    } else {
+      console.log(chalk.green('   ✓ Environment variables configured (CI)'))
+    }
+  }
 } else {
   const envContent = fs.readFileSync(envLocal, 'utf-8')
   
