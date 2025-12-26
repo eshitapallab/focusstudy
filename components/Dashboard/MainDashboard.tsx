@@ -259,58 +259,59 @@ export default function Dashboard() {
           console.warn('Revision debt skipped:', e)
         }
 
-        if (checkIn) {
-          // Load verdict
-          const todayVerdict = await getTodayVerdict(supabaseUser.id, today)
-          if (mounted) setVerdict(todayVerdict)
+        // Load verdict (even if no check-in today, we may have yesterday's)
+        const todayVerdict = await getTodayVerdict(supabaseUser.id, today)
+        if (mounted) setVerdict(todayVerdict)
 
-          // Load micro action and validate it matches current exam
-          let action = await getTodayMicroAction(supabaseUser.id, today)
+        // Load micro action - always try to load/generate
+        let action = await getTodayMicroAction(supabaseUser.id, today)
+        
+        // If no action exists and we have a verdict, generate one
+        if (!action && todayVerdict) {
+          console.log('Generating micro-action - none exists for today')
+          const recentCheckInsForAction = await getRecentCheckIns(supabaseUser.id, 7)
+          const newAction = generateMicroAction(recentCheckInsForAction, todayVerdict, userData.exam)
           
-          // If no action exists and we have a verdict, generate one
-          if (!action && todayVerdict) {
-            console.log('Generating micro-action - none exists for today')
+          action = await createMicroAction(supabaseUser.id, {
+            verdictId: todayVerdict.id,
+            date: today,
+            task: newAction.task,
+            durationMinutes: newAction.durationMinutes,
+            relatedSubjects: newAction.relatedSubjects,
+            completed: false
+          })
+        }
+        
+        // Check if action's subjects are valid for current exam (only for known presets)
+        if (action && todayVerdict && isKnownExam(userData.exam)) {
+          const validSubjects = getExamSubjects(userData.exam)
+          const actionSubjects = action.relatedSubjects || []
+          
+          // If action has subjects that don't match current exam, regenerate
+          const hasInvalidSubjects = actionSubjects.some(subj => 
+            subj !== 'Other' && !validSubjects.includes(subj)
+          )
+          
+          if (hasInvalidSubjects) {
+            console.log('Regenerating micro-action - subjects invalid for current exam')
             const recentCheckInsForAction = await getRecentCheckIns(supabaseUser.id, 7)
             const newAction = generateMicroAction(recentCheckInsForAction, todayVerdict, userData.exam)
             
-            action = await createMicroAction(supabaseUser.id, {
+            // Update the existing action in database (avoid duplicates)
+            action = (await updateMicroAction(action.id, {
               verdictId: todayVerdict.id,
-              date: today,
               task: newAction.task,
               durationMinutes: newAction.durationMinutes,
               relatedSubjects: newAction.relatedSubjects,
-              completed: false
-            })
+              completed: action.completed
+            })) || action
           }
-          
-          // Check if action's subjects are valid for current exam (only for known presets)
-          if (action && todayVerdict && isKnownExam(userData.exam)) {
-            const validSubjects = getExamSubjects(userData.exam)
-            const actionSubjects = action.relatedSubjects || []
-            
-            // If action has subjects that don't match current exam, regenerate
-            const hasInvalidSubjects = actionSubjects.some(subj => 
-              subj !== 'Other' && !validSubjects.includes(subj)
-            )
-            
-            if (hasInvalidSubjects) {
-              console.log('Regenerating micro-action - subjects invalid for current exam')
-              const recentCheckInsForAction = await getRecentCheckIns(supabaseUser.id, 7)
-              const newAction = generateMicroAction(recentCheckInsForAction, todayVerdict, userData.exam)
-              
-              // Update the existing action in database (avoid duplicates)
-              action = (await updateMicroAction(action.id, {
-                verdictId: todayVerdict.id,
-                task: newAction.task,
-                durationMinutes: newAction.durationMinutes,
-                relatedSubjects: newAction.relatedSubjects,
-                completed: action.completed
-              })) || action
-            }
-          }
-          
-          if (mounted) setMicroAction(action)
+        }
+        
+        if (mounted) setMicroAction(action)
 
+        if (checkIn) {
+          
           // Tomorrow Lock follow-up: ask about yesterday's locked action
           const yesterdayDate = (() => {
             return toISODate(addDays(new Date(), -1))
