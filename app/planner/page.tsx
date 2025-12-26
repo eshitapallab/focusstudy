@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, addMonths, subMonths, startOfWeek, endOfWeek, parseISO } from 'date-fns'
 import { useAuth } from '@/hooks/useAuth'
 import { db, PlannedSession } from '@/lib/dexieClient'
+import { MicroAction } from '@/lib/types'
+import { getMicroActionsForDateRange } from '@/lib/supabaseStudyTrack'
 import AppNav from '@/components/Navigation/AppNav'
 import StatusBadge from '@/components/StatusBadge'
 import SessionActions from '@/components/SessionActions'
@@ -12,16 +14,41 @@ export default function PlannerCalendarPage() {
   const { user } = useAuth()
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [plannedSessions, setPlannedSessions] = useState<PlannedSession[]>([])
+  const [focusActions, setFocusActions] = useState<MicroAction[]>([])
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
 
   useEffect(() => {
     loadPlannedSessions()
-  }, [currentMonth])
+    loadFocusActionsForMonth()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentMonth, user?.id])
 
   const loadPlannedSessions = async () => {
     const sessions = await db.plannedSessions.toArray()
     setPlannedSessions(sessions)
+  }
+
+  const loadFocusActionsForMonth = async () => {
+    if (!user?.id) {
+      setFocusActions([])
+      return
+    }
+
+    const monthStart = startOfMonth(currentMonth)
+    const monthEnd = endOfMonth(currentMonth)
+    const calendarStart = startOfWeek(monthStart)
+    const calendarEnd = endOfWeek(monthEnd)
+
+    const startDate = format(calendarStart, 'yyyy-MM-dd')
+    const endDate = format(calendarEnd, 'yyyy-MM-dd')
+
+    const actions = await getMicroActionsForDateRange(user.id, startDate, endDate)
+
+    // Keep calendar calm: only show actions that are explicitly locked or scheduled ahead.
+    const todayStr = format(new Date(), 'yyyy-MM-dd')
+    const calendarActions = actions.filter(a => Boolean(a.locked) || a.date > todayStr)
+    setFocusActions(calendarActions)
   }
 
   // Generate calendar days
@@ -40,6 +67,11 @@ export default function PlannerCalendarPage() {
     return plannedSessions.filter(s => s.plannedDate === dateStr)
   }
 
+  const getFocusActionsForDate = (date: Date) => {
+    const dateStr = format(date, 'yyyy-MM-dd')
+    return focusActions.filter(a => a.date === dateStr)
+  }
+
   const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1))
   const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1))
   const handleToday = () => setCurrentMonth(new Date())
@@ -52,6 +84,7 @@ export default function PlannerCalendarPage() {
   }
 
   const selectedDateSessions = selectedDate ? getSessionsForDate(selectedDate) : []
+  const selectedDateFocusActions = selectedDate ? getFocusActionsForDate(selectedDate) : []
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-primary-50 to-white dark:from-gray-900 dark:to-gray-800 pb-20">
@@ -118,9 +151,23 @@ export default function PlannerCalendarPage() {
           <div className="grid grid-cols-7 gap-2">
             {calendarDays.map((day, idx) => {
               const sessionsForDay = getSessionsForDate(day)
+              const focusForDay = getFocusActionsForDate(day)
               const isToday = isSameDay(day, new Date())
               const isCurrentMonth = isSameMonth(day, currentMonth)
               const isSelected = selectedDate && isSameDay(day, selectedDate)
+
+              const dayItems = [
+                ...focusForDay.map(a => ({
+                  kind: 'focus' as const,
+                  id: a.id,
+                  label: a.relatedSubjects && a.relatedSubjects.length > 0 ? a.relatedSubjects[0] : 'Focus'
+                })),
+                ...sessionsForDay.map(s => ({
+                  kind: 'planned' as const,
+                  id: s.id,
+                  session: s
+                }))
+              ]
 
               return (
                 <button
@@ -150,15 +197,27 @@ export default function PlannerCalendarPage() {
                     {format(day, 'd')}
                   </div>
                   
-                  {sessionsForDay.length > 0 && (
+                  {dayItems.length > 0 && (
                     <div className="space-y-1">
-                      {sessionsForDay.slice(0, 2).map(session => {
+                      {dayItems.slice(0, 2).map(item => {
+                        if (item.kind === 'focus') {
+                          return (
+                            <div
+                              key={item.id}
+                              className="text-xs bg-primary/20 dark:bg-primary/30 text-primary dark:text-primary-300 rounded px-1 py-0.5 truncate"
+                            >
+                              🎯 {item.label}
+                            </div>
+                          )
+                        }
+
+                        const session = item.session
                         const statusColor = 
                           session.status === 'completed' ? 'bg-primary-accent/20 dark:bg-primary-accent/30 text-primary-accent dark:text-primary-accent-300' :
                           session.status === 'cancelled' ? 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400' :
                           session.status === 'rescheduled' ? 'bg-warning/20 dark:bg-warning/30 text-yellow-700 dark:text-yellow-300' :
                           'bg-primary/20 dark:bg-primary/30 text-primary dark:text-primary-300'
-                        
+
                         return (
                           <div
                             key={session.id}
@@ -168,9 +227,9 @@ export default function PlannerCalendarPage() {
                           </div>
                         )
                       })}
-                      {sessionsForDay.length > 2 && (
+                      {dayItems.length > 2 && (
                         <div className="text-xs text-gray-500 dark:text-gray-400">
-                          +{sessionsForDay.length - 2} more
+                          +{dayItems.length - 2} more
                         </div>
                       )}
                     </div>
@@ -198,12 +257,37 @@ export default function PlannerCalendarPage() {
               </button>
             </div>
 
-            {selectedDateSessions.length === 0 ? (
+            {selectedDateSessions.length === 0 && selectedDateFocusActions.length === 0 ? (
               <p className="text-gray-500 dark:text-gray-400 text-center py-8">
                 No planned sessions for this date
               </p>
             ) : (
               <div className="space-y-3">
+                {selectedDateFocusActions.map(action => (
+                  <div
+                    key={action.id}
+                    className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="text-xs font-medium text-primary dark:text-primary-300 mb-2">
+                          🎯 Focus action {action.locked ? '(locked)' : ''}
+                        </div>
+                        <div className="font-semibold text-gray-900 dark:text-white">
+                          {action.task}
+                        </div>
+                        {action.relatedSubjects && action.relatedSubjects.length > 0 && (
+                          <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            Subject: {action.relatedSubjects[0]}
+                          </div>
+                        )}
+                        <div className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                          {action.durationMinutes || 20} min
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
                 {selectedDateSessions.map(session => (
                   <div
                     key={session.id}

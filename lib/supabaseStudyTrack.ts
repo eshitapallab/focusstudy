@@ -406,6 +406,50 @@ export async function getMicroActionForDate(userId: string, date: string): Promi
   }
 }
 
+export async function getMicroActionsForDateRange(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<MicroAction[]> {
+  if (!supabase) return []
+
+  const { data, error } = await supabase
+    .from('micro_actions')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('date', startDate)
+    .lte('date', endDate)
+    .order('created_at', { ascending: false })
+
+  if (error || !data) return []
+
+  // Defensive: if duplicates exist for the same date, keep the latest.
+  const latestByDate = new Map<string, typeof data[number]>()
+  for (const row of data) {
+    if (!latestByDate.has(row.date)) {
+      latestByDate.set(row.date, row)
+    }
+  }
+
+  return Array.from(latestByDate.values())
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map(row => ({
+      id: row.id,
+      userId: row.user_id,
+      verdictId: row.verdict_id,
+      date: row.date,
+      task: row.task,
+      durationMinutes: row.duration_minutes,
+      relatedSubjects: row.related_subjects,
+      completed: row.completed,
+      locked: row.locked,
+      lockedAt: row.locked_at ? new Date(row.locked_at) : undefined,
+      lockCheckedAt: row.lock_checked_at ? new Date(row.lock_checked_at) : undefined,
+      lockedDone: row.locked_done ?? undefined,
+      createdAt: new Date(row.created_at)
+    }))
+}
+
 export async function updateMicroAction(
   actionId: string,
   updates: Partial<Pick<MicroAction, 'task' | 'durationMinutes' | 'relatedSubjects' | 'verdictId' | 'completed' | 'locked'>>
