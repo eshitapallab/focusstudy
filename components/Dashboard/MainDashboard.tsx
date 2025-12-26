@@ -39,6 +39,7 @@ export default function Dashboard() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<User | null>(null)
+  const [setupError, setSetupError] = useState<{ title: string; message: string; steps?: string[] } | null>(null)
   const [todayCheckIn, setTodayCheckIn] = useState<DailyCheckIn | null>(null)
   const [verdict, setVerdict] = useState<Verdict | null>(null)
   const [microAction, setMicroAction] = useState<MicroAction | null>(null)
@@ -57,7 +58,17 @@ export default function Dashboard() {
     const initAuth = async () => {
       if (!supabase) {
         console.error('Supabase not configured')
-        setLoading(false)
+        if (mounted) {
+          setSetupError({
+            title: 'Missing Supabase configuration',
+            message: 'This app needs Supabase environment variables to run.',
+            steps: [
+              'Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your deployment environment (e.g., Vercel).',
+              'Redeploy after saving env vars.'
+            ]
+          })
+          setLoading(false)
+        }
         return
       }
       
@@ -67,10 +78,22 @@ export default function Dashboard() {
         
         if (!session?.user) {
           // Sign in anonymously
-          const { data, error } = await supabase.auth.signInAnonymously()
+          const { error } = await supabase.auth.signInAnonymously()
           if (error) {
             console.error('Auth error:', error)
-            setLoading(false)
+            if (mounted) {
+              const message = typeof error?.message === 'string' ? error.message : 'Anonymous sign-in failed.'
+              setSetupError({
+                title: 'Anonymous sign-in unavailable',
+                message,
+                steps: [
+                  'In Supabase Dashboard → Authentication → Providers, enable Anonymous sign-ins.',
+                  'Confirm NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set for this deployment.',
+                  'Refresh /track after enabling.'
+                ]
+              })
+              setLoading(false)
+            }
             return
           }
           if (!mounted) return
@@ -147,6 +170,18 @@ export default function Dashboard() {
         }
       } catch (error) {
         console.error('Error loading dashboard:', error)
+        if (mounted) {
+          const message = error instanceof Error ? error.message : 'Unexpected error while loading.'
+          setSetupError({
+            title: 'Unable to load StudyTrack',
+            message,
+            steps: [
+              'Verify Supabase env vars are set for this deployment.',
+              'Ensure the StudyTrack SQL migration has been run in Supabase (tables + RLS).',
+              'Try reloading /track.'
+            ]
+          })
+        }
       } finally {
         if (mounted) setLoading(false)
       }
@@ -178,14 +213,33 @@ export default function Dashboard() {
       const { data: { user: supabaseUser } } = await supabase.auth.getUser()
       if (!supabaseUser) return
 
-      const newUser = await getStudyUser(supabaseUser.id) || await createStudyUser(supabaseUser.id, data)
+      const newUser = (await getStudyUser(supabaseUser.id)) || (await createStudyUser(supabaseUser.id, data))
       if (newUser) {
         setUser(newUser)
         setShowOnboarding(false)
         setShowCheckIn(true)
+        setSetupError(null)
+      } else {
+        setSetupError({
+          title: 'Account setup failed',
+          message: "We couldn't create your profile in the database.",
+          steps: [
+            'Run the StudyTrack migration SQL in Supabase (creates tables + policies).',
+            'Verify Row Level Security policies allow the current user to insert into study_users.',
+            'Refresh /track and try onboarding again.'
+          ]
+        })
       }
     } catch (error) {
       console.error('Error completing onboarding:', error)
+      setSetupError({
+        title: 'Account setup failed',
+        message: error instanceof Error ? error.message : 'Unexpected error during onboarding.',
+        steps: [
+          'Verify Supabase is reachable from the browser (env vars set).',
+          'Ensure database tables exist (migration applied).'
+        ]
+      })
     }
   }
 
@@ -288,6 +342,45 @@ export default function Dashboard() {
     return <OnboardingFlow onComplete={handleOnboardingComplete} />
   }
 
+  if (setupError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
+        <div className="w-full max-w-md bg-white border rounded-2xl p-6">
+          <h1 className="text-lg font-semibold text-gray-900">{setupError.title}</h1>
+          <p className="mt-2 text-sm text-gray-700">{setupError.message}</p>
+          {setupError.steps && setupError.steps.length > 0 && (
+            <ul className="mt-4 space-y-2 text-sm text-gray-700 list-disc pl-5">
+              {setupError.steps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ul>
+          )}
+          <div className="mt-6 flex gap-3">
+            <button
+              onClick={() => {
+                setSetupError(null)
+                setLoading(true)
+                router.refresh()
+              }}
+              className="flex-1 py-3 px-4 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700"
+            >
+              Retry
+            </button>
+            <button
+              onClick={() => {
+                setSetupError(null)
+                setShowOnboarding(true)
+              }}
+              className="flex-1 py-3 px-4 rounded-xl border border-gray-300 text-gray-800 font-medium hover:bg-gray-50"
+            >
+              Onboarding
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // Loading state
   if (loading) {
     return (
@@ -305,7 +398,7 @@ export default function Dashboard() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
-          <p className="text-gray-600">Please refresh the page</p>
+          <p className="text-gray-600">Session not available. Please refresh.</p>
         </div>
       </div>
     )
