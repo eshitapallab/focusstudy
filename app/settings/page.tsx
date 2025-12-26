@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@/hooks/useAuth'
 import AppNav from '@/components/Navigation/AppNav'
 import { db, getOrCreateDeviceId } from '@/lib/dexieClient'
 import { supabase } from '@/lib/supabaseClient'
@@ -13,6 +14,7 @@ import {
 } from '@/lib/smartNotifications'
 
 export default function SettingsPage() {
+  const { user } = useAuth()
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
   const [smartNotificationsEnabled, setSmartNotificationsEnabledState] = useState(false)
   const [hapticsEnabled, setHapticsEnabledState] = useState(true)
@@ -193,7 +195,7 @@ export default function SettingsPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-primary-50 to-white dark:from-gray-900 dark:to-gray-800 pb-20">
-      <AppNav />
+      <AppNav user={user} showAuthButton={true} />
       
       <div className="container mx-auto px-4 py-6 max-w-2xl">
         {/* Header */}

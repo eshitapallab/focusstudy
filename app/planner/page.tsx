@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, addMonths, subMonths, startOfWeek, endOfWeek, parseISO } from 'date-fns'
+import { useAuth } from '@/hooks/useAuth'
 import { db, PlannedSession } from '@/lib/dexieClient'
+import AppNav from '@/components/Navigation/AppNav'
 import StatusBadge from '@/components/StatusBadge'
 import SessionActions from '@/components/SessionActions'
-import FocusStudyLogo from '@/components/FocusStudyLogo'
-import Link from 'next/link'
 
 export default function PlannerCalendarPage() {
+  const { user } = useAuth()
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [plannedSessions, setPlannedSessions] = useState<PlannedSession[]>([])
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
@@ -53,34 +54,19 @@ export default function PlannerCalendarPage() {
   const selectedDateSessions = selectedDate ? getSessionsForDate(selectedDate) : []
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-primary-50 to-white dark:from-gray-900 dark:to-gray-800">
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+    <main className="min-h-screen bg-gradient-to-b from-primary-50 to-white dark:from-gray-900 dark:to-gray-800 pb-20">
+      <AppNav user={user} showAuthButton={true} />
+      
+      <div className="container mx-auto px-4 py-6 max-w-6xl">
         {/* Header */}
-        <header className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2 sm:gap-4">
-              <Link
-                href="/"
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                aria-label="Back to Home"
-              >
-                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </Link>
-              <FocusStudyLogo size={32} color="#4F7CAC" className="sm:w-10 sm:h-10 w-8 h-8" />
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-                Session Planner
-              </h1>
-            </div>
-            <Link
-              href="/"
-              className="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-lg transition-colors"
-            >
-              + Plan Session
-            </Link>
-          </div>
-        </header>
+        <div className="mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold text-text-primary dark:text-white mb-2">
+            Session Planner
+          </h1>
+          <p className="text-text-secondary dark:text-gray-400 text-sm md:text-base">
+            Plan your study sessions ahead
+          </p>
+        </div>
 
         {/* Calendar */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 mb-8">

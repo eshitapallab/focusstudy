@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { db } from '@/lib/dexieClient'
 import { calculateActualDuration } from '@/lib/timer'
+import { useAuth } from '@/hooks/useAuth'
 import AppNav from '@/components/Navigation/AppNav'
 import FocusStudyLogo from '@/components/FocusStudyLogo'
 import WeekTrend from '@/components/Analytics/WeekTrend'
@@ -12,6 +13,7 @@ import SubjectBreakdown from '@/components/Analytics/SubjectBreakdown'
 import ComparisonMode from '@/components/ComparisonMode'
 
 export default function AnalyticsPage() {
+  const { user } = useAuth()
   const [sessions, setSessions] = useState<any[]>([])
   const [sessionsWithMetadata, setSessionsWithMetadata] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -79,7 +81,7 @@ export default function AnalyticsPage() {
 
   return (
     <main className="min-h-screen bg-background dark:from-gray-900 dark:to-gray-800 pb-20">
-      <AppNav />
+      <AppNav user={user} showAuthButton={true} />
       
       <div className="container mx-auto px-4 py-6 max-w-6xl">
         {/* Header */}
