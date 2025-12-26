@@ -742,22 +742,41 @@ export default function Dashboard() {
         
         {/* Micro Action - PRIMARY CARD (Biggest, first, most actionable) */}
         {microAction && (
-          <div className="bg-white border-2 border-indigo-200 rounded-2xl p-6 shadow-sm">
+          <div className="bg-white border-2 border-indigo-200 rounded-2xl p-7 shadow-sm">
             <div className="flex items-start gap-3 mb-4">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-2xl flex-shrink-0">
                 🎯
               </div>
               <div className="flex-1">
                 <h2 className="text-xl font-bold text-gray-900">Next Best Use of 20 Minutes</h2>
-                <p className="text-sm text-gray-600 mt-0.5">High-return action for your current state</p>
+                <p className="text-sm text-gray-600 mt-0.5">Based on exam weight, recall stability, and time remaining</p>
               </div>
             </div>
             
             <div className="bg-indigo-50 rounded-xl p-4 mb-4">
               <p className="text-base font-semibold text-indigo-900">
-                {microAction.task} — High-return revision
+                {(() => {
+                  const subject = microAction.relatedSubjects && microAction.relatedSubjects.length > 0
+                    ? microAction.relatedSubjects[0]
+                    : null
+                  const exam = (user.exam || '').toLowerCase()
+                  const focusPhrase = exam.includes('upsc')
+                    ? 'core facts & frameworks'
+                    : (exam.includes('ssc') || exam.includes('bank') || exam.includes('cat') || exam.includes('gate') || exam.includes('jee') || exam.includes('neet'))
+                    ? 'core formulas & patterns'
+                    : 'core concepts & patterns'
+                  return subject ? `Revise ${subject} — ${focusPhrase}` : microAction.task
+                })()}
               </p>
               <p className="text-sm text-indigo-700 mt-1">{microAction.durationMinutes || 20} min</p>
+              <p className="text-xs text-indigo-800 mt-2">
+                {(() => {
+                  if (!user.examDate) return 'Depth > breadth right now.'
+                  const daysRemaining = Math.ceil((user.examDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                  const safeDays = Number.isFinite(daysRemaining) ? Math.max(0, daysRemaining) : 0
+                  return `Given ${safeDays} days left, depth > breadth right now.`
+                })()}
+              </p>
             </div>
             
             <div className="mb-4 text-sm text-gray-700 space-y-1">
@@ -793,7 +812,7 @@ export default function Dashboard() {
                 disabled={microAction.completed}
                 className="flex-1 py-2.5 px-4 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
               >
-                {microAction.completed ? '✓ Completed — Good choice' : `Start ${microAction.durationMinutes || 20}-min Revision`}
+                {microAction.completed ? '✓ Completed — this directly improves exam readiness' : `Start ${microAction.durationMinutes || 20}-min Revision`}
               </button>
               <button
                 onClick={async () => {
@@ -842,6 +861,20 @@ export default function Dashboard() {
             >
               Why not another subject?
             </button>
+
+            <details className="mt-3">
+              <summary className="text-xs text-gray-600 cursor-pointer select-none">
+                What happens if you do this daily?
+              </summary>
+              <div className="mt-2 text-xs text-gray-600">
+                If you repeat similar high-return sessions daily:
+                <ul className="list-disc list-inside mt-1 space-y-0.5">
+                  <li>Coverage stabilizes</li>
+                  <li>Revision debt stays low</li>
+                  <li>Final week panic reduces</li>
+                </ul>
+              </div>
+            </details>
           </div>
         )}
 
@@ -890,6 +923,9 @@ export default function Dashboard() {
                 </p>
                 <p className="text-xs text-amber-700 mt-1">
                   If left unaddressed, this topic often costs 1–2 questions.
+                </p>
+                <p className="text-xs text-amber-700 mt-1">
+                  This risk increases sharply in the final 3–4 days.
                 </p>
                 <p className="text-xs text-amber-800 font-medium">
                   {(() => {
@@ -948,20 +984,20 @@ export default function Dashboard() {
                      '✓ On Track'}
                   </span>
                 </div>
-                <p className="text-sm text-gray-600">{verdict.reasons.join('. ')}</p>
+                <p className="text-sm text-gray-500">{verdict.reasons.join('. ')}</p>
                 {verdict.status !== 'on-track' && todayCheckIn && todayCheckIn.couldRevise && (
-                  <p className="text-xs text-gray-600 mt-1.5 italic">
+                  <p className="text-xs text-gray-500 mt-1.5 italic">
                     You're retaining what you study,<br />but the remaining syllabus needs targeted coverage.
                   </p>
                 )}
                 {verdict.status !== 'on-track' && (!todayCheckIn || !todayCheckIn.couldRevise) && (
-                  <p className="text-xs text-gray-600 mt-1.5 italic">
+                  <p className="text-xs text-gray-500 mt-1.5 italic">
                     Retention is weakening — prioritize revision over new topics.
                   </p>
                 )}
               </div>
               <div className="text-right">
-                <div className="text-lg font-bold text-gray-900">{verdict.studyMinutes} min</div>
+                <div className="text-lg font-bold text-gray-800">{verdict.studyMinutes} min</div>
                 <div className="text-xs text-gray-500">today</div>
               </div>
             </div>
@@ -973,11 +1009,11 @@ export default function Dashboard() {
              ============================================================================ */}
         
         <div className="bg-white border border-gray-100 rounded-xl p-4">
-          <h3 className="font-semibold text-gray-900 mb-3">📊 Preparation Diagnosis</h3>
+          <h3 className="font-semibold text-gray-800 mb-3">📊 Preparation Diagnosis</h3>
           <div className="space-y-1.5 text-sm">
             <div className="flex items-start gap-2">
-              <span className="text-gray-700 font-medium min-w-[80px]">Strength:</span>
-              <span className="text-gray-900 font-medium">
+              <span className="text-gray-500 font-medium min-w-[80px]">Strength:</span>
+              <span className="text-gray-800 font-medium">
                 {todayCheckIn && todayCheckIn.couldRevise ? 'Recall stability' :
                  monthlySnapshot && monthlySnapshot.consistencyDays >= 20 ? 'High consistency' :
                  verdict && verdict.streak >= 7 ? `${verdict.streak}-day streak` :
@@ -985,8 +1021,8 @@ export default function Dashboard() {
               </span>
             </div>
             <div className="flex items-start gap-2">
-              <span className="text-gray-700 font-medium min-w-[80px]">Risk:</span>
-              <span className="text-gray-900 font-medium">
+              <span className="text-gray-500 font-medium min-w-[80px]">Risk:</span>
+              <span className="text-gray-800 font-medium">
                 {revisionDebtLevel === 'high' ? 'Insufficient coverage' :
                  recentExamTomorrowResponse === 'no' ? 'Exam readiness gap' :
                  todayCheckIn && !todayCheckIn.couldRevise ? 'Retention weakening' :
@@ -994,8 +1030,8 @@ export default function Dashboard() {
               </span>
             </div>
             <div className="flex items-start gap-2">
-              <span className="text-gray-700 font-medium min-w-[80px]">Constraint:</span>
-              <span className="text-gray-900 font-medium">
+              <span className="text-gray-500 font-medium min-w-[80px]">Constraint:</span>
+              <span className="text-gray-800 font-medium">
                 {user.examDate 
                   ? `${Math.ceil((user.examDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days remaining`
                   : monthlySnapshot
