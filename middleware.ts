@@ -3,9 +3,6 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-
-  // Public routes that don't require authentication
-  const publicRoutes = ['/auth', '/auth/verify', '/auth/callback']
   
   // Static files and Next.js internals - allow
   if (
@@ -13,11 +10,6 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api') ||
     pathname.includes('.')
   ) {
-    return NextResponse.next()
-  }
-  
-  // Check if current path is public
-  if (publicRoutes.some(route => pathname.startsWith(route))) {
     return NextResponse.next()
   }
 
@@ -52,15 +44,8 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Check if user is authenticated
-  const { data: { session } } = await supabase.auth.getSession()
-
-  // If no session and trying to access protected route, redirect to auth
-  if (!session) {
-    const redirectUrl = new URL('/auth', request.url)
-    redirectUrl.searchParams.set('redirectTo', pathname)
-    return NextResponse.redirect(redirectUrl)
-  }
+  // Refresh auth cookies if present (do not force auth; app supports anonymous-first)
+  await supabase.auth.getSession()
 
   return response
 }

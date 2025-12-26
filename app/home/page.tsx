@@ -1,5 +1,5 @@
-import FocusFlowHome from '@/components/FocusFlow/FocusFlowHome'
+import { redirect } from 'next/navigation'
 
 export default function Home() {
-  return <FocusFlowHome />
+  redirect('/')
 }
