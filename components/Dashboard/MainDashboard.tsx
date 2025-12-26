@@ -48,6 +48,7 @@ import ShareSnapshot from '@/components/Share/ShareSnapshot'
 import SafetyPrompt from '@/components/Safety/SafetyPrompt'
 import LogTestMistakesModal from '@/components/MIS/LogTestMistakesModal'
 import MarkLeaksCard from '@/components/MIS/MarkLeaksCard'
+import { getMISPrescription } from '@/lib/misPrescriptions'
 
 export default function Dashboard() {
   const router = useRouter()
@@ -903,7 +904,54 @@ export default function Dashboard() {
           </div>
         )}
 
-        {markLeaks.length > 0 && <MarkLeaksCard leaks={markLeaks} />}
+        {markLeaks.length > 0 && (
+          <MarkLeaksCard
+            leaks={markLeaks}
+            onUseAsFocus={async (leak) => {
+              if (!user) return
+              const p = getMISPrescription(leak)
+
+              if (microAction) {
+                const updated = await updateMicroAction(microAction.id, {
+                  task: p.microActionTask,
+                  durationMinutes: p.suggestedMinutes,
+                  relatedSubjects: [p.relatedSubject]
+                })
+
+                if (updated) setMicroAction(updated)
+              } else if (verdict) {
+                const created = await createMicroAction(user.id, {
+                  verdictId: verdict.id,
+                  date: today,
+                  task: p.microActionTask,
+                  durationMinutes: p.suggestedMinutes,
+                  relatedSubjects: [p.relatedSubject],
+                  completed: false
+                })
+
+                if (created) setMicroAction(created)
+              }
+            }}
+            onLockForTomorrow={async (leak) => {
+              if (!user || !verdict) return
+              const p = getMISPrescription(leak)
+              const tomorrow = new Date()
+              tomorrow.setDate(tomorrow.getDate() + 1)
+
+              await createMicroAction(user.id, {
+                verdictId: verdict.id,
+                date: tomorrow.toISOString().split('T')[0],
+                task: p.microActionTask,
+                durationMinutes: p.suggestedMinutes,
+                relatedSubjects: [p.relatedSubject],
+                locked: true,
+                completed: false
+              })
+
+              alert('Locked for tomorrow')
+            }}
+          />
+        )}
 
         {/* Tomorrow Lock follow-up (if exists) */}
         {lockedFollowUpAction && (
