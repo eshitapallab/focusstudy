@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import FocusStudyLogo from '@/components/FocusStudyLogo'
 import UserMenu from '@/components/Auth/UserMenu'
+import AmbientSoundSelector from '@/components/AmbientSoundSelector'
 import { useAuth } from '@/hooks/useAuth'
 
 interface AppNavProps {
@@ -100,6 +101,7 @@ export default function AppNav({ showAuthButton = false, transparent = false }: 
 
             {/* Mobile - Auth/Menu button only */}
             <div className="flex md:hidden items-center gap-2">
+              <AmbientSoundSelector compact />
               {showAuthButton && !loading && !user && (
                 <Link
                   href="/auth"
@@ -113,6 +115,7 @@ export default function AppNav({ showAuthButton = false, transparent = false }: 
 
             {/* Desktop Right side actions */}
             <div className="hidden md:flex items-center gap-3">
+              <AmbientSoundSelector compact />
               {showAuthButton && !loading && !user && (
                 <Link
                   href="/auth"

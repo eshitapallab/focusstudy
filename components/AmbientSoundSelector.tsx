@@ -91,11 +91,11 @@ export default function AmbientSoundSelector({ compact = false, onSoundChange }:
         {isOpen && (
           <>
             <div 
-              className="fixed inset-0 z-40 bg-black/20 sm:bg-transparent"
+              className="fixed inset-0 z-[70] bg-black/20 sm:bg-transparent"
               onClick={() => setIsOpen(false)}
             />
             {/* Mobile: Bottom sheet, Desktop: Dropdown */}
-            <div className="fixed sm:absolute bottom-0 sm:bottom-full left-0 right-0 sm:left-auto sm:right-0 sm:mb-2 w-full sm:w-80 bg-slate-900 sm:rounded-xl rounded-t-3xl border-t sm:border border-slate-700 shadow-2xl z-50 overflow-hidden safe-area-pb max-h-[70vh] sm:max-h-none">
+            <div className="fixed sm:absolute bottom-0 sm:bottom-full left-0 right-0 sm:left-auto sm:right-0 sm:mb-2 w-full sm:w-80 bg-slate-900 sm:rounded-xl rounded-t-3xl border-t sm:border border-slate-700 shadow-2xl z-[80] overflow-hidden safe-area-pb max-h-[70vh] sm:max-h-none">
               {/* Mobile handle */}
               <div className="w-12 h-1.5 bg-slate-600 rounded-full mx-auto my-3 sm:hidden" />
               
