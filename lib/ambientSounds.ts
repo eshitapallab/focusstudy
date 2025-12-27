@@ -1,50 +1,67 @@
 // Ambient sound configurations for focus sessions
-// Uses Web Audio API to generate sounds - no external dependencies
+// Uses Web Audio API to generate soothing sounds - no external dependencies
 
 export interface AmbientSound {
   id: string;
   name: string;
   emoji: string;
   description: string;
-  type: 'generated' | 'url';
-  generatorType?: 'white' | 'pink' | 'brown' | 'binaural';
-  url?: string;
-  category: 'noise' | 'nature' | 'binaural';
+  type: 'generated';
+  generatorType: 'rain' | 'ocean' | 'wind' | 'campfire' | 'binaural' | 'drone';
+  category: 'nature' | 'ambient' | 'binaural';
 }
 
 export const AMBIENT_SOUNDS: AmbientSound[] = [
   {
-    id: 'white-noise',
-    name: 'White Noise',
-    emoji: '📻',
-    description: 'Classic white noise for focus',
+    id: 'rain',
+    name: 'Gentle Rain',
+    emoji: '🌧️',
+    description: 'Soft rainfall sounds',
     type: 'generated',
-    generatorType: 'white',
-    category: 'noise',
+    generatorType: 'rain',
+    category: 'nature',
   },
   {
-    id: 'pink-noise',
-    name: 'Pink Noise',
-    emoji: '🌸',
-    description: 'Softer, balanced noise',
+    id: 'ocean',
+    name: 'Ocean Waves',
+    emoji: '🌊',
+    description: 'Calming beach waves',
     type: 'generated',
-    generatorType: 'pink',
-    category: 'noise',
+    generatorType: 'ocean',
+    category: 'nature',
   },
   {
-    id: 'brown-noise',
-    name: 'Brown Noise',
-    emoji: '🟤',
-    description: 'Deep, rumbling noise',
+    id: 'wind',
+    name: 'Soft Wind',
+    emoji: '🍃',
+    description: 'Gentle breeze through trees',
     type: 'generated',
-    generatorType: 'brown',
-    category: 'noise',
+    generatorType: 'wind',
+    category: 'nature',
+  },
+  {
+    id: 'campfire',
+    name: 'Campfire',
+    emoji: '🔥',
+    description: 'Crackling fire sounds',
+    type: 'generated',
+    generatorType: 'campfire',
+    category: 'nature',
+  },
+  {
+    id: 'drone',
+    name: 'Calm Drone',
+    emoji: '🎵',
+    description: 'Peaceful ambient tone',
+    type: 'generated',
+    generatorType: 'drone',
+    category: 'ambient',
   },
   {
     id: 'binaural-focus',
     name: 'Focus Beats',
     emoji: '🧠',
-    description: '40Hz gamma for concentration',
+    description: '40Hz for concentration',
     type: 'generated',
     generatorType: 'binaural',
     category: 'binaural',
@@ -52,16 +69,17 @@ export const AMBIENT_SOUNDS: AmbientSound[] = [
 ];
 
 export const SOUND_CATEGORIES = [
-  { id: 'noise', name: 'Noise', emoji: '🔊' },
+  { id: 'nature', name: 'Nature', emoji: '🌿' },
+  { id: 'ambient', name: 'Ambient', emoji: '🎵' },
   { id: 'binaural', name: 'Binaural', emoji: '🧠' },
 ];
 
-// Web Audio API sound generator
+// Web Audio API soothing sound generator
 class SoundGenerator {
   private audioContext: AudioContext | null = null;
   private gainNode: GainNode | null = null;
-  private noiseNode: AudioBufferSourceNode | null = null;
-  private oscillatorNodes: OscillatorNode[] = [];
+  private nodes: AudioNode[] = [];
+  private intervals: number[] = [];
   private isPlaying: boolean = false;
   private currentType: string | null = null;
 
@@ -72,46 +90,14 @@ class SoundGenerator {
     return this.audioContext;
   }
 
-  private createWhiteNoise(): AudioBuffer {
+  // Create filtered noise for natural sounds
+  private createFilteredNoise(type: 'rain' | 'wind' | 'ocean'): { source: AudioBufferSourceNode; filter: BiquadFilterNode } {
     const ctx = this.getAudioContext();
     const bufferSize = 2 * ctx.sampleRate;
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const output = buffer.getChannelData(0);
     
-    for (let i = 0; i < bufferSize; i++) {
-      output[i] = Math.random() * 2 - 1;
-    }
-    return buffer;
-  }
-
-  private createPinkNoise(): AudioBuffer {
-    const ctx = this.getAudioContext();
-    const bufferSize = 2 * ctx.sampleRate;
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const output = buffer.getChannelData(0);
-    
-    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
-    
-    for (let i = 0; i < bufferSize; i++) {
-      const white = Math.random() * 2 - 1;
-      b0 = 0.99886 * b0 + white * 0.0555179;
-      b1 = 0.99332 * b1 + white * 0.0750759;
-      b2 = 0.96900 * b2 + white * 0.1538520;
-      b3 = 0.86650 * b3 + white * 0.3104856;
-      b4 = 0.55000 * b4 + white * 0.5329522;
-      b5 = -0.7616 * b5 - white * 0.0168980;
-      output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
-      b6 = white * 0.115926;
-    }
-    return buffer;
-  }
-
-  private createBrownNoise(): AudioBuffer {
-    const ctx = this.getAudioContext();
-    const bufferSize = 2 * ctx.sampleRate;
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const output = buffer.getChannelData(0);
-    
+    // Brown noise base (smoother)
     let lastOut = 0;
     for (let i = 0; i < bufferSize; i++) {
       const white = Math.random() * 2 - 1;
@@ -119,60 +105,207 @@ class SoundGenerator {
       lastOut = output[i];
       output[i] *= 3.5;
     }
-    return buffer;
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+
+    const filter = ctx.createBiquadFilter();
+    
+    if (type === 'rain') {
+      filter.type = 'highpass';
+      filter.frequency.value = 1000;
+      filter.Q.value = 0.5;
+    } else if (type === 'wind') {
+      filter.type = 'bandpass';
+      filter.frequency.value = 400;
+      filter.Q.value = 0.3;
+    } else { // ocean
+      filter.type = 'lowpass';
+      filter.frequency.value = 500;
+      filter.Q.value = 0.7;
+    }
+
+    return { source, filter };
   }
 
-  playNoise(type: 'white' | 'pink' | 'brown', volume: number) {
-    this.stop();
-    
+  playRain(volume: number) {
     const ctx = this.getAudioContext();
     
-    // Resume context if suspended (for autoplay policy)
-    if (ctx.state === 'suspended') {
-      ctx.resume();
-    }
-
-    let buffer: AudioBuffer;
-    switch (type) {
-      case 'pink':
-        buffer = this.createPinkNoise();
-        break;
-      case 'brown':
-        buffer = this.createBrownNoise();
-        break;
-      default:
-        buffer = this.createWhiteNoise();
-    }
-
-    this.noiseNode = ctx.createBufferSource();
-    this.noiseNode.buffer = buffer;
-    this.noiseNode.loop = true;
-
     this.gainNode = ctx.createGain();
-    this.gainNode.gain.value = volume;
+    this.gainNode.gain.value = volume * 0.4;
 
-    this.noiseNode.connect(this.gainNode);
+    // Main rain layer
+    const { source: rain1, filter: filter1 } = this.createFilteredNoise('rain');
+    rain1.connect(filter1);
+    filter1.connect(this.gainNode);
+    rain1.start();
+    this.nodes.push(rain1, filter1);
+
+    // Softer background layer
+    const { source: rain2, filter: filter2 } = this.createFilteredNoise('rain');
+    const gain2 = ctx.createGain();
+    gain2.gain.value = 0.3;
+    rain2.connect(filter2);
+    filter2.connect(gain2);
+    gain2.connect(this.gainNode);
+    rain2.start();
+    this.nodes.push(rain2, filter2, gain2);
+
     this.gainNode.connect(ctx.destination);
+  }
 
-    this.noiseNode.start();
-    this.isPlaying = true;
-    this.currentType = type;
+  playOcean(volume: number) {
+    const ctx = this.getAudioContext();
+    
+    this.gainNode = ctx.createGain();
+    this.gainNode.gain.value = volume * 0.5;
+
+    const { source, filter } = this.createFilteredNoise('ocean');
+    
+    // Create wave modulation
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 0.1; // Very slow wave cycle
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 200;
+    lfo.connect(lfoGain);
+    lfoGain.connect(filter.frequency);
+    lfo.start();
+
+    source.connect(filter);
+    filter.connect(this.gainNode);
+    this.gainNode.connect(ctx.destination);
+    source.start();
+
+    this.nodes.push(source, filter, lfo, lfoGain);
+  }
+
+  playWind(volume: number) {
+    const ctx = this.getAudioContext();
+    
+    this.gainNode = ctx.createGain();
+    this.gainNode.gain.value = volume * 0.35;
+
+    const { source, filter } = this.createFilteredNoise('wind');
+    
+    // Gentle wind modulation
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 0.05;
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 150;
+    lfo.connect(lfoGain);
+    lfoGain.connect(filter.frequency);
+    lfo.start();
+
+    // Secondary LFO for volume swell
+    const volLfo = ctx.createOscillator();
+    volLfo.frequency.value = 0.08;
+    const volLfoGain = ctx.createGain();
+    volLfoGain.gain.value = 0.15;
+    volLfo.connect(volLfoGain);
+    volLfoGain.connect(this.gainNode.gain);
+    volLfo.start();
+
+    source.connect(filter);
+    filter.connect(this.gainNode);
+    this.gainNode.connect(ctx.destination);
+    source.start();
+
+    this.nodes.push(source, filter, lfo, lfoGain, volLfo, volLfoGain);
+  }
+
+  playCampfire(volume: number) {
+    const ctx = this.getAudioContext();
+    
+    this.gainNode = ctx.createGain();
+    this.gainNode.gain.value = volume * 0.3;
+
+    // Base crackle (filtered noise)
+    const bufferSize = 2 * ctx.sampleRate;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const output = buffer.getChannelData(0);
+    
+    for (let i = 0; i < bufferSize; i++) {
+      // Sparse crackle pattern
+      if (Math.random() > 0.97) {
+        output[i] = (Math.random() * 2 - 1) * 0.8;
+      } else {
+        output[i] = (Math.random() * 2 - 1) * 0.1;
+      }
+    }
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 800;
+    filter.Q.value = 1;
+
+    // Low rumble
+    const rumble = ctx.createOscillator();
+    rumble.frequency.value = 60;
+    rumble.type = 'sine';
+    const rumbleGain = ctx.createGain();
+    rumbleGain.gain.value = 0.05;
+    rumble.connect(rumbleGain);
+    rumbleGain.connect(this.gainNode);
+    rumble.start();
+
+    source.connect(filter);
+    filter.connect(this.gainNode);
+    this.gainNode.connect(ctx.destination);
+    source.start();
+
+    this.nodes.push(source, filter, rumble, rumbleGain);
+  }
+
+  playDrone(volume: number) {
+    const ctx = this.getAudioContext();
+    
+    this.gainNode = ctx.createGain();
+    this.gainNode.gain.value = volume * 0.2;
+
+    // Create harmonious drone with multiple frequencies
+    const frequencies = [55, 82.5, 110, 165]; // A1 and harmonics
+    
+    frequencies.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      
+      const oscGain = ctx.createGain();
+      oscGain.gain.value = 1 / (i + 1); // Decreasing volume for harmonics
+      
+      // Slight detune for warmth
+      const detune = ctx.createOscillator();
+      detune.frequency.value = freq * 1.003;
+      detune.type = 'sine';
+      const detuneGain = ctx.createGain();
+      detuneGain.gain.value = 0.3 / (i + 1);
+      
+      osc.connect(oscGain);
+      detune.connect(detuneGain);
+      oscGain.connect(this.gainNode);
+      detuneGain.connect(this.gainNode);
+      
+      osc.start();
+      detune.start();
+      
+      this.nodes.push(osc, oscGain, detune, detuneGain);
+    });
+
+    this.gainNode.connect(ctx.destination);
   }
 
   playBinaural(volume: number) {
-    this.stop();
-    
     const ctx = this.getAudioContext();
     
-    if (ctx.state === 'suspended') {
-      ctx.resume();
-    }
-
     this.gainNode = ctx.createGain();
-    this.gainNode.gain.value = volume * 0.3; // Binaural should be quieter
+    this.gainNode.gain.value = volume * 0.25;
 
-    // Create two oscillators with slightly different frequencies
-    // 40Hz difference for gamma waves (focus/concentration)
+    // 40Hz gamma waves for focus
     const baseFreq = 200;
     const beatFreq = 40;
 
@@ -185,7 +318,6 @@ class SoundGenerator {
     oscLeft.type = 'sine';
     oscRight.type = 'sine';
 
-    // Create stereo panner for each oscillator
     const panLeft = ctx.createStereoPanner();
     const panRight = ctx.createStereoPanner();
     
@@ -203,27 +335,55 @@ class SoundGenerator {
     oscLeft.start();
     oscRight.start();
 
-    this.oscillatorNodes = [oscLeft, oscRight];
+    this.nodes.push(oscLeft, oscRight, panLeft, panRight);
+  }
+
+  play(type: string, volume: number) {
+    this.stop();
+    
+    const ctx = this.getAudioContext();
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+
+    switch (type) {
+      case 'rain':
+        this.playRain(volume);
+        break;
+      case 'ocean':
+        this.playOcean(volume);
+        break;
+      case 'wind':
+        this.playWind(volume);
+        break;
+      case 'campfire':
+        this.playCampfire(volume);
+        break;
+      case 'drone':
+        this.playDrone(volume);
+        break;
+      case 'binaural':
+        this.playBinaural(volume);
+        break;
+    }
+
     this.isPlaying = true;
-    this.currentType = 'binaural';
+    this.currentType = type;
   }
 
   stop() {
-    if (this.noiseNode) {
+    this.nodes.forEach(node => {
       try {
-        this.noiseNode.stop();
+        if (node instanceof AudioBufferSourceNode || node instanceof OscillatorNode) {
+          node.stop();
+        }
+        node.disconnect();
       } catch (e) {}
-      this.noiseNode.disconnect();
-      this.noiseNode = null;
-    }
-
-    this.oscillatorNodes.forEach(osc => {
-      try {
-        osc.stop();
-      } catch (e) {}
-      osc.disconnect();
     });
-    this.oscillatorNodes = [];
+    this.nodes = [];
+
+    this.intervals.forEach(id => clearInterval(id));
+    this.intervals = [];
 
     if (this.gainNode) {
       this.gainNode.disconnect();
@@ -236,8 +396,9 @@ class SoundGenerator {
 
   setVolume(volume: number) {
     if (this.gainNode) {
-      const adjustedVolume = this.currentType === 'binaural' ? volume * 0.3 : volume;
-      this.gainNode.gain.value = adjustedVolume;
+      const multiplier = this.currentType === 'binaural' ? 0.25 : 
+                         this.currentType === 'drone' ? 0.2 : 0.4;
+      this.gainNode.gain.value = volume * multiplier;
     }
   }
 
@@ -250,7 +411,7 @@ class SoundGenerator {
   }
 }
 
-// Audio manager class for handling playback
+// Audio manager class
 class AmbientAudioManager {
   private soundGenerator: SoundGenerator | null = null;
   private currentSoundId: string | null = null;
@@ -287,20 +448,11 @@ class AmbientAudioManager {
     const sound = AMBIENT_SOUNDS.find(s => s.id === soundId);
     if (!sound || !this.soundGenerator) return;
 
-    // Stop current audio
     this.stop();
-
     this.currentSoundId = soundId;
-
-    if (sound.type === 'generated' && sound.generatorType) {
-      if (sound.generatorType === 'binaural') {
-        this.soundGenerator.playBinaural(this.volume);
-      } else {
-        this.soundGenerator.playNoise(sound.generatorType, this.volume);
-      }
-      this.isPlaying = true;
-      this.saveSettings();
-    }
+    this.soundGenerator.play(sound.generatorType, this.volume);
+    this.isPlaying = true;
+    this.saveSettings();
   }
 
   pause() {

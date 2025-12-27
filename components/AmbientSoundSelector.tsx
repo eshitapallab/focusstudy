@@ -136,7 +136,7 @@ export default function AmbientSoundSelector({ compact = false, onSoundChange }:
                 </div>
 
                 {/* Sound grid */}
-                <div className="grid grid-cols-2 gap-2 mb-4">
+                <div className="grid grid-cols-3 gap-2 mb-4">
                   {filteredSounds.map(sound => (
                     <button
                       key={sound.id}
@@ -149,11 +149,8 @@ export default function AmbientSoundSelector({ compact = false, onSoundChange }:
                       title={sound.description}
                     >
                       <span className="text-2xl mb-1">{sound.emoji}</span>
-                      <span className="text-xs text-slate-300 truncate w-full text-center font-medium">
+                      <span className="text-[10px] text-slate-300 truncate w-full text-center font-medium">
                         {sound.name}
-                      </span>
-                      <span className="text-[10px] text-slate-500 mt-0.5">
-                        {sound.description}
                       </span>
                     </button>
                   ))}
@@ -240,7 +237,7 @@ export default function AmbientSoundSelector({ compact = false, onSoundChange }:
       </div>
 
       {/* Sound grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-4">
         {filteredSounds.map(sound => (
           <button
             key={sound.id}
@@ -252,9 +249,8 @@ export default function AmbientSoundSelector({ compact = false, onSoundChange }:
             }`}
             title={sound.description}
           >
-            <span className="text-4xl mb-2">{sound.emoji}</span>
-            <span className="text-sm text-slate-300 font-medium">{sound.name}</span>
-            <span className="text-xs text-slate-500 mt-1">{sound.description}</span>
+            <span className="text-3xl mb-2">{sound.emoji}</span>
+            <span className="text-xs text-slate-300 font-medium">{sound.name}</span>
             {currentSound === sound.id && isPlaying && (
               <span className="flex gap-0.5 mt-2">
                 <span className="w-1 h-3 bg-cyan-400 rounded-full animate-pulse"></span>
