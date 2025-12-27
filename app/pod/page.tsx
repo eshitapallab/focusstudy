@@ -378,7 +378,7 @@ export default function PodPage() {
       
       <AppNav user={user} showAuthButton={true} />
       
-      <div className="container mx-auto px-4 py-6 max-w-2xl pb-24 md:pb-8">
+      <div className="container mx-auto px-4 py-6 max-w-2xl pb-32 md:pb-8">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-3">

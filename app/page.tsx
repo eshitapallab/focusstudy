@@ -4,7 +4,7 @@ import QuickStats from '@/components/Home/QuickStats'
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-900 dark:to-indigo-950 relative overflow-hidden pb-24 safe-area-pb">
+    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-900 dark:to-indigo-950 relative overflow-hidden pb-32 safe-area-pb">
       <AppNav showAuthButton={true} transparent={true} />
       
       <div className="absolute inset-0 overflow-hidden pointer-events-none">

@@ -46,10 +46,10 @@ export default function AppNav({ user, showAuthButton = false, transparent = fal
 
   // Bottom nav items (5 most important for mobile)
   const bottomNavItems = [
-    navItems[0], // Home
     navItems[1], // Timer
+    navItems[2], // Track (StudyTrack)
+    navItems[3], // Pod
     navItems[4], // Plan/Calendar
-    navItems[5], // Stats
     navItems[6], // More/Settings
   ]
 
