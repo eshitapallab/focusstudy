@@ -67,45 +67,45 @@ export default function Heatmap({ sessions, months = 3 }: HeatmapProps) {
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl p-4 md:p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+      <div className="flex items-center justify-between mb-3 md:mb-4">
         <div>
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+          <h3 className="text-base md:text-lg font-bold text-gray-900 dark:text-white">
             Activity Pattern
           </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-0.5 md:mt-1">
             Last {months} months
           </p>
         </div>
         <div className="text-right">
-          <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{activeDays}</div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">active days</div>
+          <div className="text-xl md:text-2xl font-bold text-indigo-600 dark:text-indigo-400">{activeDays}</div>
+          <div className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400">active days</div>
         </div>
       </div>
 
       {/* Stats row */}
-      <div className="flex gap-6 mb-6 pb-4 border-b border-gray-100 dark:border-gray-700">
+      <div className="flex gap-4 md:gap-6 mb-4 md:mb-6 pb-3 md:pb-4 border-b border-gray-100 dark:border-gray-700">
         <div>
-          <div className="text-lg font-semibold text-gray-900 dark:text-white">{Math.round(totalMinutes / 60)}h</div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">total time</div>
+          <div className="text-base md:text-lg font-semibold text-gray-900 dark:text-white">{Math.round(totalMinutes / 60)}h</div>
+          <div className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400">total time</div>
         </div>
         <div>
-          <div className="text-lg font-semibold text-gray-900 dark:text-white">{totalSessions}</div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">sessions</div>
+          <div className="text-base md:text-lg font-semibold text-gray-900 dark:text-white">{totalSessions}</div>
+          <div className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400">sessions</div>
         </div>
         <div>
-          <div className="text-lg font-semibold text-gray-900 dark:text-white">
+          <div className="text-base md:text-lg font-semibold text-gray-900 dark:text-white">
             {activeDays > 0 ? Math.round(totalMinutes / activeDays) : 0}m
           </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">avg/day</div>
+          <div className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400">avg/day</div>
         </div>
       </div>
       
       {/* Simple grid */}
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-0.5 md:gap-1 overflow-x-auto">
         {/* Day headers */}
         {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
-          <div key={i} className="text-center text-xs font-medium text-gray-400 dark:text-gray-500 pb-2">
+          <div key={i} className="text-center text-[10px] md:text-xs font-medium text-gray-400 dark:text-gray-500 pb-1 md:pb-2">
             {d}
           </div>
         ))}
@@ -114,7 +114,7 @@ export default function Heatmap({ sessions, months = 3 }: HeatmapProps) {
         {heatmapData.map((day, i) => (
           <div
             key={i}
-            className={`aspect-square rounded-md ${getColor(day.minutes)} relative group cursor-pointer hover:ring-2 hover:ring-indigo-400 hover:ring-offset-1 transition-all`}
+            className={`aspect-square rounded-sm md:rounded-md ${getColor(day.minutes)} relative group cursor-pointer hover:ring-2 hover:ring-indigo-400 hover:ring-offset-1 transition-all`}
           >
             {/* Tooltip */}
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10 shadow-lg">
@@ -126,16 +126,16 @@ export default function Heatmap({ sessions, months = 3 }: HeatmapProps) {
       </div>
       
       {/* Legend */}
-      <div className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
-        <span className="text-xs text-gray-500 dark:text-gray-400">Less</span>
-        <div className="flex gap-1">
-          <div className="w-4 h-4 rounded bg-gray-100 dark:bg-gray-700/50"></div>
-          <div className="w-4 h-4 rounded bg-indigo-300"></div>
-          <div className="w-4 h-4 rounded bg-indigo-400"></div>
-          <div className="w-4 h-4 rounded bg-indigo-500"></div>
-          <div className="w-4 h-4 rounded bg-indigo-600"></div>
+      <div className="flex items-center justify-center gap-1.5 md:gap-2 mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-100 dark:border-gray-700">
+        <span className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400">Less</span>
+        <div className="flex gap-0.5 md:gap-1">
+          <div className="w-3 h-3 md:w-4 md:h-4 rounded-sm md:rounded bg-gray-100 dark:bg-gray-700/50"></div>
+          <div className="w-3 h-3 md:w-4 md:h-4 rounded-sm md:rounded bg-indigo-300"></div>
+          <div className="w-3 h-3 md:w-4 md:h-4 rounded-sm md:rounded bg-indigo-400"></div>
+          <div className="w-3 h-3 md:w-4 md:h-4 rounded-sm md:rounded bg-indigo-500"></div>
+          <div className="w-3 h-3 md:w-4 md:h-4 rounded-sm md:rounded bg-indigo-600"></div>
         </div>
-        <span className="text-xs text-gray-500 dark:text-gray-400">More</span>
+        <span className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400">More</span>
       </div>
     </div>
   )

@@ -48,15 +48,15 @@ export default function SubjectBreakdown({ sessionsWithMetadata }: SubjectBreakd
   
   if (subjectData.length === 0) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg">
+        <h3 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-3 md:mb-4">
           Subject Breakdown
         </h3>
-        <div className="text-center py-8">
-          <p className="text-gray-500 dark:text-gray-400 mb-2">
+        <div className="text-center py-6 md:py-8">
+          <p className="text-gray-500 dark:text-gray-400 mb-2 text-sm md:text-base">
             Not enough labeled sessions yet
           </p>
-          <p className="text-sm text-gray-400 dark:text-gray-500">
+          <p className="text-xs md:text-sm text-gray-400 dark:text-gray-500">
             Label at least 2 sessions for the same subject to see breakdown
           </p>
         </div>
@@ -77,14 +77,14 @@ export default function SubjectBreakdown({ sessionsWithMetadata }: SubjectBreakd
   ]
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
+    <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg">
+      <h3 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-4 md:mb-6">
         Subject Breakdown
       </h3>
       
-      <div className="space-y-4">
+      <div className="space-y-3 md:space-y-4">
         {/* Donut chart (simple bar representation) */}
-        <div className="flex h-4 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
+        <div className="flex h-3 md:h-4 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
           {subjectData.map((subject, i) => (
             <div
               key={subject.subject}
@@ -96,20 +96,20 @@ export default function SubjectBreakdown({ sessionsWithMetadata }: SubjectBreakd
         </div>
         
         {/* Legend */}
-        <div className="space-y-3">
+        <div className="space-y-2 md:space-y-3">
           {subjectData.map((subject, i) => (
             <div key={subject.subject} className="flex items-center justify-between">
-              <div className="flex items-center gap-3 flex-1">
-                <div className={`w-3 h-3 rounded-full ${colors[i % colors.length]}`} />
-                <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
+              <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+                <div className={`w-2.5 h-2.5 md:w-3 md:h-3 rounded-full flex-shrink-0 ${colors[i % colors.length]}`} />
+                <span className="text-xs md:text-sm font-medium text-gray-900 dark:text-white truncate">
                   {subject.subject}
                 </span>
               </div>
-              <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-2 md:gap-4 text-xs md:text-sm">
                 <span className="text-gray-600 dark:text-gray-400 tabular-nums">
-                  {subject.minutes} min
+                  {subject.minutes}m
                 </span>
-                <span className="text-gray-500 dark:text-gray-500 tabular-nums w-12 text-right">
+                <span className="text-gray-500 dark:text-gray-500 tabular-nums w-10 md:w-12 text-right">
                   {Math.round((subject.minutes / totalMinutes) * 100)}%
                 </span>
               </div>
