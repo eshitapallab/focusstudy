@@ -48,7 +48,7 @@ export default function AppNav({ user, showAuthButton = false, transparent = fal
   const bottomNavItems = [
     navItems[0], // Home
     navItems[1], // Timer
-    navItems[3], // Pod
+    navItems[4], // Plan/Calendar
     navItems[5], // Stats
     navItems[6], // More/Settings
   ]
