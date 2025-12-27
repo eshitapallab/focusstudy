@@ -30,7 +30,7 @@ function AchievementBadge({ achievement, unlocked, progress, maxProgress }: Achi
   
   return (
     <div
-      className={`relative group p-4 rounded-xl border transition-all duration-300 ${
+      className={`relative group p-3 sm:p-4 rounded-xl border transition-all duration-300 ${
         unlocked
           ? 'bg-gradient-to-br from-amber-500/10 via-yellow-500/10 to-orange-500/10 border-amber-500/30 shadow-lg shadow-amber-500/10'
           : 'bg-slate-800/30 border-slate-700/50 opacity-60 grayscale'
@@ -44,7 +44,7 @@ function AchievementBadge({ achievement, unlocked, progress, maxProgress }: Achi
       {/* Badge icon */}
       <div className="relative">
         <div
-          className={`w-16 h-16 mx-auto mb-3 rounded-full flex items-center justify-center text-3xl ${
+          className={`w-12 h-12 sm:w-14 sm:h-14 mx-auto mb-2 sm:mb-3 rounded-full flex items-center justify-center text-2xl sm:text-3xl ${
             unlocked
               ? 'bg-gradient-to-br from-amber-400 to-orange-500 shadow-lg shadow-amber-500/30'
               : 'bg-slate-700'
@@ -56,33 +56,33 @@ function AchievementBadge({ achievement, unlocked, progress, maxProgress }: Achi
         {/* Lock overlay */}
         {!unlocked && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-16 h-16 rounded-full bg-slate-900/50 flex items-center justify-center">
-              <span className="text-2xl">🔒</span>
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-slate-900/50 flex items-center justify-center">
+              <span className="text-xl sm:text-2xl">🔒</span>
             </div>
           </div>
         )}
       </div>
       
       {/* Badge name */}
-      <h4 className={`text-center font-semibold mb-1 ${unlocked ? 'text-amber-300' : 'text-slate-400'}`}>
+      <h4 className={`text-center font-semibold mb-1 text-xs sm:text-sm ${unlocked ? 'text-amber-300' : 'text-slate-400'}`}>
         {achievement.name}
       </h4>
       
-      {/* Description */}
-      <p className="text-xs text-center text-slate-500 mb-3">
+      {/* Description - hidden on small screens */}
+      <p className="hidden sm:block text-xs text-center text-slate-500 mb-3">
         {achievement.description}
       </p>
       
       {/* Progress bar for countable achievements */}
       {!unlocked && maxProgress > 1 && (
-        <div className="mt-2">
-          <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+        <div className="mt-1 sm:mt-2">
+          <div className="h-1 sm:h-1.5 bg-slate-700 rounded-full overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full transition-all duration-500"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
-          <p className="text-[10px] text-slate-500 text-center mt-1">
+          <p className="text-[9px] sm:text-[10px] text-slate-500 text-center mt-0.5 sm:mt-1">
             {progress} / {maxProgress}
           </p>
         </div>
@@ -90,7 +90,7 @@ function AchievementBadge({ achievement, unlocked, progress, maxProgress }: Achi
       
       {/* Unlocked badge */}
       {unlocked && (
-        <div className="absolute -top-2 -right-2 bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-lg">
+        <div className="absolute -top-1.5 -right-1.5 sm:-top-2 sm:-right-2 bg-amber-500 text-white text-[10px] sm:text-xs font-bold w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full shadow-lg">
           ✓
         </div>
       )}
@@ -303,38 +303,39 @@ export default function AchievementBadges() {
     : achievementsWithStatus.slice(0, 6);
 
   return (
-    <div className="bg-slate-900/50 border border-slate-700/50 rounded-xl p-5">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-slate-900/50 border border-slate-700/50 rounded-xl sm:rounded-2xl p-4 sm:p-5">
+      <div className="flex items-center justify-between mb-3 sm:mb-4">
         <div>
-          <h3 className="font-semibold text-white flex items-center gap-2">
-            <span className="text-xl">🏆</span> Achievements
+          <h3 className="font-semibold text-white flex items-center gap-2 text-sm sm:text-base">
+            <span className="text-lg sm:text-xl">🏆</span> Achievements
           </h3>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 mt-0.5 sm:mt-1">
             {unlockedCount} of {ACHIEVEMENTS.length} unlocked
           </p>
         </div>
         
         {/* Progress ring */}
-        <div className="relative w-14 h-14">
+        <div className="relative w-11 h-11 sm:w-14 sm:h-14">
           <svg className="w-full h-full transform -rotate-90">
             <circle
-              cx="28"
-              cy="28"
-              r="24"
+              cx="50%"
+              cy="50%"
+              r="40%"
               fill="none"
               stroke="currentColor"
               strokeWidth="4"
               className="text-slate-700"
             />
             <circle
-              cx="28"
-              cy="28"
-              r="24"
+              cx="50%"
+              cy="50%"
+              r="40%"
               fill="none"
               stroke="url(#achievementGradient)"
               strokeWidth="4"
               strokeLinecap="round"
-              strokeDasharray={`${(unlockedCount / ACHIEVEMENTS.length) * 150.8} 150.8`}
+              strokeDasharray={`${(unlockedCount / ACHIEVEMENTS.length) * 100} 100`}
+              className="origin-center"
             />
             <defs>
               <linearGradient id="achievementGradient" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -344,15 +345,15 @@ export default function AchievementBadges() {
             </defs>
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-sm font-bold text-amber-400">
+            <span className="text-xs sm:text-sm font-bold text-amber-400">
               {Math.round((unlockedCount / ACHIEVEMENTS.length) * 100)}%
             </span>
           </div>
         </div>
       </div>
 
-      {/* Achievement grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      {/* Achievement grid - 2 cols on mobile, 3 on larger */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
         {displayAchievements.map(({ achievement, unlocked, progress, maxProgress }) => (
           <AchievementBadge
             key={achievement.id}
@@ -368,7 +369,7 @@ export default function AchievementBadges() {
       {ACHIEVEMENTS.length > 6 && (
         <button
           onClick={() => setShowAll(!showAll)}
-          className="w-full mt-4 py-2 text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
+          className="w-full mt-3 sm:mt-4 py-2.5 text-xs sm:text-sm text-cyan-400 hover:text-cyan-300 transition-colors min-h-[44px] active:scale-95"
         >
           {showAll ? 'Show less ↑' : `Show all ${ACHIEVEMENTS.length} achievements ↓`}
         </button>

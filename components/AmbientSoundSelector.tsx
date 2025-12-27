@@ -71,7 +71,7 @@ export default function AmbientSoundSelector({ compact = false, onSoundChange }:
       <div className="relative">
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
+          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all min-h-[44px] ${
             isPlaying
               ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
               : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 border border-slate-700/50'
@@ -91,28 +91,42 @@ export default function AmbientSoundSelector({ compact = false, onSoundChange }:
         {isOpen && (
           <>
             <div 
-              className="fixed inset-0 z-40"
+              className="fixed inset-0 z-40 bg-black/20 sm:bg-transparent"
               onClick={() => setIsOpen(false)}
             />
-            <div className="absolute bottom-full mb-2 right-0 w-72 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden">
-              <div className="p-4">
+            {/* Mobile: Bottom sheet, Desktop: Dropdown */}
+            <div className="fixed sm:absolute bottom-0 sm:bottom-full left-0 right-0 sm:left-auto sm:right-0 sm:mb-2 w-full sm:w-80 bg-slate-900 sm:rounded-xl rounded-t-3xl border-t sm:border border-slate-700 shadow-2xl z-50 overflow-hidden safe-area-pb max-h-[70vh] sm:max-h-none">
+              {/* Mobile handle */}
+              <div className="w-12 h-1.5 bg-slate-600 rounded-full mx-auto my-3 sm:hidden" />
+              
+              <div className="p-4 overflow-y-auto scrollbar-hide">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-white">Ambient Sounds</h3>
-                  {isPlaying && (
+                  <h3 className="font-semibold text-white text-base">🎵 Ambient Sounds</h3>
+                  <div className="flex items-center gap-2">
+                    {isPlaying && (
+                      <button
+                        onClick={handleStop}
+                        className="text-xs px-3 py-1.5 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors min-h-[32px]"
+                      >
+                        Stop
+                      </button>
+                    )}
                     <button
-                      onClick={handleStop}
-                      className="text-xs px-2 py-1 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-colors"
+                      onClick={() => setIsOpen(false)}
+                      className="sm:hidden text-slate-400 p-2 -mr-2"
                     >
-                      Stop
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
                     </button>
-                  )}
+                  </div>
                 </div>
 
-                {/* Category filter */}
-                <div className="flex gap-1 mb-3 flex-wrap">
+                {/* Category filter - horizontal scroll on mobile */}
+                <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
                   <button
                     onClick={() => setSelectedCategory(null)}
-                    className={`text-xs px-2 py-1 rounded-full transition-colors ${
+                    className={`text-xs px-3 py-1.5 rounded-full transition-colors whitespace-nowrap min-h-[32px] ${
                       !selectedCategory
                         ? 'bg-cyan-500/30 text-cyan-300'
                         : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'
@@ -124,7 +138,7 @@ export default function AmbientSoundSelector({ compact = false, onSoundChange }:
                     <button
                       key={cat.id}
                       onClick={() => setSelectedCategory(cat.id)}
-                      className={`text-xs px-2 py-1 rounded-full transition-colors ${
+                      className={`text-xs px-3 py-1.5 rounded-full transition-colors whitespace-nowrap min-h-[32px] ${
                         selectedCategory === cat.id
                           ? 'bg-cyan-500/30 text-cyan-300'
                           : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'
@@ -135,30 +149,30 @@ export default function AmbientSoundSelector({ compact = false, onSoundChange }:
                   ))}
                 </div>
 
-                {/* Sound grid */}
-                <div className="grid grid-cols-3 gap-2 mb-4">
+                {/* Sound grid - 3 columns on mobile, responsive */}
+                <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4">
                   {filteredSounds.map(sound => (
                     <button
                       key={sound.id}
                       onClick={() => handleSoundSelect(sound.id)}
-                      className={`flex flex-col items-center p-3 rounded-lg transition-all ${
+                      className={`flex flex-col items-center p-3 sm:p-4 rounded-xl transition-all min-h-[72px] active:scale-95 ${
                         currentSound === sound.id && isPlaying
                           ? 'bg-cyan-500/20 ring-2 ring-cyan-500/50'
                           : 'bg-slate-800/50 hover:bg-slate-700/50'
                       }`}
                       title={sound.description}
                     >
-                      <span className="text-2xl mb-1">{sound.emoji}</span>
-                      <span className="text-[10px] text-slate-300 truncate w-full text-center font-medium">
+                      <span className="text-2xl sm:text-3xl mb-1">{sound.emoji}</span>
+                      <span className="text-[10px] sm:text-xs text-slate-300 truncate w-full text-center font-medium">
                         {sound.name}
                       </span>
                     </button>
                   ))}
                 </div>
 
-                {/* Volume slider */}
-                <div className="flex items-center gap-3">
-                  <span className="text-slate-400">🔈</span>
+                {/* Volume slider - larger touch target */}
+                <div className="flex items-center gap-3 py-2">
+                  <span className="text-slate-400 text-lg">🔈</span>
                   <input
                     type="range"
                     min="0"
@@ -166,12 +180,13 @@ export default function AmbientSoundSelector({ compact = false, onSoundChange }:
                     step="0.05"
                     value={volume}
                     onChange={handleVolumeChange}
-                    className="flex-1 h-1 bg-slate-700 rounded-full appearance-none cursor-pointer
-                      [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3
+                    className="flex-1 h-2 bg-slate-700 rounded-full appearance-none cursor-pointer
+                      [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5
                       [&::-webkit-slider-thumb]:bg-cyan-400 [&::-webkit-slider-thumb]:rounded-full
-                      [&::-webkit-slider-thumb]:hover:bg-cyan-300 [&::-webkit-slider-thumb]:transition-colors"
+                      [&::-webkit-slider-thumb]:hover:bg-cyan-300 [&::-webkit-slider-thumb]:transition-colors
+                      [&::-webkit-slider-thumb]:shadow-lg"
                   />
-                  <span className="text-slate-400">🔊</span>
+                  <span className="text-slate-400 text-lg">🔊</span>
                 </div>
               </div>
             </div>
