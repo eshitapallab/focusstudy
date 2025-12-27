@@ -858,7 +858,7 @@ BEGIN
     ) AS check_in_time,
     (pm.user_id = first_check_in_user) AS is_first_today,
     COALESCE((
-      SELECT SUM(d.study_minutes)::INTEGER 
+      SELECT SUM(d.minutes_studied)::INTEGER 
       FROM public.daily_check_ins d
       WHERE d.user_id = pm.user_id 
       AND d.date >= week_start 
@@ -935,14 +935,14 @@ BEGIN
   RETURN QUERY
   SELECT
     COALESCE((
-      SELECT SUM(d.study_minutes)::INTEGER
+      SELECT SUM(d.minutes_studied)::INTEGER
       FROM public.daily_check_ins d
       INNER JOIN public.pod_members pm ON pm.user_id = d.user_id AND pm.pod_id = p_pod_id
       WHERE d.date >= week_start AND d.date <= week_end
     ), 0) AS total_minutes,
     COALESCE((SELECT p.weekly_goal_minutes FROM public.pods p WHERE p.id = p_pod_id), 600) AS weekly_goal,
     LEAST(100, COALESCE((
-      SELECT (SUM(d.study_minutes)::INTEGER * 100) / NULLIF((SELECT p.weekly_goal_minutes FROM public.pods p WHERE p.id = p_pod_id), 0)
+      SELECT (SUM(d.minutes_studied)::INTEGER * 100) / NULLIF((SELECT p.weekly_goal_minutes FROM public.pods p WHERE p.id = p_pod_id), 0)
       FROM public.daily_check_ins d
       INNER JOIN public.pod_members pm ON pm.user_id = d.user_id AND pm.pod_id = p_pod_id
       WHERE d.date >= week_start AND d.date <= week_end
@@ -952,7 +952,7 @@ BEGIN
       SELECT pm.display_name 
       FROM public.pod_members pm
       LEFT JOIN (
-        SELECT d.user_id, SUM(d.study_minutes) AS mins
+        SELECT d.user_id, SUM(d.minutes_studied) AS mins
         FROM public.daily_check_ins d
         WHERE d.date >= week_start AND d.date <= week_end
         GROUP BY d.user_id
@@ -963,7 +963,7 @@ BEGIN
     ) AS top_performer_name,
     COALESCE((
       SELECT MAX(mins)::INTEGER FROM (
-        SELECT SUM(d.study_minutes) AS mins
+        SELECT SUM(d.minutes_studied) AS mins
         FROM public.daily_check_ins d
         INNER JOIN public.pod_members pm ON pm.user_id = d.user_id AND pm.pod_id = p_pod_id
         WHERE d.date >= week_start AND d.date <= week_end
@@ -1325,7 +1325,7 @@ BEGIN
     WHERE d.user_id = pm.user_id AND d.date = CURRENT_DATE
   );
 
-  SELECT COALESCE(SUM(d.study_minutes), 0) INTO total_minutes
+  SELECT COALESCE(SUM(d.minutes_studied), 0) INTO total_minutes
   FROM public.daily_check_ins d
   INNER JOIN public.pod_members pm ON pm.user_id = d.user_id AND pm.pod_id = p_pod_id
   WHERE d.date = CURRENT_DATE;
