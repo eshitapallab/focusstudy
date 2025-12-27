@@ -59,7 +59,7 @@ export default function AnalyticsPage() {
   
   if (loading) {
     return (
-      <main className="min-h-screen bg-background dark:from-gray-900 dark:to-gray-800 pb-32 md:pb-20">
+      <main className="min-h-screen bg-background dark:from-gray-900 dark:to-gray-800 pb-40 md:pb-20">
         <AppNav />
         <div className="container mx-auto px-4 py-8 max-w-6xl">
           <div className="flex items-center justify-center min-h-[60vh]">
@@ -81,7 +81,7 @@ export default function AnalyticsPage() {
   const labeledSessions = sessionsWithMetadata.filter(s => s.metadata?.subject).length
 
   return (
-    <main className="min-h-screen bg-background dark:from-gray-900 dark:to-gray-800 pb-32 md:pb-20">
+    <main className="min-h-screen bg-background dark:from-gray-900 dark:to-gray-800 pb-40 md:pb-20">
       <AppNav user={user} showAuthButton={true} />
       
       <div className="container mx-auto px-4 py-6 max-w-6xl">

@@ -119,7 +119,7 @@ export default function PlannerCalendarPage() {
   const selectedDateFocusActions = selectedDate ? getFocusActionsForDate(selectedDate) : []
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-primary-50 to-white dark:from-gray-900 dark:to-gray-800 pb-32 md:pb-20">
+    <main className="min-h-screen bg-gradient-to-b from-primary-50 to-white dark:from-gray-900 dark:to-gray-800 pb-40 md:pb-20">
       <AppNav user={user} showAuthButton={true} />
       
       <div className="container mx-auto px-4 py-6 max-w-6xl">
