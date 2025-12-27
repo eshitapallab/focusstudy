@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import AppNav from '@/components/Navigation/AppNav'
 import { supabase } from '@/lib/supabaseClient'
-import { createPod, joinPod, getPodStatus, updatePodDisplayName, getPodStatusEnhanced, getPodWeeklySummary, sendPodKudos, getPodKudosToday, getPodStudyingNow, getPodDailyChallenge, getPodMessagesRecent, sendPodMessage, startPodStudySession, endPodStudySession, leavePod } from '@/lib/supabaseStudyTrack'
-import type { PodStatusEnhanced, PodWeeklySummary, PodKudos, PodStudySession, PodDailyChallenge, PodMessage } from '@/lib/types'
+import { createPod, joinPod, getPodStatus, updatePodDisplayName, getPodStatusEnhanced, getPodWeeklySummary, sendPodKudos, getPodKudosToday, getPodStudyingNow, getPodDailyChallenge, getPodMessagesRecent, sendPodMessage, startPodStudySession, endPodStudySession, leavePod, getPodInfo, approvePodMember, rejectPodMember, removePodMember } from '@/lib/supabaseStudyTrack'
+import type { PodStatusEnhanced, PodWeeklySummary, PodKudos, PodStudySession, PodDailyChallenge, PodMessage, PodInfo } from '@/lib/types'
 import { triggerHaptic } from '@/lib/haptics'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
@@ -15,6 +15,7 @@ export default function PodPage() {
   const [podLoading, setPodLoading] = useState(false)
   const [podError, setPodError] = useState<string | null>(null)
   const [podId, setPodId] = useState<string | null>(null)
+  const [podInfo, setPodInfo] = useState<PodInfo | null>(null)
   const [podInviteCode, setPodInviteCode] = useState<string | null>(null)
   const [podJoinCode, setPodJoinCode] = useState('')
   const [podDisplayName, setPodDisplayName] = useState('')
@@ -34,6 +35,7 @@ export default function PodPage() {
   const [celebrationMessage, setCelebrationMessage] = useState<string | null>(null)
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
   const [codeCopied, setCodeCopied] = useState(false)
+  const [processingMember, setProcessingMember] = useState<string | null>(null)
   const realtimeChannelRef = useRef<RealtimeChannel | null>(null)
   const lastRefreshRef = useRef<number>(0)
   const previousChallengeCompletedRef = useRef<boolean>(false)
@@ -83,13 +85,14 @@ export default function PodPage() {
     
     try {
       const today = new Date().toISOString().split('T')[0]
-      const [status, summary, kudos, studying, challenge, messages] = await Promise.all([
+      const [status, summary, kudos, studying, challenge, messages, info] = await Promise.all([
         getPodStatusEnhanced(id, today),
         getPodWeeklySummary(id),
         getPodKudosToday(id),
         getPodStudyingNow(id),
         getPodDailyChallenge(id),
-        getPodMessagesRecent(id)
+        getPodMessagesRecent(id),
+        getPodInfo(id)
       ])
       setPodStatus(status)
       setPodWeeklySummary(summary)
@@ -97,6 +100,7 @@ export default function PodPage() {
       setStudyingNow(studying)
       setDailyChallenge(challenge)
       setRecentMessages(messages)
+      setPodInfo(info)
       setLastUpdate(new Date())
       
       // Check if current user is studying
@@ -497,6 +501,82 @@ export default function PodPage() {
                 </div>
               )}
 
+              {/* Pod Info - Creation Date (for owner) */}
+              {podInfo && podInfo.isOwner && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-blue-500">👑</span>
+                      <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">You are the Pod Admin</span>
+                    </div>
+                    <span className="text-xs text-blue-600 dark:text-blue-400">
+                      Created {new Date(podInfo.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Pending Members (Admin Only) */}
+              {podInfo && podInfo.isOwner && podInfo.pendingCount > 0 && (
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4">
+                  <div className="text-sm font-semibold text-yellow-700 dark:text-yellow-300 mb-3 flex items-center gap-2">
+                    <span>⏳</span>
+                    Pending Join Requests ({podInfo.pendingCount})
+                  </div>
+                  <div className="space-y-2">
+                    {podStatus.filter(m => m.memberStatus === 'pending').map((member) => (
+                      <div 
+                        key={member.userId}
+                        className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-yellow-200 dark:border-yellow-700"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">👤</span>
+                          <span className="font-medium text-gray-900 dark:text-white">{member.displayName}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={async () => {
+                              setProcessingMember(member.userId)
+                              try {
+                                await approvePodMember(podId!, member.userId)
+                                refreshPodStatusRef.current?.(podId!, true)
+                              } catch (e) {
+                                console.error('Failed to approve member:', e)
+                                setPodError('Failed to approve member')
+                              } finally {
+                                setProcessingMember(null)
+                              }
+                            }}
+                            disabled={processingMember === member.userId}
+                            className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white text-sm rounded-lg font-medium transition-all disabled:opacity-50"
+                          >
+                            {processingMember === member.userId ? '...' : '✓ Approve'}
+                          </button>
+                          <button
+                            onClick={async () => {
+                              setProcessingMember(member.userId)
+                              try {
+                                await rejectPodMember(podId!, member.userId)
+                                refreshPodStatusRef.current?.(podId!, true)
+                              } catch (e) {
+                                console.error('Failed to reject member:', e)
+                                setPodError('Failed to reject member')
+                              } finally {
+                                setProcessingMember(null)
+                              }
+                            }}
+                            disabled={processingMember === member.userId}
+                            className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white text-sm rounded-lg font-medium transition-all disabled:opacity-50"
+                          >
+                            {processingMember === member.userId ? '...' : '✗ Reject'}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Pod Members Today */}
               <div>
                 <div className="flex items-center justify-between mb-2">
@@ -523,10 +603,11 @@ export default function PodPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  {podStatus.map((member) => {
+                  {podStatus.filter(m => m.memberStatus !== 'pending').map((member) => {
                     const isMe = member.userId === podUserId
                     const isStudyingNow = studyingNow.some(s => s.userId === member.userId)
                     const receivedKudos = podKudosToday.filter(k => k.toUserId === member.userId)
+                    const isOwner = member.isOwner
                     
                     // Streak badge
                     let streakBadge = ''
@@ -553,6 +634,7 @@ export default function PodPage() {
                               <span className="font-semibold text-gray-900 dark:text-white text-sm truncate">
                                 {member.displayName}
                                 {isMe && <span className="text-xs text-primary-500 ml-1">(You)</span>}
+                                {isOwner && <span className="text-xs text-yellow-500 ml-1">👑</span>}
                               </span>
                               {member.isFirstToday && (
                                 <span className="text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-1.5 py-0.5 rounded">
@@ -568,16 +650,19 @@ export default function PodPage() {
                                   Studying
                                 </span>
                               )}
-                              {member.userId === (podStatus.find(m => m.weekMinutes === Math.max(...podStatus.map(x => x.weekMinutes)))?.userId) && (
+                              {member.userId === (podStatus.filter(m => m.memberStatus !== 'pending').find(m => m.weekMinutes === Math.max(...podStatus.filter(x => x.memberStatus !== 'pending').map(x => x.weekMinutes)))?.userId) && (
                                 <span className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-1.5 py-0.5 rounded">
-                                  👑 Leader
+                                  🏆 Leader
                                 </span>
                               )}
                             </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                            <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2 flex-wrap">
                               <span>🔥 {member.currentStreak} days {streakBadge}</span>
                               <span>⭐ Best: {member.bestStreak}</span>
                               <span>{Math.floor(member.weekMinutes / 60)}h {member.weekMinutes % 60}m this week</span>
+                              {member.joinedAt && (
+                                <span className="text-gray-400">• Joined {new Date(member.joinedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -607,6 +692,29 @@ export default function PodPage() {
                               }`}
                             >
                               {sendingKudos === member.userId ? '...' : member.kudosFromMe ? '✓ Sent' : `${kudosEmoji} Send`}
+                            </button>
+                          )}
+                          {/* Remove member button (admin only, not self) */}
+                          {podInfo?.isOwner && !isMe && (
+                            <button
+                              onClick={async () => {
+                                if (!confirm(`Remove ${member.displayName} from the pod?`)) return
+                                setProcessingMember(member.userId)
+                                try {
+                                  await removePodMember(podId!, member.userId)
+                                  refreshPodStatusRef.current?.(podId!, true)
+                                } catch (e) {
+                                  console.error('Failed to remove member:', e)
+                                  setPodError('Failed to remove member')
+                                } finally {
+                                  setProcessingMember(null)
+                                }
+                              }}
+                              disabled={processingMember === member.userId}
+                              className="text-sm px-2 py-1 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-800/50 transition-all disabled:opacity-50"
+                              title="Remove from pod"
+                            >
+                              {processingMember === member.userId ? '...' : '✗'}
                             </button>
                           )}
                         </div>
@@ -685,37 +793,54 @@ export default function PodPage() {
               )}
 
               {/* Leave Pod Button */}
-              <button
-                onClick={async () => {
-                  if (!confirm('Are you sure you want to leave this pod? This cannot be undone.')) {
-                    return
-                  }
-                  try {
-                    setPodLoading(true)
-                    if (podId) {
-                      await leavePod(podId)
+              <div className="space-y-2">
+                {podInfo?.isOwner && (
+                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                    <p className="text-xs text-red-600 dark:text-red-400">
+                      ⚠️ <strong>Warning:</strong> As the pod admin, leaving will permanently destroy this pod and remove all members.
+                    </p>
+                  </div>
+                )}
+                <button
+                  onClick={async () => {
+                    const confirmMsg = podInfo?.isOwner 
+                      ? 'Are you sure you want to leave? As the admin, this will PERMANENTLY DESTROY the pod and remove all members. This cannot be undone!'
+                      : 'Are you sure you want to leave this pod? This cannot be undone.'
+                    if (!confirm(confirmMsg)) {
+                      return
                     }
-                    setPodId(null)
-                    setPodInviteCode(null)
-                    setPodStatus([])
-                    setPodDisplayName('')
-                    setPodWeeklySummary(null)
-                    setPodKudosToday([])
-                    setStudyingNow([])
-                    setDailyChallenge(null)
-                    setRecentMessages([])
-                    localStorage.removeItem('ff_active_pod_id')
-                  } catch (e) {
-                    console.error('Failed to leave pod:', e)
-                    setPodError('Failed to leave pod')
-                  } finally {
-                    setPodLoading(false)
-                  }
-                }}
-                className="w-full py-2 rounded-lg border border-red-300 dark:border-red-600 text-red-600 dark:text-red-400 font-semibold hover:bg-red-50 dark:hover:bg-red-900/20"
-              >
-                🚪 Leave Pod
-              </button>
+                    try {
+                      setPodLoading(true)
+                      if (podId) {
+                        await leavePod(podId)
+                      }
+                      setPodId(null)
+                      setPodInviteCode(null)
+                      setPodStatus([])
+                      setPodDisplayName('')
+                      setPodWeeklySummary(null)
+                      setPodKudosToday([])
+                      setStudyingNow([])
+                      setDailyChallenge(null)
+                      setRecentMessages([])
+                      setPodInfo(null)
+                      localStorage.removeItem('ff_active_pod_id')
+                    } catch (e) {
+                      console.error('Failed to leave pod:', e)
+                      setPodError('Failed to leave pod')
+                    } finally {
+                      setPodLoading(false)
+                    }
+                  }}
+                  className={`w-full py-2 rounded-lg border font-semibold transition-all ${
+                    podInfo?.isOwner 
+                      ? 'border-red-500 bg-red-500 hover:bg-red-600 text-white' 
+                      : 'border-red-300 dark:border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
+                  }`}
+                >
+                  {podInfo?.isOwner ? '⚠️ Destroy Pod & Leave' : '🚪 Leave Pod'}
+                </button>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">

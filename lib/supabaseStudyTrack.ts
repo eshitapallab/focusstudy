@@ -1094,7 +1094,10 @@ export async function getPodStatusEnhanced(podId: string, date: string): Promise
     checkInTime: row.check_in_time ? new Date(row.check_in_time) : null,
     isFirstToday: Boolean(row.is_first_today),
     weekMinutes: row.week_minutes || 0,
-    kudosFromMe: Boolean(row.kudos_from_me)
+    kudosFromMe: Boolean(row.kudos_from_me),
+    memberStatus: row.member_status || 'approved',
+    joinedAt: row.joined_at ? new Date(row.joined_at) : null,
+    isOwner: Boolean(row.is_owner)
   }))
 }
 
@@ -1401,4 +1404,110 @@ export async function hasRecentGamingDetection(userId: string, daysAgo: number =
     .limit(1)
 
   return !error && data && data.length > 0
+}
+
+// Get pod info including admin details
+export async function getPodInfo(podId: string): Promise<{
+  podId: string
+  podName: string | null
+  ownerId: string
+  inviteCode: string
+  weeklyGoalMinutes: number
+  createdAt: Date
+  isOwner: boolean
+  memberCount: number
+  pendingCount: number
+} | null> {
+  if (!supabase) return null
+
+  const { data, error } = await supabase.rpc('get_pod_info', { p_pod_id: podId })
+  
+  if (error || !data || data.length === 0) {
+    // Fallback to direct query if function doesn't exist
+    const { data: podData, error: podError } = await supabase
+      .from('pods')
+      .select('*')
+      .eq('id', podId)
+      .single()
+    
+    if (podError || !podData) return null
+    
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    return {
+      podId: podData.id,
+      podName: podData.name || null,
+      ownerId: podData.owner_id,
+      inviteCode: podData.invite_code,
+      weeklyGoalMinutes: podData.weekly_goal_minutes || 600,
+      createdAt: new Date(podData.created_at),
+      isOwner: user?.id === podData.owner_id,
+      memberCount: 0,
+      pendingCount: 0
+    }
+  }
+  
+  const row = data[0]
+  return {
+    podId: row.pod_id,
+    podName: row.pod_name,
+    ownerId: row.owner_id,
+    inviteCode: row.invite_code,
+    weeklyGoalMinutes: row.weekly_goal_minutes,
+    createdAt: new Date(row.created_at),
+    isOwner: row.is_owner,
+    memberCount: row.member_count,
+    pendingCount: row.pending_count
+  }
+}
+
+// Approve a pending pod member (admin only)
+export async function approvePodMember(podId: string, userId: string): Promise<boolean> {
+  if (!supabase) return false
+
+  const { data, error } = await supabase.rpc('approve_pod_member', { 
+    p_pod_id: podId, 
+    p_user_id: userId 
+  })
+  
+  if (error) {
+    logError('approvePodMember', error)
+    return false
+  }
+  
+  return Boolean(data)
+}
+
+// Reject a pending pod member (admin only)
+export async function rejectPodMember(podId: string, userId: string): Promise<boolean> {
+  if (!supabase) return false
+
+  const { data, error } = await supabase.rpc('reject_pod_member', { 
+    p_pod_id: podId, 
+    p_user_id: userId 
+  })
+  
+  if (error) {
+    logError('rejectPodMember', error)
+    return false
+  }
+  
+  return Boolean(data)
+}
+
+// Remove an approved pod member (admin only)
+export async function removePodMember(podId: string, userId: string): Promise<boolean> {
+  if (!supabase) return false
+
+  const { data, error } = await supabase.rpc('remove_pod_member', { 
+    p_pod_id: podId, 
+    p_user_id: userId 
+  })
+  
+  if (error) {
+    logError('removePodMember', error)
+    return false
+  }
+  
+  return Boolean(data)
 }

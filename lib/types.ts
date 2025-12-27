@@ -150,6 +150,22 @@ export interface PodStatusEnhanced {
   isFirstToday: boolean
   weekMinutes: number
   kudosFromMe: boolean
+  memberStatus: 'pending' | 'approved' | 'rejected'
+  joinedAt: Date | null
+  isOwner: boolean
+}
+
+// Pod info
+export interface PodInfo {
+  podId: string
+  podName: string | null
+  ownerId: string
+  inviteCode: string
+  weeklyGoalMinutes: number
+  createdAt: Date
+  isOwner: boolean
+  memberCount: number
+  pendingCount: number
 }
 
 // Pod weekly summary
