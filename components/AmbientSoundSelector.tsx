@@ -71,19 +71,19 @@ export default function AmbientSoundSelector({ compact = false, onSoundChange }:
       <div className="relative">
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all min-h-[44px] ${
+          className={`flex items-center gap-2 px-2.5 py-2 rounded-xl transition-all min-h-[40px] ${
             isPlaying
-              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-              : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 border border-slate-700/50'
+              ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+              : 'bg-gray-100 dark:bg-slate-800/50 text-gray-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700/50 border border-gray-200 dark:border-slate-700/50'
           }`}
           title="Ambient Sounds"
         >
-          <span className="text-lg">{currentSoundData?.emoji || '🎧'}</span>
+          <span className="text-base">{currentSoundData?.emoji || '🎧'}</span>
           {isPlaying && (
             <span className="flex gap-0.5">
-              <span className="w-0.5 h-3 bg-emerald-400 rounded-full animate-pulse"></span>
-              <span className="w-0.5 h-3 bg-emerald-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></span>
-              <span className="w-0.5 h-3 bg-emerald-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></span>
+              <span className="w-0.5 h-2.5 bg-emerald-500 dark:bg-emerald-400 rounded-full animate-pulse"></span>
+              <span className="w-0.5 h-2.5 bg-emerald-500 dark:bg-emerald-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></span>
+              <span className="w-0.5 h-2.5 bg-emerald-500 dark:bg-emerald-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></span>
             </span>
           )}
         </button>
