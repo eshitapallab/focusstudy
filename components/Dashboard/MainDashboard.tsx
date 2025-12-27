@@ -38,7 +38,7 @@ import { calculateVerdict } from '@/lib/verdictEngine'
 import { generateMicroAction } from '@/lib/microActionGenerator'
 import { calculateRealityScore, generateTrajectoryMessage } from '@/lib/realityCheck'
 import { detectGamingPatterns, getHonestyPrompt, shouldPromptHonesty } from '@/lib/gamingDetection'
-import { getSubjectMarks, getSubjectPercentage, getExamSubjects, isKnownExam, getSubjectMeta, getExamDayRules, getLastPhaseGuidance, getDaysToExam } from '@/lib/examSyllabi'
+import { getSubjectMarks, getSubjectPercentage, getExamSubjects, isKnownExam, getSubjectMeta, getExamDayRules, getLastPhaseGuidance, getDaysToExam, getRecommendedAction, getExamPhase, getExamStrategy } from '@/lib/examSyllabi'
 import { User, DailyCheckIn, Verdict, MicroAction, WeeklyReality, EmotionalFeeling, ExamTomorrowResponse, MonthlySnapshot, MarkLeakEstimate, MistakeTrendSignal } from '@/lib/types'
 import OnboardingFlow from '@/components/Onboarding/OnboardingFlow'
 import DailyCheckInCard from '@/components/CheckIn/DailyCheckInCard'
@@ -1165,12 +1165,67 @@ export default function Dashboard() {
                   </span>
                 </div>
                 <p className="text-sm text-gray-500">{verdict.reasons.join('. ')}</p>
-                {verdict.status !== 'on-track' && todayCheckIn && todayCheckIn.couldRevise && (
+                
+                {/* Exam-specific performance guidance */}
+                {(() => {
+                  const examDateStr = user.examDate ? format(user.examDate, 'yyyy-MM-dd') : undefined
+                  const daysToExam = examDateStr ? getDaysToExam(examDateStr) : null
+                  
+                  if (daysToExam === null) return null
+                  
+                  // Determine recall strength based on check-in
+                  const recallStrength: 'strong' | 'weak' | 'average' = 
+                    todayCheckIn?.couldRevise ? 'strong' : 
+                    todayCheckIn && !todayCheckIn.couldRevise ? 'weak' : 'average'
+                  
+                  // Determine target status
+                  const targetStatus: 'above' | 'below' | 'on-track' | 'stagnant' =
+                    verdict.status === 'on-track' ? 'on-track' :
+                    verdict.status === 'at-risk' ? 'below' :
+                    verdict.status === 'falling-behind' ? 'below' : 'on-track'
+                  
+                  const recommendation = getRecommendedAction(
+                    user.exam,
+                    daysToExam,
+                    recallStrength,
+                    targetStatus
+                  )
+                  
+                  const phase = getExamPhase(user.exam, daysToExam)
+                  const strategy = getExamStrategy(user.exam)
+                  
+                  return (
+                    <div className="mt-2 pt-2 border-t border-gray-100">
+                      <p className={`text-xs font-medium ${
+                        phase === 'critical' ? 'text-red-600' :
+                        phase === 'consolidation' ? 'text-amber-600' :
+                        'text-indigo-600'
+                      }`}>
+                        {phase === 'critical' && `🔴 Critical phase (${daysToExam} days)`}
+                        {phase === 'consolidation' && `🟡 Consolidation phase (${daysToExam} days)`}
+                        {phase === 'expansion' && `🟢 Expansion phase (${daysToExam} days)`}
+                        {phase === 'early' && `📚 Early prep (${daysToExam} days)`}
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        {recommendation.guidance}
+                      </p>
+                      {strategy && phase === 'critical' && (
+                        <p className="text-xs text-red-500 mt-1 font-medium">
+                          {strategy.negativeMarking 
+                            ? `Skip if confidence below ${strategy.skipThreshold}%`
+                            : 'Attempt all — no negative marking'}
+                        </p>
+                      )}
+                    </div>
+                  )
+                })()}
+                
+                {verdict.status !== 'on-track' && todayCheckIn && todayCheckIn.couldRevise && !user.examDate && (
                   <p className="text-xs text-gray-500 mt-1.5 italic">
                     You're retaining what you study,<br />but the remaining syllabus needs targeted coverage.
                   </p>
                 )}
-                {verdict.status !== 'on-track' && (!todayCheckIn || !todayCheckIn.couldRevise) && (
+                {verdict.status !== 'on-track' && (!todayCheckIn || !todayCheckIn.couldRevise) && !user.examDate && (
                   <p className="text-xs text-gray-500 mt-1.5 italic">
                     Retention is weakening — prioritize revision over new topics.
                   </p>

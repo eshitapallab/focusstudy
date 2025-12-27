@@ -22,6 +22,41 @@ export interface ExamDayRule {
   appliesTo?: string[]           // Specific subjects (optional)
 }
 
+// Exam-specific strategy configuration
+export interface ExamStrategy {
+  // Pacing thresholds (days remaining)
+  criticalPhase: number          // When to enter "protect marks" mode
+  consolidationPhase: number     // When to stop new topics
+  expansionCutoff: number        // Last day to learn new material
+  
+  // Time allocation per session (minutes)
+  idealSessionLength: number
+  minEffectiveSession: number
+  
+  // Recall-based adjustments
+  strongRecallAction: 'increase-pace' | 'expand-coverage' | 'attempt-harder' | 'maintain'
+  weakRecallAction: 'consolidate' | 'reduce-scope' | 'focus-basics' | 'repeat-revision'
+  
+  // Risk tolerance
+  negativeMarking: boolean
+  skipThreshold: number          // Confidence % below which to skip
+  
+  // Subject rotation strategy
+  rotationStyle: 'daily' | 'session' | 'weekly' | 'block'
+  
+  // Exam nature
+  examNature: 'objective' | 'subjective' | 'mixed'
+  timePerQuestion: number        // Average seconds per question
+}
+
+// Performance-based guidance triggers
+export interface PerformanceTrigger {
+  condition: 'strong-recall' | 'weak-recall' | 'below-target' | 'above-target' | 'stagnant'
+  daysRange: [number, number]    // [min, max] days to exam
+  guidance: string
+  action: string
+}
+
 export interface ExamSyllabus {
   exam: string
   subjects: string[]
@@ -30,6 +65,8 @@ export interface ExamSyllabus {
   subjectMeta?: { [subject: string]: SubjectMeta }
   examDayRules?: ExamDayRule[]
   lastPhaseGuidance?: string[]   // General final-phase rules
+  strategy?: ExamStrategy        // Exam-specific strategy config
+  performanceTriggers?: PerformanceTrigger[]  // Condition-based guidance
 }
 
 /**
@@ -194,6 +231,31 @@ export const EXAM_SYLLABI: { [key: string]: ExamSyllabus } = {
       'Do not start new topics now',
       'Revise only what you have already covered',
       'Focus on consolidation, not expansion'
+    ],
+    strategy: {
+      criticalPhase: 7,
+      consolidationPhase: 15,
+      expansionCutoff: 30,
+      idealSessionLength: 45,
+      minEffectiveSession: 25,
+      strongRecallAction: 'expand-coverage',
+      weakRecallAction: 'consolidate',
+      negativeMarking: true,
+      skipThreshold: 60,
+      rotationStyle: 'daily',
+      examNature: 'objective',
+      timePerQuestion: 72  // 2 hours for 100 questions
+    },
+    performanceTriggers: [
+      { condition: 'strong-recall', daysRange: [30, 90], guidance: 'Strong retention — expand to adjacent topics', action: 'expand-coverage' },
+      { condition: 'strong-recall', daysRange: [15, 30], guidance: 'Strong recall — maintain pace, add current affairs depth', action: 'maintain' },
+      { condition: 'strong-recall', daysRange: [0, 15], guidance: 'Strong recall — protect what you know, no new topics', action: 'consolidate' },
+      { condition: 'weak-recall', daysRange: [30, 90], guidance: 'Weak retention — reduce scope, deepen fewer topics', action: 'reduce-scope' },
+      { condition: 'weak-recall', daysRange: [15, 30], guidance: 'Weak recall — focus on high-weight subjects only', action: 'focus-basics' },
+      { condition: 'weak-recall', daysRange: [0, 15], guidance: 'Weak recall — revise only what you\'ve covered well', action: 'repeat-revision' },
+      { condition: 'below-target', daysRange: [30, 90], guidance: 'Below target — increase daily hours if possible', action: 'increase-pace' },
+      { condition: 'below-target', daysRange: [0, 30], guidance: 'Below target — prioritize high-weight subjects ruthlessly', action: 'focus-basics' },
+      { condition: 'stagnant', daysRange: [0, 90], guidance: 'Progress stagnant — change revision method, not content', action: 'maintain' }
     ]
   },
 
@@ -267,6 +329,31 @@ export const EXAM_SYLLABI: { [key: string]: ExamSyllabus } = {
       'Accuracy matters more than attempting all',
       'Do not try new problem-solving techniques',
       'Protect your strong topics first'
+    ],
+    strategy: {
+      criticalPhase: 5,
+      consolidationPhase: 10,
+      expansionCutoff: 20,
+      idealSessionLength: 60,
+      minEffectiveSession: 30,
+      strongRecallAction: 'attempt-harder',
+      weakRecallAction: 'focus-basics',
+      negativeMarking: true,
+      skipThreshold: 70,
+      rotationStyle: 'session',
+      examNature: 'objective',
+      timePerQuestion: 180  // 3 hours for 90 questions (Main)
+    },
+    performanceTriggers: [
+      { condition: 'strong-recall', daysRange: [20, 90], guidance: 'Strong recall — attempt harder problem sets', action: 'attempt-harder' },
+      { condition: 'strong-recall', daysRange: [10, 20], guidance: 'Strong recall — focus on accuracy, not speed', action: 'maintain' },
+      { condition: 'strong-recall', daysRange: [0, 10], guidance: 'Strong recall — revise formulas only, no new problems', action: 'consolidate' },
+      { condition: 'weak-recall', daysRange: [20, 90], guidance: 'Weak recall — master basics before harder problems', action: 'focus-basics' },
+      { condition: 'weak-recall', daysRange: [10, 20], guidance: 'Weak recall — focus on your strongest 2 subjects', action: 'reduce-scope' },
+      { condition: 'weak-recall', daysRange: [0, 10], guidance: 'Weak recall — protect strong chapters, skip weak ones', action: 'repeat-revision' },
+      { condition: 'below-target', daysRange: [20, 90], guidance: 'Below target — increase problem-solving hours', action: 'increase-pace' },
+      { condition: 'below-target', daysRange: [0, 20], guidance: 'Below target — focus on high-yield chapters only', action: 'focus-basics' },
+      { condition: 'stagnant', daysRange: [0, 90], guidance: 'Progress stagnant — try timed mock tests', action: 'attempt-harder' }
     ]
   },
 
@@ -340,6 +427,31 @@ export const EXAM_SYLLABI: { [key: string]: ExamSyllabus } = {
       'NCERT is the only source now',
       'Do not attempt questions from coaching material',
       'Biology accuracy protects your score'
+    ],
+    strategy: {
+      criticalPhase: 7,
+      consolidationPhase: 15,
+      expansionCutoff: 30,
+      idealSessionLength: 45,
+      minEffectiveSession: 20,
+      strongRecallAction: 'expand-coverage',
+      weakRecallAction: 'repeat-revision',
+      negativeMarking: true,
+      skipThreshold: 65,
+      rotationStyle: 'daily',
+      examNature: 'objective',
+      timePerQuestion: 96  // 200 min for 200 questions
+    },
+    performanceTriggers: [
+      { condition: 'strong-recall', daysRange: [30, 90], guidance: 'Strong NCERT recall — add assertion-reason practice', action: 'expand-coverage' },
+      { condition: 'strong-recall', daysRange: [15, 30], guidance: 'Strong recall — focus on Biology diagrams and tables', action: 'maintain' },
+      { condition: 'strong-recall', daysRange: [0, 15], guidance: 'Strong recall — NCERT revision only, nothing new', action: 'consolidate' },
+      { condition: 'weak-recall', daysRange: [30, 90], guidance: 'Weak recall — re-read NCERT chapters slowly', action: 'repeat-revision' },
+      { condition: 'weak-recall', daysRange: [15, 30], guidance: 'Weak recall — focus on Biology only (50% marks)', action: 'focus-basics' },
+      { condition: 'weak-recall', daysRange: [0, 15], guidance: 'Weak recall — protect Biology score, it carries you', action: 'reduce-scope' },
+      { condition: 'below-target', daysRange: [30, 90], guidance: 'Below target — Biology needs more NCERT time', action: 'increase-pace' },
+      { condition: 'below-target', daysRange: [0, 30], guidance: 'Below target — maximize Biology accuracy first', action: 'focus-basics' },
+      { condition: 'stagnant', daysRange: [0, 90], guidance: 'Progress stagnant — try previous year NEET papers', action: 'attempt-harder' }
     ]
   },
 
@@ -450,6 +562,31 @@ export const EXAM_SYLLABI: { [key: string]: ExamSyllabus } = {
       'Speed matters but accuracy matters more',
       'Do not attempt unfamiliar question types',
       'Protect your strong sections first'
+    ],
+    strategy: {
+      criticalPhase: 3,
+      consolidationPhase: 7,
+      expansionCutoff: 15,
+      idealSessionLength: 30,
+      minEffectiveSession: 15,
+      strongRecallAction: 'increase-pace',
+      weakRecallAction: 'focus-basics',
+      negativeMarking: true,
+      skipThreshold: 50,
+      rotationStyle: 'session',
+      examNature: 'objective',
+      timePerQuestion: 36  // 60 min for 100 questions
+    },
+    performanceTriggers: [
+      { condition: 'strong-recall', daysRange: [15, 90], guidance: 'Strong recall — increase daily mock tests', action: 'increase-pace' },
+      { condition: 'strong-recall', daysRange: [7, 15], guidance: 'Strong recall — focus on speed now', action: 'attempt-harder' },
+      { condition: 'strong-recall', daysRange: [0, 7], guidance: 'Strong recall — maintain rhythm, no new patterns', action: 'maintain' },
+      { condition: 'weak-recall', daysRange: [15, 90], guidance: 'Weak recall — master one section at a time', action: 'focus-basics' },
+      { condition: 'weak-recall', daysRange: [7, 15], guidance: 'Weak recall — focus on Quant + Reasoning only', action: 'reduce-scope' },
+      { condition: 'weak-recall', daysRange: [0, 7], guidance: 'Weak recall — revise only what you know well', action: 'repeat-revision' },
+      { condition: 'below-target', daysRange: [15, 90], guidance: 'Below target — add 30 min daily to weak section', action: 'increase-pace' },
+      { condition: 'below-target', daysRange: [0, 15], guidance: 'Below target — maximize accuracy in strong sections', action: 'focus-basics' },
+      { condition: 'stagnant', daysRange: [0, 90], guidance: 'Progress stagnant — take a full mock test', action: 'attempt-harder' }
     ]
   },
 
@@ -523,6 +660,31 @@ export const EXAM_SYLLABI: { [key: string]: ExamSyllabus } = {
       'Previous year questions are your best prep',
       'Focus on understanding, not memorization',
       'Manage time across sections'
+    ],
+    strategy: {
+      criticalPhase: 7,
+      consolidationPhase: 14,
+      expansionCutoff: 30,
+      idealSessionLength: 60,
+      minEffectiveSession: 30,
+      strongRecallAction: 'attempt-harder',
+      weakRecallAction: 'focus-basics',
+      negativeMarking: true,
+      skipThreshold: 60,
+      rotationStyle: 'block',
+      examNature: 'objective',
+      timePerQuestion: 108  // 3 hours for 65 questions
+    },
+    performanceTriggers: [
+      { condition: 'strong-recall', daysRange: [30, 90], guidance: 'Strong recall — attempt previous year GATE papers', action: 'attempt-harder' },
+      { condition: 'strong-recall', daysRange: [14, 30], guidance: 'Strong recall — focus on Core CS (70% weightage)', action: 'expand-coverage' },
+      { condition: 'strong-recall', daysRange: [0, 14], guidance: 'Strong recall — revise DSA and DBMS only', action: 'consolidate' },
+      { condition: 'weak-recall', daysRange: [30, 90], guidance: 'Weak recall — master fundamentals before PYQs', action: 'focus-basics' },
+      { condition: 'weak-recall', daysRange: [14, 30], guidance: 'Weak recall — focus on high-frequency topics', action: 'reduce-scope' },
+      { condition: 'weak-recall', daysRange: [0, 14], guidance: 'Weak recall — protect GA + Math (30 easy marks)', action: 'repeat-revision' },
+      { condition: 'below-target', daysRange: [30, 90], guidance: 'Below target — increase Core CS practice', action: 'increase-pace' },
+      { condition: 'below-target', daysRange: [0, 30], guidance: 'Below target — focus on NAT questions (no negative)', action: 'focus-basics' },
+      { condition: 'stagnant', daysRange: [0, 90], guidance: 'Progress stagnant — analyze weak areas in mock tests', action: 'attempt-harder' }
     ]
   },
 
@@ -596,6 +758,31 @@ export const EXAM_SYLLABI: { [key: string]: ExamSyllabus } = {
       'Selection of questions is more important than solving',
       'Do not attempt all questions',
       'Maximize accuracy in attempted questions'
+    ],
+    strategy: {
+      criticalPhase: 5,
+      consolidationPhase: 10,
+      expansionCutoff: 20,
+      idealSessionLength: 40,
+      minEffectiveSession: 20,
+      strongRecallAction: 'attempt-harder',
+      weakRecallAction: 'reduce-scope',
+      negativeMarking: true,
+      skipThreshold: 75,
+      rotationStyle: 'session',
+      examNature: 'objective',
+      timePerQuestion: 120  // 2 hours for 66 questions per section
+    },
+    performanceTriggers: [
+      { condition: 'strong-recall', daysRange: [20, 90], guidance: 'Strong recall — focus on DILR set selection', action: 'attempt-harder' },
+      { condition: 'strong-recall', daysRange: [10, 20], guidance: 'Strong recall — practice under time pressure', action: 'maintain' },
+      { condition: 'strong-recall', daysRange: [0, 10], guidance: 'Strong recall — only mock tests now', action: 'consolidate' },
+      { condition: 'weak-recall', daysRange: [20, 90], guidance: 'Weak recall — master one section deeply', action: 'focus-basics' },
+      { condition: 'weak-recall', daysRange: [10, 20], guidance: 'Weak recall — focus on Quant (most predictable)', action: 'reduce-scope' },
+      { condition: 'weak-recall', daysRange: [0, 10], guidance: 'Weak recall — attempt fewer questions with high accuracy', action: 'repeat-revision' },
+      { condition: 'below-target', daysRange: [20, 90], guidance: 'Below target — selection strategy > solving skill', action: 'attempt-harder' },
+      { condition: 'below-target', daysRange: [0, 20], guidance: 'Below target — focus on doable questions only', action: 'reduce-scope' },
+      { condition: 'stagnant', daysRange: [0, 90], guidance: 'Progress stagnant — analyze mock test selection patterns', action: 'attempt-harder' }
     ]
   },
 
@@ -705,6 +892,31 @@ export const EXAM_SYLLABI: { [key: string]: ExamSyllabus } = {
       'Sectional cutoffs matter - balance attempts',
       'Do not neglect any section completely',
       'Accuracy over speed in reasoning'
+    ],
+    strategy: {
+      criticalPhase: 3,
+      consolidationPhase: 7,
+      expansionCutoff: 15,
+      idealSessionLength: 30,
+      minEffectiveSession: 15,
+      strongRecallAction: 'increase-pace',
+      weakRecallAction: 'focus-basics',
+      negativeMarking: true,
+      skipThreshold: 50,
+      rotationStyle: 'session',
+      examNature: 'objective',
+      timePerQuestion: 30  // Sectional time limits
+    },
+    performanceTriggers: [
+      { condition: 'strong-recall', daysRange: [15, 90], guidance: 'Strong recall — add sectional mock tests', action: 'increase-pace' },
+      { condition: 'strong-recall', daysRange: [7, 15], guidance: 'Strong recall — focus on puzzle speed', action: 'attempt-harder' },
+      { condition: 'strong-recall', daysRange: [0, 7], guidance: 'Strong recall — maintain sectional balance', action: 'maintain' },
+      { condition: 'weak-recall', daysRange: [15, 90], guidance: 'Weak recall — master sectional basics first', action: 'focus-basics' },
+      { condition: 'weak-recall', daysRange: [7, 15], guidance: 'Weak recall — focus on GA (quick scoring)', action: 'reduce-scope' },
+      { condition: 'weak-recall', daysRange: [0, 7], guidance: 'Weak recall — clear sectional cutoffs first', action: 'repeat-revision' },
+      { condition: 'below-target', daysRange: [15, 90], guidance: 'Below target — sectional cutoffs are priority', action: 'focus-basics' },
+      { condition: 'below-target', daysRange: [0, 15], guidance: 'Below target — balance attempts across sections', action: 'maintain' },
+      { condition: 'stagnant', daysRange: [0, 90], guidance: 'Progress stagnant — take full-length prelims mock', action: 'attempt-harder' }
     ]
   },
 
@@ -796,6 +1008,31 @@ export const EXAM_SYLLABI: { [key: string]: ExamSyllabus } = {
       'Presentation matters in descriptive answers',
       'Attempt all questions - no negative marking',
       'Time management across papers is key'
+    ],
+    strategy: {
+      criticalPhase: 10,
+      consolidationPhase: 20,
+      expansionCutoff: 45,
+      idealSessionLength: 60,
+      minEffectiveSession: 30,
+      strongRecallAction: 'expand-coverage',
+      weakRecallAction: 'consolidate',
+      negativeMarking: false,
+      skipThreshold: 0,  // No negative marking - attempt all
+      rotationStyle: 'daily',
+      examNature: 'mixed',
+      timePerQuestion: 0  // Subjective - varies
+    },
+    performanceTriggers: [
+      { condition: 'strong-recall', daysRange: [45, 120], guidance: 'Strong recall — attempt previous year papers', action: 'expand-coverage' },
+      { condition: 'strong-recall', daysRange: [20, 45], guidance: 'Strong recall — practice presentation quality', action: 'attempt-harder' },
+      { condition: 'strong-recall', daysRange: [0, 20], guidance: 'Strong recall — revise formats and standards only', action: 'consolidate' },
+      { condition: 'weak-recall', daysRange: [45, 120], guidance: 'Weak recall — focus on high-weight subjects', action: 'focus-basics' },
+      { condition: 'weak-recall', daysRange: [20, 45], guidance: 'Weak recall — master Accounting (highest yield)', action: 'reduce-scope' },
+      { condition: 'weak-recall', daysRange: [0, 20], guidance: 'Weak recall — attempt all questions (no negative)', action: 'repeat-revision' },
+      { condition: 'below-target', daysRange: [45, 120], guidance: 'Below target — increase practical problem practice', action: 'increase-pace' },
+      { condition: 'below-target', daysRange: [0, 45], guidance: 'Below target — presentation can recover marks', action: 'maintain' },
+      { condition: 'stagnant', daysRange: [0, 120], guidance: 'Progress stagnant — focus on answer writing practice', action: 'attempt-harder' }
     ]
   },
 
@@ -905,6 +1142,31 @@ export const EXAM_SYLLABI: { [key: string]: ExamSyllabus } = {
       'Legal reasoning and current affairs are key',
       'Do not guess when unsure - negative marking',
       'Passage-based format requires reading speed'
+    ],
+    strategy: {
+      criticalPhase: 5,
+      consolidationPhase: 10,
+      expansionCutoff: 20,
+      idealSessionLength: 45,
+      minEffectiveSession: 20,
+      strongRecallAction: 'increase-pace',
+      weakRecallAction: 'focus-basics',
+      negativeMarking: true,
+      skipThreshold: 65,
+      rotationStyle: 'session',
+      examNature: 'objective',
+      timePerQuestion: 60  // 2 hours for 150 questions
+    },
+    performanceTriggers: [
+      { condition: 'strong-recall', daysRange: [20, 90], guidance: 'Strong recall — practice passage-based questions', action: 'increase-pace' },
+      { condition: 'strong-recall', daysRange: [10, 20], guidance: 'Strong recall — focus on Legal Reasoning (50 marks)', action: 'expand-coverage' },
+      { condition: 'strong-recall', daysRange: [0, 10], guidance: 'Strong recall — reading speed drills only', action: 'maintain' },
+      { condition: 'weak-recall', daysRange: [20, 90], guidance: 'Weak recall — master passage reading technique', action: 'focus-basics' },
+      { condition: 'weak-recall', daysRange: [10, 20], guidance: 'Weak recall — focus on Current Affairs (50 marks)', action: 'reduce-scope' },
+      { condition: 'weak-recall', daysRange: [0, 10], guidance: 'Weak recall — skip if unsure (negative marking)', action: 'repeat-revision' },
+      { condition: 'below-target', daysRange: [20, 90], guidance: 'Below target — add daily passage practice', action: 'increase-pace' },
+      { condition: 'below-target', daysRange: [0, 20], guidance: 'Below target — focus on high-weight Legal + CA', action: 'focus-basics' },
+      { condition: 'stagnant', daysRange: [0, 90], guidance: 'Progress stagnant — practice timed passage reading', action: 'attempt-harder' }
     ]
   },
 
@@ -978,6 +1240,31 @@ export const EXAM_SYLLABI: { [key: string]: ExamSyllabus } = {
       'Mathematics requires consistent practice',
       'GK is vast - focus on high-frequency topics',
       'Physical fitness prep alongside studies'
+    ],
+    strategy: {
+      criticalPhase: 7,
+      consolidationPhase: 15,
+      expansionCutoff: 30,
+      idealSessionLength: 45,
+      minEffectiveSession: 20,
+      strongRecallAction: 'expand-coverage',
+      weakRecallAction: 'focus-basics',
+      negativeMarking: true,
+      skipThreshold: 60,
+      rotationStyle: 'daily',
+      examNature: 'objective',
+      timePerQuestion: 90  // 2.5 hours for 150 questions (Math paper)
+    },
+    performanceTriggers: [
+      { condition: 'strong-recall', daysRange: [30, 90], guidance: 'Strong recall — add GK breadth (55% of marks)', action: 'expand-coverage' },
+      { condition: 'strong-recall', daysRange: [15, 30], guidance: 'Strong recall — focus on Math accuracy', action: 'attempt-harder' },
+      { condition: 'strong-recall', daysRange: [0, 15], guidance: 'Strong recall — maintain balance, no new topics', action: 'maintain' },
+      { condition: 'weak-recall', daysRange: [30, 90], guidance: 'Weak recall — master Math basics (33% of marks)', action: 'focus-basics' },
+      { condition: 'weak-recall', daysRange: [15, 30], guidance: 'Weak recall — focus on high-frequency GK', action: 'reduce-scope' },
+      { condition: 'weak-recall', daysRange: [0, 15], guidance: 'Weak recall — protect strong areas, skip weak', action: 'repeat-revision' },
+      { condition: 'below-target', daysRange: [30, 90], guidance: 'Below target — Math practice needs more time', action: 'increase-pace' },
+      { condition: 'below-target', daysRange: [0, 30], guidance: 'Below target — focus on Indian geography + defense GK', action: 'focus-basics' },
+      { condition: 'stagnant', daysRange: [0, 90], guidance: 'Progress stagnant — take NDA mock test', action: 'attempt-harder' }
     ]
   }
 }
@@ -1112,6 +1399,173 @@ export function matchTypicalMistake(exam: string, subject: string, mistakeDescri
     }
   }
   return null
+}
+
+/**
+ * Get exam strategy configuration
+ */
+export function getExamStrategy(exam: string): ExamStrategy | null {
+  const syllabus = EXAM_SYLLABI[exam]
+  return syllabus?.strategy || null
+}
+
+/**
+ * Get performance-based guidance for current situation
+ */
+export function getPerformanceGuidance(
+  exam: string,
+  condition: 'strong-recall' | 'weak-recall' | 'below-target' | 'above-target' | 'stagnant',
+  daysToExam: number
+): { guidance: string; action: string } | null {
+  const syllabus = EXAM_SYLLABI[exam]
+  if (!syllabus?.performanceTriggers) return null
+  
+  const trigger = syllabus.performanceTriggers.find(t => 
+    t.condition === condition && 
+    daysToExam >= t.daysRange[0] && 
+    daysToExam <= t.daysRange[1]
+  )
+  
+  return trigger ? { guidance: trigger.guidance, action: trigger.action } : null
+}
+
+/**
+ * Determine current exam phase
+ */
+export function getExamPhase(exam: string, daysToExam: number): 'critical' | 'consolidation' | 'expansion' | 'early' {
+  const strategy = getExamStrategy(exam)
+  if (!strategy) {
+    // Default thresholds
+    if (daysToExam <= 7) return 'critical'
+    if (daysToExam <= 15) return 'consolidation'
+    if (daysToExam <= 30) return 'expansion'
+    return 'early'
+  }
+  
+  if (daysToExam <= strategy.criticalPhase) return 'critical'
+  if (daysToExam <= strategy.consolidationPhase) return 'consolidation'
+  if (daysToExam <= strategy.expansionCutoff) return 'expansion'
+  return 'early'
+}
+
+/**
+ * Get recommended action based on performance and exam phase
+ */
+export function getRecommendedAction(
+  exam: string,
+  daysToExam: number,
+  recallStrength: 'strong' | 'weak' | 'average',
+  targetStatus: 'above' | 'below' | 'on-track' | 'stagnant'
+): { action: string; guidance: string; phase: string } {
+  const phase = getExamPhase(exam, daysToExam)
+  const strategy = getExamStrategy(exam)
+  
+  // Determine condition
+  let condition: 'strong-recall' | 'weak-recall' | 'below-target' | 'above-target' | 'stagnant'
+  if (targetStatus === 'stagnant') {
+    condition = 'stagnant'
+  } else if (targetStatus === 'below') {
+    condition = 'below-target'
+  } else if (recallStrength === 'strong') {
+    condition = 'strong-recall'
+  } else if (recallStrength === 'weak') {
+    condition = 'weak-recall'
+  } else {
+    condition = 'strong-recall' // Default to strong for average
+  }
+  
+  // Get performance-based guidance
+  const perfGuidance = getPerformanceGuidance(exam, condition, daysToExam)
+  
+  if (perfGuidance) {
+    return {
+      action: perfGuidance.action,
+      guidance: perfGuidance.guidance,
+      phase
+    }
+  }
+  
+  // Fallback based on strategy defaults
+  if (strategy) {
+    if (recallStrength === 'strong') {
+      return {
+        action: strategy.strongRecallAction,
+        guidance: getActionDescription(strategy.strongRecallAction, phase),
+        phase
+      }
+    } else {
+      return {
+        action: strategy.weakRecallAction,
+        guidance: getActionDescription(strategy.weakRecallAction, phase),
+        phase
+      }
+    }
+  }
+  
+  // Generic fallback
+  return {
+    action: 'maintain',
+    guidance: 'Continue with current pace',
+    phase
+  }
+}
+
+/**
+ * Get human-readable description for action type
+ */
+function getActionDescription(action: string, phase: string): string {
+  const descriptions: { [key: string]: string } = {
+    'increase-pace': 'Consider increasing daily study hours',
+    'expand-coverage': 'You can expand to related topics',
+    'attempt-harder': 'Try more challenging practice problems',
+    'maintain': 'Maintain current pace and depth',
+    'consolidate': 'Focus on consolidating what you know',
+    'reduce-scope': 'Focus on fewer high-yield topics',
+    'focus-basics': 'Strengthen fundamentals before advancing',
+    'repeat-revision': 'Revise covered material before new content'
+  }
+  
+  return descriptions[action] || 'Continue with current strategy'
+}
+
+/**
+ * Get session length recommendation
+ */
+export function getRecommendedSessionLength(exam: string, availableMinutes: number): number {
+  const strategy = getExamStrategy(exam)
+  
+  if (!strategy) {
+    // Default: 30 min sessions
+    return Math.min(availableMinutes, 30)
+  }
+  
+  if (availableMinutes >= strategy.idealSessionLength) {
+    return strategy.idealSessionLength
+  }
+  
+  if (availableMinutes >= strategy.minEffectiveSession) {
+    return availableMinutes
+  }
+  
+  // Below minimum - still return available time but flag it
+  return availableMinutes
+}
+
+/**
+ * Check if session length is effective for this exam
+ */
+export function isEffectiveSessionLength(exam: string, minutes: number): boolean {
+  const strategy = getExamStrategy(exam)
+  if (!strategy) return minutes >= 15 // Default minimum
+  return minutes >= strategy.minEffectiveSession
+}
+
+/**
+ * Get skip threshold for this exam (confidence below which to skip)
+ */
+export function getSkipThreshold(exam: string): number {
+  const strategy = getExamStrategy(exam)
+  return strategy?.skipThreshold || 50
 }
 
 /**
