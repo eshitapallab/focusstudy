@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { formatDuration } from '@/lib/timer'
 import FocusStudyLogo from '@/components/FocusStudyLogo'
 import { triggerHaptic, getHapticsEnabled } from '@/lib/haptics'
+import { getRandomQuote } from '@/lib/motivationalQuotes'
+import AmbientSoundSelector from '@/components/AmbientSoundSelector'
 
 interface TimerFullScreenProps {
   sessionId: string
@@ -31,6 +33,9 @@ export default function TimerFullScreen({
   const [showStopConfirm, setShowStopConfirm] = useState(false)
   const [hapticsEnabled, setHapticsEnabled] = useState(true)
   const [showDistractionFeedback, setShowDistractionFeedback] = useState(false)
+  
+  // Get a random quote that stays consistent during session
+  const motivationalQuote = useMemo(() => getRandomQuote('focus'), [sessionId])
   
   useEffect(() => {
     // Load haptics setting
@@ -85,7 +90,7 @@ export default function TimerFullScreen({
       </div>
       
       {/* Header */}
-      <div className="relative w-full max-w-md mb-12">
+      <div className="relative w-full max-w-md mb-8">
         <div className="flex items-center justify-center gap-3">
           <div className="relative">
             <FocusStudyLogo size={32} color="#6366F1" />
@@ -96,6 +101,16 @@ export default function TimerFullScreen({
           <span className="text-lg text-text-secondary dark:text-gray-300 font-medium">
             {running ? 'Focus session in progress' : 'Session paused'}
           </span>
+        </div>
+        
+        {/* Motivational Quote */}
+        <div className="mt-4 text-center px-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+            "{motivationalQuote.text}"
+          </p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+            — {motivationalQuote.author}
+          </p>
         </div>
       </div>
 
@@ -208,6 +223,11 @@ export default function TimerFullScreen({
             Logged — awareness is the first step ✨
           </div>
         )}
+      </div>
+
+      {/* Ambient Sound Control - Bottom Right */}
+      <div className="absolute bottom-6 right-6">
+        <AmbientSoundSelector compact />
       </div>
 
       {/* Stop Confirmation Modal */}

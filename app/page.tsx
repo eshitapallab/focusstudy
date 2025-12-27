@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import AppNav from '@/components/Navigation/AppNav'
+import QuickStats from '@/components/Home/QuickStats'
 
 export default function HomePage() {
   return (
@@ -115,6 +116,9 @@ export default function HomePage() {
             Confidence vs Reality gap, Tomorrow Lock, Weak-subject detection, Emotional check-ins, Monthly snapshots, and Micro accountability pods!
           </p>
         </div>
+
+        {/* Quick Stats Widget */}
+        <QuickStats />
       </div>
     </main>
   )

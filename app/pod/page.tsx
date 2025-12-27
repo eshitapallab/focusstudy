@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import AppNav from '@/components/Navigation/AppNav'
+import MemberAvatar from '@/components/MemberAvatar'
 import { supabase } from '@/lib/supabaseClient'
 import { createPod, joinPod, getPodStatus, updatePodDisplayName, getPodStatusEnhanced, getPodWeeklySummary, sendPodKudos, getPodKudosToday, getPodStudyingNow, getPodDailyChallenge, getPodMessagesRecent, sendPodMessage, startPodStudySession, endPodStudySession, leavePod, getPodInfo, approvePodMember, rejectPodMember, removePodMember } from '@/lib/supabaseStudyTrack'
 import type { PodStatusEnhanced, PodWeeklySummary, PodKudos, PodStudySession, PodDailyChallenge, PodMessage, PodInfo } from '@/lib/types'
@@ -635,8 +636,8 @@ export default function PodPage() {
                         key={member.userId}
                         className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-yellow-200 dark:border-yellow-700"
                       >
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg">👤</span>
+                        <div className="flex items-center gap-3">
+                          <MemberAvatar name={member.displayName} odorId={member.userId} size="md" />
                           <span className="font-medium text-gray-900 dark:text-white">{member.displayName}</span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -733,14 +734,19 @@ export default function PodPage() {
                               : 'bg-gray-50 dark:bg-gray-700/30 border border-gray-200 dark:border-gray-700'
                         }`}
                       >
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <span className="text-lg">👤</span>
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <MemberAvatar 
+                            name={member.displayName} 
+                            odorId={member.userId} 
+                            size="md" 
+                            isOnline={isStudyingNow}
+                            isOwner={isOwner}
+                          />
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-semibold text-gray-900 dark:text-white text-sm truncate">
                                 {member.displayName}
                                 {isMe && <span className="text-xs text-primary-500 ml-1">(You)</span>}
-                                {isOwner && <span className="text-xs text-yellow-500 ml-1">👑</span>}
                               </span>
                               {member.isFirstToday && (
                                 <span className="text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-1.5 py-0.5 rounded">

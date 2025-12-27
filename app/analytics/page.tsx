@@ -11,6 +11,7 @@ import WeekTrend from '@/components/Analytics/WeekTrend'
 import Heatmap from '@/components/Analytics/Heatmap'
 import SubjectBreakdown from '@/components/Analytics/SubjectBreakdown'
 import ComparisonMode from '@/components/ComparisonMode'
+import AchievementBadges from '@/components/AchievementBadges'
 
 export default function AnalyticsPage() {
   const { user } = useAuth()
@@ -182,6 +183,9 @@ export default function AnalyticsPage() {
               <WeekTrend sessions={sessions} />
               <SubjectBreakdown sessionsWithMetadata={sessionsWithMetadata} />
             </div>
+            
+            {/* Achievements */}
+            <AchievementBadges />
             
             {/* Comparison Mode */}
             <ComparisonMode />
