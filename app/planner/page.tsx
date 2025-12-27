@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, addMonths, subMonths, startOfWeek, endOfWeek, parseISO } from 'date-fns'
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, addMonths, subMonths, startOfWeek, endOfWeek, parseISO, isBefore, startOfDay } from 'date-fns'
 import { useAuth } from '@/hooks/useAuth'
 import { db, PlannedSession } from '@/lib/dexieClient'
 import { MicroAction } from '@/lib/types'
@@ -10,6 +10,7 @@ import AppNav from '@/components/Navigation/AppNav'
 import StatusBadge from '@/components/StatusBadge'
 import SessionActions from '@/components/SessionActions'
 import MicroActionActions from '@/components/MicroActionActions'
+import PlannerModal from '@/components/PlannerModal'
 
 export default function PlannerCalendarPage() {
   const { user } = useAuth()
@@ -18,6 +19,7 @@ export default function PlannerCalendarPage() {
   const [focusActions, setFocusActions] = useState<MicroAction[]>([])
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [addModalDate, setAddModalDate] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     loadPlannedSessions()
@@ -82,6 +84,18 @@ export default function PlannerCalendarPage() {
       await db.plannedSessions.delete(id)
       loadPlannedSessions()
     }
+  }
+
+  // Handle adding task for a specific date
+  const handleAddTaskForDate = (date: Date) => {
+    setAddModalDate(format(date, 'yyyy-MM-dd'))
+    setShowAddModal(true)
+  }
+
+  // Handle adding task (general)
+  const handleAddTask = () => {
+    setAddModalDate(selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined)
+    setShowAddModal(true)
   }
 
   const selectedDateSessions = selectedDate ? getSessionsForDate(selectedDate) : []
@@ -156,6 +170,7 @@ export default function PlannerCalendarPage() {
               const isToday = isSameDay(day, new Date())
               const isCurrentMonth = isSameMonth(day, currentMonth)
               const isSelected = selectedDate && isSameDay(day, selectedDate)
+              const isPast = isBefore(day, startOfDay(new Date())) && !isToday
 
               const dayItems = [
                 ...focusForDay.map(a => ({
@@ -171,11 +186,11 @@ export default function PlannerCalendarPage() {
               ]
 
               return (
-                <button
+                <div
                   key={idx}
                   onClick={() => setSelectedDate(day)}
                   className={`
-                    min-h-[80px] p-2 rounded-lg border-2 transition-all text-left
+                    min-h-[80px] p-2 rounded-lg border-2 transition-all text-left cursor-pointer relative group
                     ${isSelected 
                       ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' 
                       : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600'
@@ -186,16 +201,34 @@ export default function PlannerCalendarPage() {
                     }
                   `}
                 >
-                  <div className={`
-                    text-sm font-semibold mb-1
-                    ${isToday 
-                      ? 'w-6 h-6 rounded-full bg-primary-500 text-white flex items-center justify-center' 
-                      : isCurrentMonth
-                        ? 'text-gray-900 dark:text-white'
-                        : 'text-gray-400 dark:text-gray-600'
-                    }
-                  `}>
-                    {format(day, 'd')}
+                  <div className="flex items-center justify-between mb-1">
+                    <div className={`
+                      text-sm font-semibold
+                      ${isToday 
+                        ? 'w-6 h-6 rounded-full bg-primary-500 text-white flex items-center justify-center' 
+                        : isCurrentMonth
+                          ? 'text-gray-900 dark:text-white'
+                          : 'text-gray-400 dark:text-gray-600'
+                      }
+                    `}>
+                      {format(day, 'd')}
+                    </div>
+                    
+                    {/* Add button - visible on hover for future/today dates */}
+                    {!isPast && isCurrentMonth && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleAddTaskForDate(day)
+                        }}
+                        className="w-5 h-5 rounded-full bg-primary/10 hover:bg-primary/20 dark:bg-primary/20 dark:hover:bg-primary/30 text-primary flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Add task"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
                   
                   {dayItems.length > 0 && (
@@ -235,7 +268,7 @@ export default function PlannerCalendarPage() {
                       )}
                     </div>
                   )}
-                </button>
+                </div>
               )
             })}
           </div>
@@ -248,20 +281,47 @@ export default function PlannerCalendarPage() {
               <h3 className="text-xl font-bold text-gray-900 dark:text-white">
                 {format(selectedDate, 'EEEE, MMMM d, yyyy')}
               </h3>
-              <button
-                onClick={() => setSelectedDate(null)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+              <div className="flex items-center gap-2">
+                {/* Add Task button */}
+                {!isBefore(selectedDate, startOfDay(new Date())) && (
+                  <button
+                    onClick={handleAddTask}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 dark:bg-primary/20 dark:hover:bg-primary/30 text-primary font-medium text-sm rounded-lg transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add Task
+                  </button>
+                )}
+                <button
+                  onClick={() => setSelectedDate(null)}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             {selectedDateSessions.length === 0 && selectedDateFocusActions.length === 0 ? (
-              <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-                No planned sessions for this date
-              </p>
+              <div className="text-center py-8">
+                <p className="text-gray-500 dark:text-gray-400 mb-4">
+                  No planned sessions for this date
+                </p>
+                {!isBefore(selectedDate, startOfDay(new Date())) && (
+                  <button
+                    onClick={handleAddTask}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-accent text-white font-medium rounded-xl hover:shadow-lg transition-all"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Plan a Study Session
+                  </button>
+                )}
+              </div>
             ) : (
               <div className="space-y-3">
                 {selectedDateFocusActions.map(action => (
@@ -347,6 +407,20 @@ export default function PlannerCalendarPage() {
           </div>
         )}
       </div>
+
+      {/* Add Task Modal */}
+      {showAddModal && (
+        <PlannerModal
+          onClose={() => {
+            setShowAddModal(false)
+            setAddModalDate(undefined)
+          }}
+          onCreated={() => {
+            loadPlannedSessions()
+          }}
+          initialDate={addModalDate}
+        />
+      )}
     </main>
   )
 }
