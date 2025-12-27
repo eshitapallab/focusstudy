@@ -36,6 +36,8 @@ export default function PodPage() {
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
   const [codeCopied, setCodeCopied] = useState(false)
   const [processingMember, setProcessingMember] = useState<string | null>(null)
+  const [myMemberStatus, setMyMemberStatus] = useState<'approved' | 'pending' | 'rejected' | null>(null)
+  const [membershipNotification, setMembershipNotification] = useState<string | null>(null)
   const realtimeChannelRef = useRef<RealtimeChannel | null>(null)
   const lastRefreshRef = useRef<number>(0)
   const previousChallengeCompletedRef = useRef<boolean>(false)
@@ -129,7 +131,37 @@ export default function PodPage() {
 
     // Handler that uses ref to avoid subscription recreation
     const handleRealtimeChange = () => {
-      refreshPodStatusRef.current?.(podId)
+      refreshPodStatusRef.current?.(podId, true)
+    }
+
+    // Handler for membership changes (joins, leaves, approvals)
+    const handleMembershipChange = (payload: any) => {
+      console.log('🔔 Membership change:', payload)
+      
+      // Show notification based on event type
+      if (payload.eventType === 'INSERT') {
+        setMembershipNotification('🆕 New member requested to join!')
+        triggerHaptic('notification')
+      } else if (payload.eventType === 'DELETE') {
+        setMembershipNotification('👋 A member left the pod')
+        triggerHaptic('notification')
+      } else if (payload.eventType === 'UPDATE' && payload.new?.status === 'approved') {
+        // Check if it's our own approval
+        if (payload.new?.user_id === podUserId) {
+          setMembershipNotification('🎉 You have been approved!')
+          setMyMemberStatus('approved')
+          triggerHaptic('success')
+        } else {
+          setMembershipNotification('✅ New member approved!')
+          triggerHaptic('notification')
+        }
+      }
+      
+      // Clear notification after 5 seconds
+      setTimeout(() => setMembershipNotification(null), 5000)
+      
+      // Refresh pod status
+      refreshPodStatusRef.current?.(podId, true)
     }
 
     // Subscribe to realtime changes
@@ -138,6 +170,7 @@ export default function PodPage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pod_study_sessions', filter: `pod_id=eq.${podId}` }, handleRealtimeChange)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pod_messages', filter: `pod_id=eq.${podId}` }, handleRealtimeChange)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pod_kudos', filter: `pod_id=eq.${podId}` }, handleRealtimeChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pod_members', filter: `pod_id=eq.${podId}` }, handleMembershipChange)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_check_ins' }, handleRealtimeChange)
       .subscribe((status) => {
         console.log('🔴 Realtime subscription status:', status)
@@ -156,7 +189,7 @@ export default function PodPage() {
       }
       clearInterval(pollInterval)
     }
-  }, [podId]) // Only depends on podId now
+  }, [podId, podUserId]) // Added podUserId for membership check
 
   // Load pod on mount
   useEffect(() => {
@@ -171,24 +204,39 @@ export default function PodPage() {
         // Check localStorage for active pod
         const savedPodId = localStorage.getItem('ff_active_pod_id')
         
-        // Query pod_members to find user's pod
+        // Query pod_members to find user's pod (including status)
         const { data: membership, error } = await supabase
           .from('pod_members')
-          .select('pod_id, display_name, pods(id, invite_code)')
+          .select('pod_id, display_name, status, pods(id, invite_code)')
           .eq('user_id', authUser.id)
           .limit(1)
           .maybeSingle()
 
         if (membership && !error) {
           const memberPodId = membership.pod_id
+          const memberStatus = membership.status as 'approved' | 'pending' | 'rejected'
+          
+          // If rejected, clear and don't show pod
+          if (memberStatus === 'rejected') {
+            localStorage.removeItem('ff_active_pod_id')
+            setMyMemberStatus(null)
+            return
+          }
+          
           setPodId(memberPodId)
           setPodDisplayName(membership.display_name || 'Anonymous')
           setPodInviteCode((membership.pods as any)?.invite_code || null)
+          setMyMemberStatus(memberStatus)
           localStorage.setItem('ff_active_pod_id', memberPodId)
-          await refreshPodStatus(memberPodId)
+          
+          // Only load full pod status if approved
+          if (memberStatus === 'approved') {
+            await refreshPodStatus(memberPodId)
+          }
         } else if (savedPodId) {
           // Clear stale saved pod
           localStorage.removeItem('ff_active_pod_id')
+          setMyMemberStatus(null)
         }
       } catch (e) {
         console.error('Error loading pod:', e)
@@ -351,10 +399,60 @@ export default function PodPage() {
             </div>
           )}
 
+          {/* Membership notification toast */}
+          {membershipNotification && (
+            <div className="fixed top-4 right-4 z-50 bg-primary-500 text-white px-4 py-3 rounded-lg shadow-lg animate-bounce">
+              {membershipNotification}
+            </div>
+          )}
+
           {podLoading ? (
             <div className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2 justify-center py-8">
               <div className="animate-spin h-5 w-5 border-2 border-primary-500 border-t-transparent rounded-full"></div>
               Loading pod…
+            </div>
+          ) : podId && myMemberStatus === 'pending' ? (
+            /* Pending Approval Screen */
+            <div className="space-y-4">
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-300 dark:border-yellow-700 rounded-xl p-6 text-center">
+                <div className="text-4xl mb-4">⏳</div>
+                <h3 className="text-lg font-bold text-yellow-800 dark:text-yellow-200 mb-2">
+                  Waiting for Approval
+                </h3>
+                <p className="text-sm text-yellow-700 dark:text-yellow-300 mb-4">
+                  Your request to join this pod is pending. The pod admin will review your request soon.
+                </p>
+                <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                  You'll be notified when you're approved!
+                </p>
+              </div>
+
+              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
+                <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">Your display name:</div>
+                <div className="text-lg font-semibold text-gray-900 dark:text-white">{podDisplayName}</div>
+              </div>
+
+              {/* Cancel/Leave button for pending members */}
+              <button
+                onClick={async () => {
+                  if (!confirm('Cancel your join request?')) return
+                  try {
+                    setPodLoading(true)
+                    if (podId) await leavePod(podId)
+                    setPodId(null)
+                    setMyMemberStatus(null)
+                    localStorage.removeItem('ff_active_pod_id')
+                    window.location.reload()
+                  } catch (e) {
+                    console.error('Failed to cancel request:', e)
+                    setPodError('Failed to cancel request')
+                    setPodLoading(false)
+                  }
+                }}
+                className="w-full py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 font-medium hover:bg-gray-50 dark:hover:bg-gray-800"
+              >
+                Cancel Request
+              </button>
             </div>
           ) : podId ? (
             <div className="space-y-4">
@@ -877,6 +975,7 @@ export default function PodPage() {
                     if (!result) throw new Error('Could not create pod')
                     setPodId(result.pod.id)
                     setPodInviteCode(result.pod.inviteCode)
+                    setMyMemberStatus('approved') // Creator is auto-approved
                     localStorage.setItem('ff_active_pod_id', result.pod.id)
                     await refreshPodStatus(result.pod.id)
                     triggerCelebration('🎉 Pod created!')
@@ -924,10 +1023,10 @@ export default function PodPage() {
                       const joinedPodId = await joinPod(podJoinCode.trim(), podDisplayName.trim())
                       if (!joinedPodId) throw new Error('Could not join pod')
                       setPodId(joinedPodId)
+                      setMyMemberStatus('pending') // New members are pending by default
                       localStorage.setItem('ff_active_pod_id', joinedPodId)
-                      await refreshPodStatus(joinedPodId)
                       setPodJoinCode('')
-                      triggerCelebration('🎉 Joined pod!')
+                      // Don't refresh full status - pending members see waiting screen
                     } catch (e: any) {
                       setPodError(typeof e?.message === 'string' ? e.message : 'Failed to join pod')
                     } finally {
