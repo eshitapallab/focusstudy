@@ -38,7 +38,7 @@ import { calculateVerdict } from '@/lib/verdictEngine'
 import { generateMicroAction } from '@/lib/microActionGenerator'
 import { calculateRealityScore, generateTrajectoryMessage } from '@/lib/realityCheck'
 import { detectGamingPatterns, getHonestyPrompt, shouldPromptHonesty } from '@/lib/gamingDetection'
-import { getSubjectMarks, getSubjectPercentage, getExamSubjects, isKnownExam, getSubjectMeta, getExamDayRules, getLastPhaseGuidance, getDaysToExam, getRecommendedAction, getExamPhase, getExamStrategy } from '@/lib/examSyllabi'
+import { getSubjectMarks, getSubjectPercentage, getExamSubjects, isKnownExam, getSubjectMeta, getExamDayRules, getLastPhaseGuidance, getDaysToExam, getRecommendedAction, getExamPhase, getExamStrategy, analyzeStudyPatterns, getPatternBasedGuidance, StudyPatternAnalysis } from '@/lib/examSyllabi'
 import { User, DailyCheckIn, Verdict, MicroAction, WeeklyReality, EmotionalFeeling, ExamTomorrowResponse, MonthlySnapshot, MarkLeakEstimate, MistakeTrendSignal } from '@/lib/types'
 import OnboardingFlow from '@/components/Onboarding/OnboardingFlow'
 import DailyCheckInCard from '@/components/CheckIn/DailyCheckInCard'
@@ -79,6 +79,7 @@ export default function Dashboard() {
   const [showMISLog, setShowMISLog] = useState(false)
   const [markLeaks, setMarkLeaks] = useState<MarkLeakEstimate[]>([])
   const [risingSignals, setRisingSignals] = useState<MistakeTrendSignal[]>([])
+  const [studyPatterns, setStudyPatterns] = useState<StudyPatternAnalysis | null>(null)
 
   const toISODate = (d: Date) => format(d, 'yyyy-MM-dd')
   const today = toISODate(new Date())
@@ -244,6 +245,15 @@ export default function Dashboard() {
           }
         } catch (e) {
           console.warn('Weak-subject detection skipped:', e)
+        }
+
+        // Analyze study patterns for personalized guidance
+        try {
+          const examSubjects = isKnownExam(userData.exam) ? getExamSubjects(userData.exam) : undefined
+          const patterns = analyzeStudyPatterns(recentCheckInsForInsights, examSubjects)
+          if (mounted) setStudyPatterns(patterns)
+        } catch (e) {
+          console.warn('Study pattern analysis skipped:', e)
         }
 
         // Revision debt meter (simple, no schedules)
@@ -1166,33 +1176,44 @@ export default function Dashboard() {
                 </div>
                 <p className="text-sm text-gray-500">{verdict.reasons.join('. ')}</p>
                 
-                {/* Exam-specific performance guidance */}
+                {/* Exam-specific performance guidance using actual study patterns */}
                 {(() => {
                   const examDateStr = user.examDate ? format(user.examDate, 'yyyy-MM-dd') : undefined
                   const daysToExam = examDateStr ? getDaysToExam(examDateStr) : null
                   
                   if (daysToExam === null) return null
                   
-                  // Determine recall strength based on check-in
-                  const recallStrength: 'strong' | 'weak' | 'average' = 
-                    todayCheckIn?.couldRevise ? 'strong' : 
-                    todayCheckIn && !todayCheckIn.couldRevise ? 'weak' : 'average'
-                  
-                  // Determine target status
-                  const targetStatus: 'above' | 'below' | 'on-track' | 'stagnant' =
-                    verdict.status === 'on-track' ? 'on-track' :
-                    verdict.status === 'at-risk' ? 'below' :
-                    verdict.status === 'falling-behind' ? 'below' : 'on-track'
-                  
-                  const recommendation = getRecommendedAction(
-                    user.exam,
-                    daysToExam,
-                    recallStrength,
-                    targetStatus
-                  )
-                  
                   const phase = getExamPhase(user.exam, daysToExam)
                   const strategy = getExamStrategy(user.exam)
+                  
+                  // Use pattern-based guidance if we have study pattern data
+                  let guidance: string
+                  let guidancePriority: 'high' | 'medium' | 'low' = 'low'
+                  
+                  if (studyPatterns && studyPatterns.studyDaysCount >= 3) {
+                    // Use personalized guidance based on actual study patterns
+                    const patternGuidance = getPatternBasedGuidance(user.exam, daysToExam, studyPatterns)
+                    guidance = patternGuidance.guidance
+                    guidancePriority = patternGuidance.priority
+                  } else {
+                    // Fallback to generic guidance when not enough data
+                    const recallStrength: 'strong' | 'weak' | 'average' = 
+                      todayCheckIn?.couldRevise ? 'strong' : 
+                      todayCheckIn && !todayCheckIn.couldRevise ? 'weak' : 'average'
+                    
+                    const targetStatus: 'above' | 'below' | 'on-track' | 'stagnant' =
+                      verdict.status === 'on-track' ? 'on-track' :
+                      verdict.status === 'at-risk' ? 'below' :
+                      verdict.status === 'falling-behind' ? 'below' : 'on-track'
+                    
+                    const recommendation = getRecommendedAction(
+                      user.exam,
+                      daysToExam,
+                      recallStrength,
+                      targetStatus
+                    )
+                    guidance = recommendation.guidance
+                  }
                   
                   return (
                     <div className="mt-2 pt-2 border-t border-gray-100">
@@ -1206,8 +1227,12 @@ export default function Dashboard() {
                         {phase === 'expansion' && `🟢 Expansion phase (${daysToExam} days)`}
                         {phase === 'early' && `📚 Early prep (${daysToExam} days)`}
                       </p>
-                      <p className="text-xs text-gray-600 mt-1">
-                        {recommendation.guidance}
+                      <p className={`text-xs mt-1 ${
+                        guidancePriority === 'high' ? 'text-red-600 font-medium' :
+                        guidancePriority === 'medium' ? 'text-amber-700' :
+                        'text-gray-600'
+                      }`}>
+                        {guidance}
                       </p>
                       {strategy && phase === 'critical' && (
                         <p className="text-xs text-red-500 mt-1 font-medium">

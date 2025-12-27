@@ -1568,6 +1568,247 @@ export function getSkipThreshold(exam: string): number {
   return strategy?.skipThreshold || 50
 }
 
+// Study pattern analysis result
+export interface StudyPatternAnalysis {
+  totalMinutes: number
+  subjectMinutes: Map<string, number>
+  subjectRecallRate: Map<string, number>  // 0-1, higher = better recall
+  neglectedSubjects: string[]              // Subjects not studied in 5+ days
+  weakRecallSubjects: string[]             // Subjects with <50% recall
+  strongRecallSubjects: string[]           // Subjects with >70% recall
+  dominantSubject: string | null           // Most studied subject
+  leastStudiedSubject: string | null       // Least studied (but has some time)
+  averageRecallRate: number                // Overall recall rate
+  studyDaysCount: number                   // How many days had study
+  consistencyScore: number                 // 0-1, higher = more consistent
+}
+
+/**
+ * Analyze study patterns from check-in data
+ * @param checkIns Recent check-ins (typically 14-30 days)
+ * @param examSubjects Optional list of exam subjects to check coverage
+ */
+export function analyzeStudyPatterns(
+  checkIns: Array<{ subject: string; minutesStudied: number; couldRevise: boolean; date: string }>,
+  examSubjects?: string[]
+): StudyPatternAnalysis {
+  const subjectMinutes = new Map<string, number>()
+  const subjectRecallYes = new Map<string, number>()
+  const subjectRecallTotal = new Map<string, number>()
+  const subjectLastSeen = new Map<string, Date>()
+  const studyDates = new Set<string>()
+  
+  let totalMinutes = 0
+  let totalRecallYes = 0
+  let totalRecallCount = 0
+  
+  for (const checkIn of checkIns) {
+    const { subject, minutesStudied, couldRevise, date } = checkIn
+    
+    // Track totals
+    totalMinutes += minutesStudied
+    totalRecallCount++
+    if (couldRevise) totalRecallYes++
+    
+    // Track per subject
+    subjectMinutes.set(subject, (subjectMinutes.get(subject) || 0) + minutesStudied)
+    subjectRecallTotal.set(subject, (subjectRecallTotal.get(subject) || 0) + 1)
+    if (couldRevise) {
+      subjectRecallYes.set(subject, (subjectRecallYes.get(subject) || 0) + 1)
+    }
+    
+    // Track last seen
+    const checkInDate = new Date(date)
+    const existing = subjectLastSeen.get(subject)
+    if (!existing || checkInDate > existing) {
+      subjectLastSeen.set(subject, checkInDate)
+    }
+    
+    studyDates.add(date)
+  }
+  
+  // Calculate recall rates per subject
+  const subjectRecallRate = new Map<string, number>()
+  for (const [subject, total] of subjectRecallTotal.entries()) {
+    const yes = subjectRecallYes.get(subject) || 0
+    subjectRecallRate.set(subject, total > 0 ? yes / total : 0)
+  }
+  
+  // Identify weak/strong recall subjects (need at least 2 data points)
+  const weakRecallSubjects: string[] = []
+  const strongRecallSubjects: string[] = []
+  for (const [subject, rate] of subjectRecallRate.entries()) {
+    const total = subjectRecallTotal.get(subject) || 0
+    if (total < 2) continue // Need enough data
+    if (rate < 0.5) weakRecallSubjects.push(subject)
+    if (rate >= 0.7) strongRecallSubjects.push(subject)
+  }
+  
+  // Identify neglected subjects (not studied in 5+ days)
+  const now = new Date()
+  const neglectedSubjects: string[] = []
+  
+  // Check all exam subjects if provided
+  const subjectsToCheck = examSubjects || Array.from(subjectMinutes.keys())
+  for (const subject of subjectsToCheck) {
+    const lastSeen = subjectLastSeen.get(subject)
+    if (!lastSeen) {
+      // Never studied this exam subject
+      if (examSubjects?.includes(subject)) {
+        neglectedSubjects.push(subject)
+      }
+    } else {
+      const daysSince = Math.floor((now.getTime() - lastSeen.getTime()) / (1000 * 60 * 60 * 24))
+      if (daysSince >= 5) {
+        neglectedSubjects.push(subject)
+      }
+    }
+  }
+  
+  // Find dominant and least studied subjects
+  let dominantSubject: string | null = null
+  let leastStudiedSubject: string | null = null
+  let maxMinutes = 0
+  let minMinutes = Infinity
+  
+  for (const [subject, minutes] of subjectMinutes.entries()) {
+    if (minutes > maxMinutes) {
+      maxMinutes = minutes
+      dominantSubject = subject
+    }
+    if (minutes > 0 && minutes < minMinutes) {
+      minMinutes = minutes
+      leastStudiedSubject = subject
+    }
+  }
+  
+  // Calculate consistency (study days / total days in period)
+  const dayRange = checkIns.length > 0 
+    ? Math.max(1, Math.ceil((now.getTime() - new Date(checkIns[checkIns.length - 1].date).getTime()) / (1000 * 60 * 60 * 24)))
+    : 1
+  const consistencyScore = Math.min(1, studyDates.size / dayRange)
+  
+  return {
+    totalMinutes,
+    subjectMinutes,
+    subjectRecallRate,
+    neglectedSubjects,
+    weakRecallSubjects,
+    strongRecallSubjects,
+    dominantSubject,
+    leastStudiedSubject,
+    averageRecallRate: totalRecallCount > 0 ? totalRecallYes / totalRecallCount : 0,
+    studyDaysCount: studyDates.size,
+    consistencyScore
+  }
+}
+
+/**
+ * Get personalized guidance based on actual study patterns
+ */
+export function getPatternBasedGuidance(
+  exam: string,
+  daysToExam: number,
+  patterns: StudyPatternAnalysis
+): { guidance: string; action: string; priority: 'high' | 'medium' | 'low' } {
+  const phase = getExamPhase(exam, daysToExam)
+  const strategy = getExamStrategy(exam)
+  
+  // Priority 1: Critical phase with weak recall - highest urgency
+  if (phase === 'critical' && patterns.weakRecallSubjects.length > 0) {
+    const weakSubject = patterns.weakRecallSubjects[0]
+    return {
+      guidance: `⚠️ ${weakSubject} has weak recall — revise only what you've covered`,
+      action: 'repeat-revision',
+      priority: 'high'
+    }
+  }
+  
+  // Priority 2: Neglected high-weight subjects
+  if (patterns.neglectedSubjects.length > 0) {
+    const examSubjects = getExamSubjects(exam)
+    // Find highest-weight neglected subject
+    const neglectedWithMarks = patterns.neglectedSubjects
+      .filter(s => examSubjects.includes(s))
+      .map(s => ({ subject: s, marks: getSubjectMarks(exam, s) }))
+      .sort((a, b) => b.marks - a.marks)
+    
+    if (neglectedWithMarks.length > 0) {
+      const top = neglectedWithMarks[0]
+      if (phase === 'critical') {
+        return {
+          guidance: `${top.subject} (${top.marks} marks) untouched — quick revision if already covered`,
+          action: 'focus-basics',
+          priority: 'high'
+        }
+      }
+      return {
+        guidance: `${top.subject} (${top.marks} marks) hasn't been studied in 5+ days`,
+        action: 'expand-coverage',
+        priority: 'medium'
+      }
+    }
+  }
+  
+  // Priority 3: Imbalanced study time
+  if (patterns.dominantSubject && patterns.leastStudiedSubject && 
+      patterns.dominantSubject !== patterns.leastStudiedSubject) {
+    const dominantTime = patterns.subjectMinutes.get(patterns.dominantSubject) || 0
+    const leastTime = patterns.subjectMinutes.get(patterns.leastStudiedSubject) || 0
+    
+    if (dominantTime > leastTime * 3) { // More than 3x imbalance
+      const leastMarks = getSubjectMarks(exam, patterns.leastStudiedSubject)
+      if (leastMarks > 0) {
+        return {
+          guidance: `${patterns.leastStudiedSubject} (${leastMarks} marks) needs more time — currently underweighted`,
+          action: 'focus-basics',
+          priority: 'medium'
+        }
+      }
+    }
+  }
+  
+  // Priority 4: Low consistency
+  if (patterns.consistencyScore < 0.5 && patterns.studyDaysCount < 5) {
+    return {
+      guidance: `Consistency is low — aim for shorter daily sessions over longer gaps`,
+      action: 'maintain',
+      priority: 'medium'
+    }
+  }
+  
+  // Priority 5: Strong recall - can expand
+  if (patterns.strongRecallSubjects.length >= 2 && patterns.averageRecallRate >= 0.7) {
+    if (phase === 'expansion' || phase === 'early') {
+      return {
+        guidance: `Strong recall across subjects — consider expanding to tougher areas`,
+        action: strategy?.strongRecallAction || 'expand-coverage',
+        priority: 'low'
+      }
+    }
+    return {
+      guidance: `Strong retention — maintain current pace and protect what you know`,
+      action: 'maintain',
+      priority: 'low'
+    }
+  }
+  
+  // Default: based on overall recall
+  if (patterns.averageRecallRate >= 0.6) {
+    return {
+      guidance: `Good recall rate (${Math.round(patterns.averageRecallRate * 100)}%) — stay consistent`,
+      action: 'maintain',
+      priority: 'low'
+    }
+  }
+  
+  return {
+    guidance: `Recall rate is ${Math.round(patterns.averageRecallRate * 100)}% — prioritize revision over new topics`,
+    action: 'repeat-revision',
+    priority: 'medium'
+  }
+}
+
 /**
  * Get contextual tip based on exam phase and subject
  * Enforces the "max 1 tip per session" guardrail via session tracking
