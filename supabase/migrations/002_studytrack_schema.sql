@@ -1101,12 +1101,12 @@ $$;
 -- Get who's currently studying in the pod
 CREATE OR REPLACE FUNCTION public.get_pod_studying_now(p_pod_id UUID)
 RETURNS TABLE(
-  user_id UUID,
-  display_name TEXT,
-  subject TEXT,
-  started_at TIMESTAMPTZ,
-  minutes_elapsed INTEGER,
-  target_minutes INTEGER
+  out_user_id UUID,
+  out_display_name TEXT,
+  out_subject TEXT,
+  out_started_at TIMESTAMPTZ,
+  out_minutes_elapsed INTEGER,
+  out_target_minutes INTEGER
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -1122,17 +1122,17 @@ BEGIN
   END IF;
 
   -- Clean up stale sessions (older than 4 hours)
-  DELETE FROM public.pod_study_sessions
-  WHERE pod_id = p_pod_id AND started_at < NOW() - INTERVAL '4 hours';
+  DELETE FROM public.pod_study_sessions pss_del
+  WHERE pss_del.pod_id = p_pod_id AND pss_del.started_at < NOW() - INTERVAL '4 hours';
 
   RETURN QUERY
   SELECT
-    pss.user_id,
-    pm.display_name,
-    pss.subject,
-    pss.started_at,
-    EXTRACT(EPOCH FROM (NOW() - pss.started_at))::INTEGER / 60 AS minutes_elapsed,
-    pss.target_minutes
+    pss.user_id AS out_user_id,
+    pm.display_name AS out_display_name,
+    pss.subject AS out_subject,
+    pss.started_at AS out_started_at,
+    (EXTRACT(EPOCH FROM (NOW() - pss.started_at))::INTEGER / 60) AS out_minutes_elapsed,
+    pss.target_minutes AS out_target_minutes
   FROM public.pod_study_sessions pss
   INNER JOIN public.pod_members pm ON pm.user_id = pss.user_id AND pm.pod_id = pss.pod_id
   WHERE pss.pod_id = p_pod_id

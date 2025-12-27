@@ -1217,12 +1217,12 @@ export async function getPodStudyingNow(podId: string): Promise<PodStudySession[
   }
 
   return (data as any[]).map((row) => ({
-    userId: row.user_id,
-    displayName: row.display_name || 'Anonymous',
-    subject: row.subject,
-    startedAt: new Date(row.started_at),
-    minutesElapsed: row.minutes_elapsed || 0,
-    targetMinutes: row.target_minutes
+    userId: row.out_user_id || row.user_id,
+    displayName: row.out_display_name || row.display_name || 'Anonymous',
+    subject: row.out_subject || row.subject,
+    startedAt: new Date(row.out_started_at || row.started_at),
+    minutesElapsed: row.out_minutes_elapsed || row.minutes_elapsed || 0,
+    targetMinutes: row.out_target_minutes || row.target_minutes
   }))
 }
 
