@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { AuthProvider } from '@/hooks/useAuth'
+import InstallPrompt from '@/components/PWA/InstallPrompt'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -38,6 +39,7 @@ export default function RootLayout({
       <body className="antialiased pb-safe">
         <AuthProvider>
           {children}
+          <InstallPrompt />
         </AuthProvider>
       </body>
     </html>
