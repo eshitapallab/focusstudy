@@ -334,10 +334,16 @@ export default function SettingsPage() {
 
         {/* Micro Accountability Pod */}
         <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg mb-6">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Micro Accountability Pod</h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Invite-only pod (3–5). See only: checked in today + verdict color.
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">🤝 Micro Accountability Pod</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+            Stay accountable with 3–5 study partners. No chat, no distractions.
           </p>
+          <div className="text-xs text-gray-500 dark:text-gray-500 mb-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg p-3">
+            <strong>How it works:</strong> Create or join a pod → Share invite code with friends → 
+            See who checked in today and their study status (🟢 on-track, 🟡 at-risk, 🔴 falling-behind).
+            <br />
+            <em>Just knowing others can see if you studied is a powerful motivator!</em>
+          </div>
 
           {!supabase && (
             <div className="text-sm text-gray-700 dark:text-gray-300 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
@@ -355,27 +361,46 @@ export default function SettingsPage() {
             <div className="text-sm text-gray-700 dark:text-gray-300">Loading pod…</div>
           ) : podId ? (
             <div className="space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm text-gray-700 dark:text-gray-300 break-all">
-                  <span className="font-semibold">Pod ID:</span> {podId}
-                </div>
-                <button
-                  onClick={() => refreshPodStatus()}
-                  className="px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold hover:bg-gray-200 dark:hover:bg-gray-600"
-                >
-                  Refresh
-                </button>
-              </div>
-
               {podInviteCode && (
-                <div className="text-sm text-gray-700 dark:text-gray-300 break-all">
-                  <span className="font-semibold">Invite code:</span> {podInviteCode}
+                <div className="bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-xl p-4">
+                  <div className="text-xs text-primary-600 dark:text-primary-400 font-semibold mb-1">
+                    📤 Share this invite code with your study partners:
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-2xl font-bold tracking-widest text-primary-700 dark:text-primary-300 bg-white dark:bg-gray-800 rounded-lg px-4 py-2 text-center">
+                      {podInviteCode}
+                    </code>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(podInviteCode)
+                        alert('Invite code copied!')
+                      }}
+                      className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-600 text-white font-semibold transition-colors"
+                      title="Copy invite code"
+                    >
+                      📋 Copy
+                    </button>
+                  </div>
                 </div>
               )}
 
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  <span className="font-medium">Pod members today:</span>
+                </div>
+                <button
+                  onClick={() => refreshPodStatus()}
+                  className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  🔄 Refresh
+                </button>
+              </div>
+
               <div className="space-y-2">
                 {podStatus.length === 0 ? (
-                  <div className="text-sm text-gray-600 dark:text-gray-400">No status yet.</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400 text-center py-4">
+                    No members yet. Share your invite code!
+                  </div>
                 ) : (
                   podStatus.map((row, idx) => {
                     const status = row.verdictStatus
@@ -387,20 +412,23 @@ export default function SettingsPage() {
                           : status === 'falling-behind'
                             ? 'bg-red-500'
                             : 'bg-gray-300'
+                    const statusEmoji = status === 'on-track' ? '🟢' : status === 'at-risk' ? '🟡' : status === 'falling-behind' ? '🔴' : '⚪'
 
                     return (
                       <div
                         key={row.userId}
                         className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/40 rounded-lg p-3"
                       >
-                        <div className="text-sm text-gray-800 dark:text-gray-200">
-                          {row.userId === podUserId ? 'You' : `Member ${idx + 1}`}
+                        <div className="text-sm text-gray-800 dark:text-gray-200 font-medium">
+                          {row.userId === podUserId ? '👤 You' : `👤 Member ${idx + 1}`}
                         </div>
                         <div className="flex items-center gap-3">
                           <div className="text-xs text-gray-600 dark:text-gray-300">
-                            {row.checkedIn ? 'Checked in' : 'Not yet'}
+                            {row.checkedIn ? '✅ Checked in' : '⏳ Not yet'}
                           </div>
-                          <div className={`w-3 h-3 rounded-full ${color}`} aria-label="Verdict color" />
+                          <div className="text-lg" title={status || 'No verdict'}>
+                            {statusEmoji}
+                          </div>
                         </div>
                       </div>
                     )
