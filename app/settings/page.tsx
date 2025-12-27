@@ -103,27 +103,70 @@ export default function SettingsPage() {
     if (!id) return
     const today = new Date().toISOString().split('T')[0]
     
-    // Load enhanced status with gamification data
-    const status = await getPodStatusEnhanced(id, today)
-    setPodStatus(status)
+    // Try enhanced status first, fallback to basic if not available
+    try {
+      const status = await getPodStatusEnhanced(id, today)
+      if (status && status.length > 0) {
+        setPodStatus(status)
+      } else {
+        // Fallback to basic status
+        const basicStatus = await getPodStatus(id, today)
+        setPodStatus(basicStatus.map(s => ({
+          ...s,
+          currentStreak: 0,
+          bestStreak: 0,
+          totalKudos: 0,
+          checkInTime: null,
+          isFirstToday: false,
+          weekMinutes: 0,
+          kudosFromMe: false
+        })))
+      }
+    } catch {
+      // Fallback to basic status if enhanced fails (404)
+      const basicStatus = await getPodStatus(id, today)
+      setPodStatus(basicStatus.map(s => ({
+        ...s,
+        currentStreak: 0,
+        bestStreak: 0,
+        totalKudos: 0,
+        checkInTime: null,
+        isFirstToday: false,
+        weekMinutes: 0,
+        kudosFromMe: false
+      })))
+    }
     
-    // Load weekly summary
-    const summary = await getPodWeeklySummary(id)
-    setPodWeeklySummary(summary)
+    // Try to load weekly summary (ignore if not available)
+    try {
+      const summary = await getPodWeeklySummary(id)
+      setPodWeeklySummary(summary)
+    } catch {
+      setPodWeeklySummary(null)
+    }
     
-    // Load today's kudos
-    const kudos = await getPodKudosToday(id)
-    setPodKudosToday(kudos)
+    // Try to load today's kudos (ignore if not available)
+    try {
+      const kudos = await getPodKudosToday(id)
+      setPodKudosToday(kudos)
+    } catch {
+      setPodKudosToday([])
+    }
   }
 
   const handleSendKudos = async (toUserId: string) => {
     if (!podId) return
     setSendingKudos(toUserId)
     try {
-      await sendPodKudos(podId, toUserId, kudosEmoji)
-      await refreshPodStatus()
+      const success = await sendPodKudos(podId, toUserId, kudosEmoji)
+      if (success) {
+        await refreshPodStatus()
+      } else {
+        setPodError('Kudos feature not available yet. Please apply the latest database migration.')
+      }
     } catch (e: any) {
-      setPodError('Failed to send kudos')
+      // Gracefully handle if function doesn't exist
+      setPodError('Kudos feature not available yet')
     } finally {
       setSendingKudos(null)
     }
