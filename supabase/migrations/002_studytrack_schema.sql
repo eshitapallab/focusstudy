@@ -1,8 +1,9 @@
 -- StudyTrack Tables for Supabase
 -- Run this in Supabase SQL Editor
 
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- pgcrypto provides gen_random_uuid() which is preferred over uuid-ossp
+-- Note: gen_random_uuid() is built-in on Supabase, but we ensure pgcrypto for compatibility
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- Users table (extends auth.users)
 CREATE TABLE IF NOT EXISTS public.study_users (
@@ -23,7 +24,7 @@ CREATE TABLE IF NOT EXISTS public.study_users (
 
 -- Daily check-ins
 CREATE TABLE IF NOT EXISTS public.daily_check_ins (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   subject TEXT NOT NULL,
@@ -35,7 +36,7 @@ CREATE TABLE IF NOT EXISTS public.daily_check_ins (
 
 -- Verdicts
 CREATE TABLE IF NOT EXISTS public.verdicts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   status TEXT NOT NULL CHECK (status IN ('on-track', 'at-risk', 'falling-behind')),
@@ -51,7 +52,7 @@ CREATE TABLE IF NOT EXISTS public.verdicts (
 
 -- Micro actions
 CREATE TABLE IF NOT EXISTS public.micro_actions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   verdict_id UUID NOT NULL REFERENCES public.verdicts(id) ON DELETE CASCADE,
   date DATE NOT NULL,
@@ -69,7 +70,7 @@ CREATE TABLE IF NOT EXISTS public.micro_actions (
 
 -- Weekly reality checks
 CREATE TABLE IF NOT EXISTS public.weekly_reality (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   week_start_date DATE NOT NULL,
   confidence_score INTEGER,
@@ -86,7 +87,7 @@ CREATE TABLE IF NOT EXISTS public.weekly_reality (
 
 -- Emotional check-ins (1 tap every few days)
 CREATE TABLE IF NOT EXISTS public.emotional_check_ins (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   feeling TEXT NOT NULL CHECK (feeling IN ('calm', 'neutral', 'draining')),
@@ -96,7 +97,7 @@ CREATE TABLE IF NOT EXISTS public.emotional_check_ins (
 
 -- "If Exam Were Tomorrow" mode (biweekly)
 CREATE TABLE IF NOT EXISTS public.exam_tomorrow_checks (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   response TEXT NOT NULL CHECK (response IN ('yes', 'maybe', 'no')),
@@ -106,7 +107,7 @@ CREATE TABLE IF NOT EXISTS public.exam_tomorrow_checks (
 
 -- Monthly memory snapshots
 CREATE TABLE IF NOT EXISTS public.monthly_snapshots (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   month_start_date DATE NOT NULL,
   avg_daily_minutes INTEGER NOT NULL,
@@ -119,7 +120,7 @@ CREATE TABLE IF NOT EXISTS public.monthly_snapshots (
 
 -- Micro accountability pods (3–5 people, no chat)
 CREATE TABLE IF NOT EXISTS public.pods (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   invite_code TEXT NOT NULL UNIQUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -134,7 +135,7 @@ CREATE TABLE IF NOT EXISTS public.pod_members (
 
 -- Cohort statistics (anonymous aggregates)
 CREATE TABLE IF NOT EXISTS public.cohort_stats (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   exam TEXT NOT NULL,
   date DATE NOT NULL,
   median_study_minutes INTEGER NOT NULL,
@@ -145,7 +146,7 @@ CREATE TABLE IF NOT EXISTS public.cohort_stats (
 
 -- Gaming detection
 CREATE TABLE IF NOT EXISTS public.gaming_detections (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   detected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   same_minutes_daily BOOLEAN DEFAULT false,
@@ -385,7 +386,7 @@ AS $$
 DECLARE
   code TEXT;
 BEGIN
-  code := substring(replace(uuid_generate_v4()::text, '-', ''), 1, 8);
+  code := substring(replace(gen_random_uuid()::text, '-', ''), 1, 8);
   RETURN upper(code);
 END;
 $$;
