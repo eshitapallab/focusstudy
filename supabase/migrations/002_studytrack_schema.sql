@@ -1400,3 +1400,23 @@ GRANT EXECUTE ON FUNCTION public.get_pod_messages_recent(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.unlock_pod_achievement(UUID, TEXT, JSONB) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_pod_achievements(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_pod_daily_challenge(UUID) TO authenticated;
+
+-- Enable Realtime for pod tables (for live updates)
+-- Note: You may need to enable Realtime in Supabase Dashboard > Database > Replication
+-- These commands add tables to the supabase_realtime publication
+
+DO $$ 
+BEGIN
+  -- Check if publication exists and add tables
+  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    -- Add pod tables to realtime publication (safe if already added)
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.pod_study_sessions;
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.pod_messages;
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.pod_kudos;
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.daily_check_ins;
+  END IF;
+EXCEPTION
+  WHEN duplicate_object THEN
+    -- Table already in publication, ignore
+    NULL;
+END $$;

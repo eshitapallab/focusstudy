@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import AppNav from '@/components/Navigation/AppNav'
 import StudyTrackSettings from '@/components/StudyTrack/StudyTrackSettings'
@@ -14,6 +14,7 @@ import {
   setSmartNotificationsEnabled as setSmartNotificationsEnabledLib,
   requestNotificationPermission as requestSmartNotificationPermission
 } from '@/lib/smartNotifications'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 
 export default function SettingsPage() {
   const { user } = useAuth()
@@ -48,6 +49,8 @@ export default function SettingsPage() {
   const [studySubject, setStudySubject] = useState('')
   const [showConfetti, setShowConfetti] = useState(false)
   const [celebrationMessage, setCelebrationMessage] = useState<string | null>(null)
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
+  const realtimeChannelRef = useRef<RealtimeChannel | null>(null)
 
   useEffect(() => {
     loadSettings()
@@ -57,6 +60,70 @@ export default function SettingsPage() {
     }
     setHapticsSupported(isHapticsSupported())
   }, [])
+
+  // Realtime subscription for pod updates
+  useEffect(() => {
+    if (!podId || !supabase) return
+
+    // Clean up existing subscription
+    if (realtimeChannelRef.current) {
+      supabase.removeChannel(realtimeChannelRef.current)
+    }
+
+    // Create realtime channel for pod updates
+    const channel = supabase
+      .channel(`pod-${podId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pod_study_sessions', filter: `pod_id=eq.${podId}` },
+        (payload) => {
+          console.log('📚 Study session change:', payload)
+          refreshPodStatus()
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pod_messages', filter: `pod_id=eq.${podId}` },
+        (payload) => {
+          console.log('💬 Pod message:', payload)
+          refreshPodStatus()
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pod_kudos', filter: `pod_id=eq.${podId}` },
+        (payload) => {
+          console.log('👏 Kudos update:', payload)
+          refreshPodStatus()
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'daily_check_ins' },
+        (payload) => {
+          console.log('✅ Check-in update:', payload)
+          // Refresh to update member status
+          refreshPodStatus()
+        }
+      )
+      .subscribe((status) => {
+        console.log('🔴 Realtime subscription status:', status)
+      })
+
+    realtimeChannelRef.current = channel
+
+    // Also poll every 30 seconds as a backup
+    const pollInterval = setInterval(() => {
+      refreshPodStatus()
+    }, 30000)
+
+    return () => {
+      if (realtimeChannelRef.current) {
+        supabase.removeChannel(realtimeChannelRef.current)
+      }
+      clearInterval(pollInterval)
+    }
+  }, [podId])
 
   const loadPod = async () => {
     if (!supabase) return
@@ -181,6 +248,9 @@ export default function SettingsPage() {
     } catch {
       setRecentMessages([])
     }
+
+    // Update last refresh time
+    setLastUpdate(new Date())
   }
 
   const handleSendKudos = async (toUserId: string) => {
@@ -732,8 +802,16 @@ export default function SettingsPage() {
               )}
 
               <div className="flex items-center justify-between gap-3">
-                <div className="text-sm text-gray-600 dark:text-gray-400">
-                  <span className="font-medium">Pod members today:</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">Pod members today:</span>
+                  {/* Live indicator */}
+                  <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    LIVE
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   {/* Kudos emoji selector */}
