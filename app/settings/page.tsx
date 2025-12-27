@@ -6,7 +6,7 @@ import AppNav from '@/components/Navigation/AppNav'
 import StudyTrackSettings from '@/components/StudyTrack/StudyTrackSettings'
 import { db, getOrCreateDeviceId } from '@/lib/dexieClient'
 import { supabase } from '@/lib/supabaseClient'
-import { createPod, joinPod, getPodStatus, updatePodDisplayName, getPodStatusEnhanced, getPodWeeklySummary, sendPodKudos, getPodKudosToday, getPodStudyingNow, getPodDailyChallenge, getPodMessagesRecent, sendPodMessage, startPodStudySession, endPodStudySession } from '@/lib/supabaseStudyTrack'
+import { createPod, joinPod, getPodStatus, updatePodDisplayName, getPodStatusEnhanced, getPodWeeklySummary, sendPodKudos, getPodKudosToday, getPodStudyingNow, getPodDailyChallenge, getPodMessagesRecent, sendPodMessage, startPodStudySession, endPodStudySession, leavePod } from '@/lib/supabaseStudyTrack'
 import type { PodStatusEnhanced, PodWeeklySummary, PodKudos, PodStudySession, PodDailyChallenge, PodMessage } from '@/lib/types'
 import { getHapticsEnabled, setHapticsEnabled, isHapticsSupported, triggerHaptic } from '@/lib/haptics'
 import { 
@@ -1067,21 +1067,35 @@ export default function SettingsPage() {
               )}
 
               <button
-                onClick={() => {
-                  setPodId(null)
-                  setPodInviteCode(null)
-                  setPodStatus([])
-                  setPodDisplayName('')
-                  setPodWeeklySummary(null)
-                  setPodKudosToday([])
-                  setStudyingNow([])
-                  setDailyChallenge(null)
-                  setRecentMessages([])
-                  localStorage.removeItem('ff_active_pod_id')
+                onClick={async () => {
+                  if (!confirm('Are you sure you want to leave this pod? This cannot be undone.')) {
+                    return
+                  }
+                  try {
+                    setPodLoading(true)
+                    if (podId) {
+                      await leavePod(podId)
+                    }
+                    setPodId(null)
+                    setPodInviteCode(null)
+                    setPodStatus([])
+                    setPodDisplayName('')
+                    setPodWeeklySummary(null)
+                    setPodKudosToday([])
+                    setStudyingNow([])
+                    setDailyChallenge(null)
+                    setRecentMessages([])
+                    localStorage.removeItem('ff_active_pod_id')
+                  } catch (e) {
+                    console.error('Failed to leave pod:', e)
+                    setPodError('Failed to leave pod')
+                  } finally {
+                    setPodLoading(false)
+                  }
                 }}
-                className="w-full py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200 font-semibold hover:bg-gray-50 dark:hover:bg-gray-700"
+                className="w-full py-2 rounded-lg border border-red-300 dark:border-red-600 text-red-600 dark:text-red-400 font-semibold hover:bg-red-50 dark:hover:bg-red-900/20"
               >
-                Leave pod view
+                🚪 Leave Pod
               </button>
             </div>
           ) : (

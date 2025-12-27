@@ -1357,6 +1357,20 @@ export async function getCohortStats(exam: string, date: string): Promise<Cohort
   }
 }
 
+// Leave a pod (remove membership)
+export async function leavePod(podId: string): Promise<boolean> {
+  if (!supabase) return false
+
+  const { data, error } = await supabase.rpc('leave_pod', { p_pod_id: podId })
+  
+  if (error) {
+    logError('leavePod', error)
+    return false
+  }
+  
+  return Boolean(data)
+}
+
 // Gaming detection operations
 export async function createGamingDetection(detection: GamingDetection): Promise<void> {
   if (!supabase) return

@@ -694,6 +694,71 @@ GRANT EXECUTE ON FUNCTION public.join_pod(TEXT, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_pod_status(UUID, DATE) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.update_pod_display_name(UUID, TEXT) TO authenticated;
 
+-- Function to leave a pod (remove membership)
+CREATE OR REPLACE FUNCTION public.leave_pod(p_pod_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  is_owner BOOLEAN;
+  member_count INTEGER;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  -- Check if user is in this pod
+  IF NOT public._is_pod_member(p_pod_id, auth.uid()) THEN
+    RAISE EXCEPTION 'You are not in this pod';
+  END IF;
+
+  -- Check if user is the owner
+  SELECT EXISTS(
+    SELECT 1 FROM public.pods WHERE id = p_pod_id AND owner_id = auth.uid()
+  ) INTO is_owner;
+
+  -- Count remaining members
+  SELECT COUNT(*) INTO member_count FROM public.pod_members WHERE pod_id = p_pod_id;
+
+  -- If owner and only member, delete the entire pod
+  IF is_owner AND member_count = 1 THEN
+    -- Delete all related data first
+    DELETE FROM public.pod_study_sessions WHERE pod_id = p_pod_id;
+    DELETE FROM public.pod_messages WHERE pod_id = p_pod_id;
+    DELETE FROM public.pod_kudos WHERE pod_id = p_pod_id;
+    DELETE FROM public.pod_achievements WHERE pod_id = p_pod_id;
+    DELETE FROM public.pod_daily_stats WHERE pod_id = p_pod_id;
+    DELETE FROM public.pod_members WHERE pod_id = p_pod_id;
+    DELETE FROM public.pods WHERE id = p_pod_id;
+    RETURN true;
+  END IF;
+
+  -- If owner but others exist, transfer ownership to longest member
+  IF is_owner THEN
+    UPDATE public.pods
+    SET owner_id = (
+      SELECT user_id FROM public.pod_members 
+      WHERE pod_id = p_pod_id AND user_id != auth.uid()
+      ORDER BY joined_at ASC
+      LIMIT 1
+    )
+    WHERE id = p_pod_id;
+  END IF;
+
+  -- Remove the user's study session if active
+  DELETE FROM public.pod_study_sessions WHERE pod_id = p_pod_id AND user_id = auth.uid();
+  
+  -- Remove membership
+  DELETE FROM public.pod_members WHERE pod_id = p_pod_id AND user_id = auth.uid();
+
+  RETURN true;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.leave_pod(UUID) TO authenticated;
+
 -- Function to send kudos to a pod member
 CREATE OR REPLACE FUNCTION public.send_pod_kudos(
   p_pod_id UUID, 
