@@ -1099,6 +1099,9 @@ END;
 $$;
 
 -- Get who's currently studying in the pod
+-- Drop first to allow changing return type
+DROP FUNCTION IF EXISTS public.get_pod_studying_now(UUID);
+
 CREATE OR REPLACE FUNCTION public.get_pod_studying_now(p_pod_id UUID)
 RETURNS TABLE(
   out_user_id UUID,
