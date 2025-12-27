@@ -811,9 +811,14 @@ export default function PodPage() {
                     }
                     try {
                       setPodLoading(true)
+                      setPodError(null)
                       if (podId) {
-                        await leavePod(podId)
+                        const success = await leavePod(podId)
+                        if (!success) {
+                          throw new Error('Failed to leave pod - server returned false')
+                        }
                       }
+                      // Clear all state
                       setPodId(null)
                       setPodInviteCode(null)
                       setPodStatus([])
@@ -825,10 +830,11 @@ export default function PodPage() {
                       setRecentMessages([])
                       setPodInfo(null)
                       localStorage.removeItem('ff_active_pod_id')
+                      // Force page reload to ensure clean state
+                      window.location.reload()
                     } catch (e) {
                       console.error('Failed to leave pod:', e)
-                      setPodError('Failed to leave pod')
-                    } finally {
+                      setPodError('Failed to leave pod. Please try again.')
                       setPodLoading(false)
                     }
                   }}

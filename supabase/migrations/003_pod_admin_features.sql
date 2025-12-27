@@ -240,19 +240,34 @@ BEGIN
 
   -- If owner leaves, destroy the entire pod
   IF is_owner THEN
-    -- Delete all related data
-    DELETE FROM public.pod_study_sessions WHERE pod_id = p_pod_id;
-    DELETE FROM public.pod_messages WHERE pod_id = p_pod_id;
-    DELETE FROM public.pod_kudos WHERE pod_id = p_pod_id;
-    DELETE FROM public.pod_achievements WHERE pod_id = p_pod_id;
-    DELETE FROM public.pod_daily_stats WHERE pod_id = p_pod_id;
+    -- Delete from tables that exist (use IF EXISTS pattern via exception handling)
+    BEGIN
+      DELETE FROM public.pod_study_sessions WHERE pod_id = p_pod_id;
+    EXCEPTION WHEN undefined_table THEN NULL;
+    END;
+    
+    BEGIN
+      DELETE FROM public.pod_messages WHERE pod_id = p_pod_id;
+    EXCEPTION WHEN undefined_table THEN NULL;
+    END;
+    
+    BEGIN
+      DELETE FROM public.pod_kudos WHERE pod_id = p_pod_id;
+    EXCEPTION WHEN undefined_table THEN NULL;
+    END;
+    
+    -- These must exist
     DELETE FROM public.pod_members WHERE pod_id = p_pod_id;
     DELETE FROM public.pods WHERE id = p_pod_id;
     RETURN true;
   END IF;
 
   -- Regular member leaving: just remove their data
-  DELETE FROM public.pod_study_sessions WHERE pod_id = p_pod_id AND user_id = auth.uid();
+  BEGIN
+    DELETE FROM public.pod_study_sessions WHERE pod_id = p_pod_id AND user_id = auth.uid();
+  EXCEPTION WHEN undefined_table THEN NULL;
+  END;
+  
   DELETE FROM public.pod_members WHERE pod_id = p_pod_id AND user_id = auth.uid();
 
   RETURN true;

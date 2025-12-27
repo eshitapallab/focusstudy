@@ -1362,13 +1362,13 @@ export async function getCohortStats(exam: string, date: string): Promise<Cohort
 
 // Leave a pod (remove membership)
 export async function leavePod(podId: string): Promise<boolean> {
-  if (!supabase) return false
+  if (!supabase) throw new Error('Supabase not initialized')
 
   const { data, error } = await supabase.rpc('leave_pod', { p_pod_id: podId })
   
   if (error) {
     logError('leavePod', error)
-    return false
+    throw new Error(`Failed to leave pod: ${error.message}`)
   }
   
   return Boolean(data)
