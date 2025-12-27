@@ -6,7 +6,7 @@ import AppNav from '@/components/Navigation/AppNav'
 import StudyTrackSettings from '@/components/StudyTrack/StudyTrackSettings'
 import { db, getOrCreateDeviceId } from '@/lib/dexieClient'
 import { supabase } from '@/lib/supabaseClient'
-import { createPod, joinPod, getPodStatus, updatePodDisplayName, getPodStatusEnhanced, getPodWeeklySummary, sendPodKudos, getPodKudosToday, getPodStudyingNow, getPodDailyChallenge, getPodMessagesRecent, sendPodMessage } from '@/lib/supabaseStudyTrack'
+import { createPod, joinPod, getPodStatus, updatePodDisplayName, getPodStatusEnhanced, getPodWeeklySummary, sendPodKudos, getPodKudosToday, getPodStudyingNow, getPodDailyChallenge, getPodMessagesRecent, sendPodMessage, startPodStudySession, endPodStudySession } from '@/lib/supabaseStudyTrack'
 import type { PodStatusEnhanced, PodWeeklySummary, PodKudos, PodStudySession, PodDailyChallenge, PodMessage } from '@/lib/types'
 import { getHapticsEnabled, setHapticsEnabled, isHapticsSupported, triggerHaptic } from '@/lib/haptics'
 import { 
@@ -44,6 +44,10 @@ export default function SettingsPage() {
   const [dailyChallenge, setDailyChallenge] = useState<PodDailyChallenge | null>(null)
   const [recentMessages, setRecentMessages] = useState<PodMessage[]>([])
   const [showMessagePanel, setShowMessagePanel] = useState(false)
+  const [isStudying, setIsStudying] = useState(false)
+  const [studySubject, setStudySubject] = useState('')
+  const [showConfetti, setShowConfetti] = useState(false)
+  const [celebrationMessage, setCelebrationMessage] = useState<string | null>(null)
 
   useEffect(() => {
     loadSettings()
@@ -228,6 +232,48 @@ export default function SettingsPage() {
     }
   }
 
+  const handleToggleStudying = async () => {
+    if (!podId) return
+    try {
+      if (isStudying) {
+        await endPodStudySession(podId)
+        setIsStudying(false)
+      } else {
+        await startPodStudySession(podId, studySubject || undefined)
+        setIsStudying(true)
+        // Trigger celebration for starting
+        triggerCelebration('📚 Let\'s study!')
+      }
+      await refreshPodStatus()
+    } catch {
+      // Silently fail if not available
+    }
+  }
+
+  const triggerCelebration = (message: string) => {
+    setCelebrationMessage(message)
+    setShowConfetti(true)
+    setTimeout(() => {
+      setShowConfetti(false)
+      setCelebrationMessage(null)
+    }, 3000)
+  }
+
+  // Check if current user is studying
+  useEffect(() => {
+    if (podUserId && studyingNow.length > 0) {
+      const mySession = studyingNow.find(s => s.userId === podUserId)
+      setIsStudying(!!mySession)
+    }
+  }, [studyingNow, podUserId])
+
+  // Celebrate when daily challenge is completed
+  useEffect(() => {
+    if (dailyChallenge?.isCompleted) {
+      triggerCelebration('🎉 Challenge Completed!')
+    }
+  }, [dailyChallenge?.isCompleted])
+
   const loadSettings = async () => {
     const devId = await getOrCreateDeviceId()
     setDeviceId(devId)
@@ -320,6 +366,38 @@ export default function SettingsPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-primary-50 to-white dark:from-gray-900 dark:to-gray-800 pb-20">
+      {/* Confetti & Celebration Overlay */}
+      {showConfetti && (
+        <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center">
+          {/* Confetti particles */}
+          <div className="absolute inset-0 overflow-hidden">
+            {[...Array(50)].map((_, i) => (
+              <div
+                key={i}
+                className="absolute animate-confetti"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  top: '-10px',
+                  animationDelay: `${Math.random() * 2}s`,
+                  animationDuration: `${2 + Math.random() * 2}s`,
+                }}
+              >
+                <span className="text-2xl">
+                  {['🎉', '🎊', '✨', '⭐', '🔥', '💪', '🏆'][Math.floor(Math.random() * 7)]}
+                </span>
+              </div>
+            ))}
+          </div>
+          {/* Celebration message */}
+          {celebrationMessage && (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl px-8 py-6 text-center animate-bounce-in">
+              <div className="text-4xl mb-2">🎉</div>
+              <div className="text-xl font-bold text-gray-900 dark:text-white">{celebrationMessage}</div>
+            </div>
+          )}
+        </div>
+      )}
+      
       <AppNav user={user} showAuthButton={true} />
       
       <div className="container mx-auto px-4 py-6 max-w-2xl">
@@ -522,6 +600,47 @@ export default function SettingsPage() {
                 </div>
               )}
 
+              {/* Start Studying Button */}
+              <div className={`rounded-xl p-4 border-2 transition-all ${
+                isStudying 
+                  ? 'bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/30 dark:to-emerald-900/30 border-green-400 dark:border-green-600' 
+                  : 'bg-gradient-to-r from-primary-50 to-accent-50 dark:from-primary-900/20 dark:to-accent-900/20 border-primary-200 dark:border-primary-800'
+              }`}>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    {!isStudying ? (
+                      <input
+                        type="text"
+                        value={studySubject}
+                        onChange={(e) => setStudySubject(e.target.value)}
+                        placeholder="What are you studying? (optional)"
+                        className="w-full text-sm px-3 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      />
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="relative flex h-3 w-3">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                        </span>
+                        <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                          You're studying! Your pod can see you're active 🔥
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleToggleStudying}
+                    className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all transform hover:scale-105 ${
+                      isStudying 
+                        ? 'bg-red-500 hover:bg-red-600 text-white' 
+                        : 'bg-gradient-to-r from-primary-500 to-accent-500 hover:from-primary-600 hover:to-accent-600 text-white shadow-lg'
+                    }`}
+                  >
+                    {isStudying ? '⏹️ Stop' : '📚 Start Studying'}
+                  </button>
+                </div>
+              </div>
+
               {/* Who's Studying Now */}
               {studyingNow.length > 0 && (
                 <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-3 border border-green-200 dark:border-green-800">
@@ -656,6 +775,13 @@ export default function SettingsPage() {
                       const statusEmoji = status === 'on-track' ? '🟢' : status === 'at-risk' ? '🟡' : status === 'falling-behind' ? '🔴' : '⚪'
                       const isMe = row.userId === podUserId
                       const kudosForMember = podKudosToday.filter(k => k.toUserId === row.userId)
+                      const isCurrentlyStudying = studyingNow.some(s => s.userId === row.userId)
+                      
+                      // Streak milestone badges
+                      const streakBadge = row.currentStreak >= 30 ? '🔥👑' : 
+                                          row.currentStreak >= 14 ? '🔥🔥' : 
+                                          row.currentStreak >= 7 ? '🔥' : 
+                                          row.currentStreak >= 3 ? '✨' : null
 
                       return (
                         <div
@@ -664,14 +790,25 @@ export default function SettingsPage() {
                             isMe 
                               ? 'bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800' 
                               : 'bg-gray-50 dark:bg-gray-700/40'
-                          } ${row.isFirstToday ? 'ring-2 ring-yellow-400 dark:ring-yellow-500' : ''}`}
+                          } ${row.isFirstToday ? 'ring-2 ring-yellow-400 dark:ring-yellow-500' : ''} ${
+                            isCurrentlyStudying ? 'ring-2 ring-green-400 dark:ring-green-500' : ''
+                          }`}
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">
                                   {isMe ? `👤 ${row.displayName} (You)` : `👤 ${row.displayName}`}
                                 </span>
+                                {isCurrentlyStudying && (
+                                  <span className="text-xs bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                                    <span className="relative flex h-1.5 w-1.5">
+                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500"></span>
+                                    </span>
+                                    Studying
+                                  </span>
+                                )}
                                 {row.isFirstToday && (
                                   <span className="text-xs bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-400 px-1.5 py-0.5 rounded-full">
                                     🌅 First!
@@ -680,6 +817,11 @@ export default function SettingsPage() {
                                 {idx === 0 && podStatus.length > 1 && (
                                   <span className="text-xs bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400 px-1.5 py-0.5 rounded-full">
                                     🏆 Leader
+                                  </span>
+                                )}
+                                {streakBadge && (
+                                  <span className="text-xs bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400 px-1.5 py-0.5 rounded-full" title={`${row.currentStreak} day streak!`}>
+                                    {streakBadge}
                                   </span>
                                 )}
                               </div>
