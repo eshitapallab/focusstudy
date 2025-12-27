@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next'
 import { AuthProvider } from '@/hooks/useAuth'
-import BottomNav from '@/components/Navigation/BottomNav'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -39,7 +38,6 @@ export default function RootLayout({
       <body className="antialiased pb-safe">
         <AuthProvider>
           {children}
-          <BottomNav />
         </AuthProvider>
       </body>
     </html>
