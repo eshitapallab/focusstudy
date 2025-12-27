@@ -5,14 +5,15 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import FocusStudyLogo from '@/components/FocusStudyLogo'
 import UserMenu from '@/components/Auth/UserMenu'
+import { useAuth } from '@/hooks/useAuth'
 
 interface AppNavProps {
-  user?: any
   showAuthButton?: boolean
   transparent?: boolean
 }
 
-export default function AppNav({ user, showAuthButton = false, transparent = false }: AppNavProps) {
+export default function AppNav({ showAuthButton = false, transparent = false }: AppNavProps) {
+  const { user, loading } = useAuth()
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [showTopNav, setShowTopNav] = useState(true)
@@ -99,7 +100,7 @@ export default function AppNav({ user, showAuthButton = false, transparent = fal
 
             {/* Mobile - Auth/Menu button only */}
             <div className="flex md:hidden items-center gap-2">
-              {showAuthButton && !user && (
+              {showAuthButton && !loading && !user && (
                 <Link
                   href="/auth"
                   className="px-3 py-1.5 bg-gradient-to-r from-primary to-accent text-white text-xs font-semibold rounded-lg shadow-md"
@@ -112,7 +113,7 @@ export default function AppNav({ user, showAuthButton = false, transparent = fal
 
             {/* Desktop Right side actions */}
             <div className="hidden md:flex items-center gap-3">
-              {showAuthButton && !user && (
+              {showAuthButton && !loading && !user && (
                 <Link
                   href="/auth"
                   className="px-4 py-2 bg-gradient-to-r from-primary to-accent hover:from-primary-600 hover:to-accent-600 text-white text-sm font-semibold rounded-xl transition-all shadow-lg shadow-primary/25 transform hover:scale-105 active:scale-95"

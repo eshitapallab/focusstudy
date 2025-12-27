@@ -728,7 +728,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-44 md:pb-20">
-      <AppNav user={{ email: user.email, isAnonymous: user.isAnonymous }} />
+      <AppNav showAuthButton={true} />
 
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-4">
         {/* User info header */}

@@ -230,7 +230,7 @@ export default function FocusFlowHome() {
       {/* Initialize smart notifications */}
       <SmartNotificationsInit />
 
-      <AppNav user={user} showAuthButton={true} />
+      <AppNav showAuthButton={true} />
 
       <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-2xl relative pb-44 md:pb-8">
         {/* Date display */}
