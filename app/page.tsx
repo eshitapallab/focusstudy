@@ -4,7 +4,7 @@ import QuickStats from '@/components/Home/QuickStats'
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-900 dark:to-indigo-950 relative overflow-hidden pb-40 safe-area-pb">
+    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-900 dark:to-indigo-950 relative overflow-hidden">
       <AppNav showAuthButton={true} transparent={true} />
       
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -12,7 +12,7 @@ export default function HomePage() {
         <div className="absolute -bottom-40 -left-40 w-72 sm:w-96 h-72 sm:h-96 bg-gradient-to-tr from-accent-200/40 to-primary-200/40 dark:from-accent-900/20 dark:to-primary-900/20 rounded-full blur-3xl" />
       </div>
 
-      <div className="container mx-auto px-3 sm:px-4 py-6 sm:py-10 max-w-4xl relative">
+      <div className="container mx-auto px-3 sm:px-4 py-6 sm:py-10 max-w-4xl relative pb-44 md:pb-8">
         <div className="text-center mb-6 sm:mb-12 pt-4 sm:pt-8">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary via-purple-500 to-accent bg-clip-text text-transparent mb-2 sm:mb-4">
             Welcome to FocusStudy

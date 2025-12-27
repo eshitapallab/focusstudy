@@ -232,7 +232,7 @@ export default function FocusFlowHome() {
 
       <AppNav user={user} showAuthButton={true} />
 
-      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-2xl relative pb-40 safe-area-pb">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-2xl relative pb-44 md:pb-8">
         {/* Date display */}
         <div className="text-center mb-4 sm:mb-6">
           <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
