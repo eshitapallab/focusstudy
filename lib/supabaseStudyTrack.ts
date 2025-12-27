@@ -22,7 +22,10 @@ import type {
   ExamTomorrowResponse,
   MonthlySnapshot,
   Pod,
-  PodStatusRow
+  PodStatusRow,
+  PodStatusEnhanced,
+  PodWeeklySummary,
+  PodKudos
 } from './types'
 
 import type { SyllabusTopic } from './preparationState.types'
@@ -1005,6 +1008,7 @@ export async function createPod(displayName: string = 'Anonymous'): Promise<{ po
     id: row.pod_id,
     ownerId,
     inviteCode: row.invite_code,
+    weeklyGoalMinutes: 600, // default
     createdAt: new Date()
   }
 
@@ -1059,6 +1063,107 @@ export async function updatePodDisplayName(podId: string, displayName: string): 
   
   if (error) {
     logError('updatePodDisplayName', error)
+    return false
+  }
+  
+  return Boolean(data)
+}
+
+// Enhanced pod status with gamification data
+export async function getPodStatusEnhanced(podId: string, date: string): Promise<PodStatusEnhanced[]> {
+  if (!supabase) return []
+
+  const { data, error } = await supabase.rpc('get_pod_status_enhanced', { p_pod_id: podId, p_date: date })
+  if (error || !data) {
+    logError('getPodStatusEnhanced', error || 'No data')
+    return []
+  }
+
+  return (data as any[]).map((row) => ({
+    userId: row.user_id,
+    displayName: row.display_name || 'Anonymous',
+    checkedIn: Boolean(row.checked_in),
+    verdictStatus: (row.verdict_status as any) ?? null,
+    currentStreak: row.current_streak || 0,
+    bestStreak: row.best_streak || 0,
+    totalKudos: row.total_kudos || 0,
+    checkInTime: row.check_in_time ? new Date(row.check_in_time) : null,
+    isFirstToday: Boolean(row.is_first_today),
+    weekMinutes: row.week_minutes || 0,
+    kudosFromMe: Boolean(row.kudos_from_me)
+  }))
+}
+
+// Get pod weekly summary with stats
+export async function getPodWeeklySummary(podId: string): Promise<PodWeeklySummary | null> {
+  if (!supabase) return null
+
+  const { data, error } = await supabase.rpc('get_pod_weekly_summary', { p_pod_id: podId })
+  if (error || !data) {
+    logError('getPodWeeklySummary', error || 'No data')
+    return null
+  }
+
+  const row = Array.isArray(data) ? data[0] : data
+  if (!row) return null
+
+  return {
+    totalMinutes: row.total_minutes || 0,
+    weeklyGoal: row.weekly_goal || 600,
+    goalProgressPct: row.goal_progress_pct || 0,
+    podStreak: row.pod_streak || 0,
+    topPerformerName: row.top_performer_name || null,
+    topPerformerMinutes: row.top_performer_minutes || 0,
+    avgDailyCheckIns: parseFloat(row.avg_daily_check_ins) || 0
+  }
+}
+
+// Send kudos to a pod member
+export async function sendPodKudos(podId: string, toUserId: string, emoji: string = '👏'): Promise<boolean> {
+  if (!supabase) return false
+
+  const { data, error } = await supabase.rpc('send_pod_kudos', { 
+    p_pod_id: podId, 
+    p_to_user_id: toUserId, 
+    p_emoji: emoji 
+  })
+  
+  if (error) {
+    logError('sendPodKudos', error)
+    return false
+  }
+  
+  return Boolean(data)
+}
+
+// Get today's kudos for the pod
+export async function getPodKudosToday(podId: string): Promise<PodKudos[]> {
+  if (!supabase) return []
+
+  const { data, error } = await supabase.rpc('get_pod_kudos_today', { p_pod_id: podId })
+  if (error || !data) {
+    logError('getPodKudosToday', error || 'No data')
+    return []
+  }
+
+  return (data as any[]).map((row) => ({
+    toUserId: row.to_user_id,
+    fromDisplayName: row.from_display_name || 'Anonymous',
+    emoji: row.emoji || '👏'
+  }))
+}
+
+// Update pod weekly goal (owner only)
+export async function updatePodWeeklyGoal(podId: string, goalMinutes: number): Promise<boolean> {
+  if (!supabase) return false
+
+  const { data, error } = await supabase.rpc('update_pod_weekly_goal', { 
+    p_pod_id: podId, 
+    p_goal_minutes: goalMinutes 
+  })
+  
+  if (error) {
+    logError('updatePodWeeklyGoal', error)
     return false
   }
   

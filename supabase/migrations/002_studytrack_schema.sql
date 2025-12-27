@@ -123,6 +123,7 @@ CREATE TABLE IF NOT EXISTS public.pods (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   invite_code TEXT NOT NULL UNIQUE,
+  weekly_goal_minutes INTEGER DEFAULT 600, -- Pod's weekly collective goal (default 10 hours)
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -130,9 +131,40 @@ CREATE TABLE IF NOT EXISTS public.pod_members (
   pod_id UUID NOT NULL REFERENCES public.pods(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   display_name TEXT NOT NULL DEFAULT 'Anonymous',
+  current_streak INTEGER NOT NULL DEFAULT 0,
+  best_streak INTEGER NOT NULL DEFAULT 0,
+  total_kudos_received INTEGER NOT NULL DEFAULT 0,
   joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (pod_id, user_id)
 );
+
+-- Pod kudos/encouragements (one per sender per recipient per day)
+CREATE TABLE IF NOT EXISTS public.pod_kudos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  pod_id UUID NOT NULL REFERENCES public.pods(id) ON DELETE CASCADE,
+  from_user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  to_user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  emoji TEXT NOT NULL DEFAULT '👏', -- 👏 🔥 💪 ⭐ 🎯
+  date DATE NOT NULL DEFAULT CURRENT_DATE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(pod_id, from_user_id, to_user_id, date)
+);
+
+-- Pod daily snapshots (for tracking collective progress)
+CREATE TABLE IF NOT EXISTS public.pod_daily_stats (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  pod_id UUID NOT NULL REFERENCES public.pods(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  total_study_minutes INTEGER NOT NULL DEFAULT 0,
+  members_checked_in INTEGER NOT NULL DEFAULT 0,
+  all_members_checked_in BOOLEAN NOT NULL DEFAULT false,
+  first_to_check_in UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(pod_id, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pod_kudos_recipient ON public.pod_kudos(to_user_id, date DESC);
+CREATE INDEX IF NOT EXISTS idx_pod_daily_stats_pod_date ON public.pod_daily_stats(pod_id, date DESC);
 
 -- Cohort statistics (anonymous aggregates)
 CREATE TABLE IF NOT EXISTS public.cohort_stats (
@@ -331,6 +363,34 @@ CREATE POLICY "Anyone can view cohort stats"
   TO authenticated
   USING (true);
 
+-- Pod kudos policies
+ALTER TABLE public.pod_kudos ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Pod members can view kudos" ON public.pod_kudos;
+DROP POLICY IF EXISTS "Pod members can send kudos" ON public.pod_kudos;
+
+CREATE POLICY "Pod members can view kudos"
+  ON public.pod_kudos FOR SELECT
+  USING (public._is_pod_member(pod_id, auth.uid()));
+
+CREATE POLICY "Pod members can send kudos"
+  ON public.pod_kudos FOR INSERT
+  WITH CHECK (
+    public._is_pod_member(pod_id, auth.uid()) 
+    AND from_user_id = auth.uid()
+    AND from_user_id != to_user_id
+  );
+
+-- Pod daily stats policies
+ALTER TABLE public.pod_daily_stats ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Pod members can view daily stats" ON public.pod_daily_stats;
+DROP POLICY IF EXISTS "System can update daily stats" ON public.pod_daily_stats;
+
+CREATE POLICY "Pod members can view daily stats"
+  ON public.pod_daily_stats FOR SELECT
+  USING (public._is_pod_member(pod_id, auth.uid()));
+
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -382,6 +442,20 @@ ALTER TABLE public.weekly_reality
 -- Add display_name to pod_members for existing tables
 ALTER TABLE public.pod_members
   ADD COLUMN IF NOT EXISTS display_name TEXT NOT NULL DEFAULT 'Anonymous';
+
+-- Add streak tracking columns to pod_members
+ALTER TABLE public.pod_members
+  ADD COLUMN IF NOT EXISTS current_streak INTEGER NOT NULL DEFAULT 0;
+
+ALTER TABLE public.pod_members
+  ADD COLUMN IF NOT EXISTS best_streak INTEGER NOT NULL DEFAULT 0;
+
+ALTER TABLE public.pod_members
+  ADD COLUMN IF NOT EXISTS total_kudos_received INTEGER NOT NULL DEFAULT 0;
+
+-- Add weekly goal to pods
+ALTER TABLE public.pods
+  ADD COLUMN IF NOT EXISTS weekly_goal_minutes INTEGER DEFAULT 600;
 
 -- Pods helpers (secure minimal data access)
 CREATE OR REPLACE FUNCTION public._generate_invite_code()
@@ -558,3 +632,359 @@ GRANT EXECUTE ON FUNCTION public.create_pod(TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.join_pod(TEXT, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_pod_status(UUID, DATE) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.update_pod_display_name(UUID, TEXT) TO authenticated;
+
+-- Function to send kudos to a pod member
+CREATE OR REPLACE FUNCTION public.send_pod_kudos(
+  p_pod_id UUID, 
+  p_to_user_id UUID, 
+  p_emoji TEXT DEFAULT '👏'
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  valid_emojis TEXT[] := ARRAY['👏', '🔥', '💪', '⭐', '🎯', '🚀', '💯', '🏆'];
+  safe_emoji TEXT;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  -- Can't send kudos to yourself
+  IF auth.uid() = p_to_user_id THEN
+    RAISE EXCEPTION 'Cannot send kudos to yourself';
+  END IF;
+
+  -- Check both users are in the pod
+  IF NOT public._is_pod_member(p_pod_id, auth.uid()) THEN
+    RAISE EXCEPTION 'You are not in this pod';
+  END IF;
+
+  IF NOT public._is_pod_member(p_pod_id, p_to_user_id) THEN
+    RAISE EXCEPTION 'Target user is not in this pod';
+  END IF;
+
+  -- Validate emoji
+  IF p_emoji = ANY(valid_emojis) THEN
+    safe_emoji := p_emoji;
+  ELSE
+    safe_emoji := '👏';
+  END IF;
+
+  -- Insert kudos (or update if already sent today)
+  INSERT INTO public.pod_kudos (pod_id, from_user_id, to_user_id, emoji, date)
+  VALUES (p_pod_id, auth.uid(), p_to_user_id, safe_emoji, CURRENT_DATE)
+  ON CONFLICT (pod_id, from_user_id, to_user_id, date) 
+  DO UPDATE SET emoji = safe_emoji;
+
+  -- Update kudos count for recipient
+  UPDATE public.pod_members
+  SET total_kudos_received = (
+    SELECT count(*) FROM public.pod_kudos k 
+    WHERE k.to_user_id = p_to_user_id AND k.pod_id = p_pod_id
+  )
+  WHERE pod_id = p_pod_id AND user_id = p_to_user_id;
+
+  RETURN true;
+END;
+$$;
+
+-- Function to update member streaks (call this when user checks in)
+CREATE OR REPLACE FUNCTION public.update_pod_streak(p_user_id UUID, p_date DATE)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  yesterday_checked BOOLEAN;
+  member_record RECORD;
+BEGIN
+  -- Check if user checked in yesterday
+  SELECT EXISTS(
+    SELECT 1 FROM public.daily_check_ins 
+    WHERE user_id = p_user_id AND date = p_date - INTERVAL '1 day'
+  ) INTO yesterday_checked;
+
+  -- Update all pod memberships for this user
+  FOR member_record IN 
+    SELECT pod_id FROM public.pod_members WHERE user_id = p_user_id
+  LOOP
+    IF yesterday_checked THEN
+      -- Increment streak
+      UPDATE public.pod_members
+      SET 
+        current_streak = current_streak + 1,
+        best_streak = GREATEST(best_streak, current_streak + 1)
+      WHERE pod_id = member_record.pod_id AND user_id = p_user_id;
+    ELSE
+      -- Reset streak to 1
+      UPDATE public.pod_members
+      SET 
+        current_streak = 1,
+        best_streak = GREATEST(best_streak, 1)
+      WHERE pod_id = member_record.pod_id AND user_id = p_user_id;
+    END IF;
+  END LOOP;
+END;
+$$;
+
+-- Enhanced pod status with more data
+DROP FUNCTION IF EXISTS public.get_pod_status_enhanced(UUID, DATE);
+
+CREATE OR REPLACE FUNCTION public.get_pod_status_enhanced(p_pod_id UUID, p_date DATE)
+RETURNS TABLE(
+  user_id UUID, 
+  display_name TEXT, 
+  checked_in BOOLEAN, 
+  verdict_status TEXT,
+  current_streak INTEGER,
+  best_streak INTEGER,
+  total_kudos INTEGER,
+  check_in_time TIMESTAMPTZ,
+  is_first_today BOOLEAN,
+  week_minutes INTEGER,
+  kudos_from_me BOOLEAN
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  first_check_in_user UUID;
+  week_start DATE;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  IF NOT public._is_pod_member(p_pod_id, auth.uid()) THEN
+    RAISE EXCEPTION 'Not a pod member';
+  END IF;
+
+  week_start := date_trunc('week', p_date)::DATE;
+
+  -- Find who checked in first today
+  SELECT d.user_id INTO first_check_in_user
+  FROM public.daily_check_ins d
+  INNER JOIN public.pod_members pm ON pm.user_id = d.user_id AND pm.pod_id = p_pod_id
+  WHERE d.date = p_date
+  ORDER BY d.created_at ASC
+  LIMIT 1;
+
+  RETURN QUERY
+  SELECT
+    pm.user_id,
+    pm.display_name,
+    EXISTS(
+      SELECT 1 FROM public.daily_check_ins d
+      WHERE d.user_id = pm.user_id AND d.date = p_date
+    ) AS checked_in,
+    (
+      SELECT v.status FROM public.verdicts v
+      WHERE v.user_id = pm.user_id AND v.date = p_date
+      LIMIT 1
+    ) AS verdict_status,
+    pm.current_streak,
+    pm.best_streak,
+    pm.total_kudos_received AS total_kudos,
+    (
+      SELECT d.created_at FROM public.daily_check_ins d
+      WHERE d.user_id = pm.user_id AND d.date = p_date
+      LIMIT 1
+    ) AS check_in_time,
+    (pm.user_id = first_check_in_user) AS is_first_today,
+    COALESCE((
+      SELECT SUM(d.study_minutes)::INTEGER 
+      FROM public.daily_check_ins d
+      WHERE d.user_id = pm.user_id 
+      AND d.date >= week_start 
+      AND d.date <= p_date
+    ), 0) AS week_minutes,
+    EXISTS(
+      SELECT 1 FROM public.pod_kudos k
+      WHERE k.from_user_id = auth.uid() 
+      AND k.to_user_id = pm.user_id 
+      AND k.pod_id = p_pod_id
+      AND k.date = p_date
+    ) AS kudos_from_me
+  FROM public.pod_members pm
+  WHERE pm.pod_id = p_pod_id;
+END;
+$$;
+
+-- Get pod weekly summary
+CREATE OR REPLACE FUNCTION public.get_pod_weekly_summary(p_pod_id UUID)
+RETURNS TABLE(
+  total_minutes INTEGER,
+  weekly_goal INTEGER,
+  goal_progress_pct INTEGER,
+  pod_streak INTEGER,
+  top_performer_name TEXT,
+  top_performer_minutes INTEGER,
+  avg_daily_check_ins NUMERIC
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  week_start DATE;
+  week_end DATE;
+  consecutive_days INTEGER := 0;
+  check_date DATE;
+  all_checked BOOLEAN;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  IF NOT public._is_pod_member(p_pod_id, auth.uid()) THEN
+    RAISE EXCEPTION 'Not a pod member';
+  END IF;
+
+  week_start := date_trunc('week', CURRENT_DATE)::DATE;
+  week_end := week_start + INTERVAL '6 days';
+
+  -- Calculate pod streak (consecutive days ALL members checked in)
+  check_date := CURRENT_DATE - INTERVAL '1 day';
+  LOOP
+    SELECT NOT EXISTS (
+      SELECT pm.user_id FROM public.pod_members pm
+      WHERE pm.pod_id = p_pod_id
+      AND NOT EXISTS (
+        SELECT 1 FROM public.daily_check_ins d 
+        WHERE d.user_id = pm.user_id AND d.date = check_date
+      )
+    ) INTO all_checked;
+
+    IF all_checked THEN
+      consecutive_days := consecutive_days + 1;
+      check_date := check_date - INTERVAL '1 day';
+    ELSE
+      EXIT;
+    END IF;
+
+    -- Safety limit
+    IF consecutive_days > 365 THEN EXIT; END IF;
+  END LOOP;
+
+  RETURN QUERY
+  SELECT
+    COALESCE((
+      SELECT SUM(d.study_minutes)::INTEGER
+      FROM public.daily_check_ins d
+      INNER JOIN public.pod_members pm ON pm.user_id = d.user_id AND pm.pod_id = p_pod_id
+      WHERE d.date >= week_start AND d.date <= week_end
+    ), 0) AS total_minutes,
+    COALESCE((SELECT p.weekly_goal_minutes FROM public.pods p WHERE p.id = p_pod_id), 600) AS weekly_goal,
+    LEAST(100, COALESCE((
+      SELECT (SUM(d.study_minutes)::INTEGER * 100) / NULLIF((SELECT p.weekly_goal_minutes FROM public.pods p WHERE p.id = p_pod_id), 0)
+      FROM public.daily_check_ins d
+      INNER JOIN public.pod_members pm ON pm.user_id = d.user_id AND pm.pod_id = p_pod_id
+      WHERE d.date >= week_start AND d.date <= week_end
+    ), 0)) AS goal_progress_pct,
+    consecutive_days AS pod_streak,
+    (
+      SELECT pm.display_name 
+      FROM public.pod_members pm
+      LEFT JOIN (
+        SELECT d.user_id, SUM(d.study_minutes) AS mins
+        FROM public.daily_check_ins d
+        WHERE d.date >= week_start AND d.date <= week_end
+        GROUP BY d.user_id
+      ) stats ON stats.user_id = pm.user_id
+      WHERE pm.pod_id = p_pod_id
+      ORDER BY COALESCE(stats.mins, 0) DESC
+      LIMIT 1
+    ) AS top_performer_name,
+    COALESCE((
+      SELECT MAX(mins)::INTEGER FROM (
+        SELECT SUM(d.study_minutes) AS mins
+        FROM public.daily_check_ins d
+        INNER JOIN public.pod_members pm ON pm.user_id = d.user_id AND pm.pod_id = p_pod_id
+        WHERE d.date >= week_start AND d.date <= week_end
+        GROUP BY d.user_id
+      ) sub
+    ), 0) AS top_performer_minutes,
+    COALESCE((
+      SELECT AVG(cnt)::NUMERIC(3,1) FROM (
+        SELECT COUNT(*) AS cnt
+        FROM public.daily_check_ins d
+        INNER JOIN public.pod_members pm ON pm.user_id = d.user_id AND pm.pod_id = p_pod_id
+        WHERE d.date >= week_start AND d.date <= week_end
+        GROUP BY d.date
+      ) sub
+    ), 0) AS avg_daily_check_ins;
+END;
+$$;
+
+-- Get today's kudos for a user in a pod
+CREATE OR REPLACE FUNCTION public.get_pod_kudos_today(p_pod_id UUID)
+RETURNS TABLE(
+  to_user_id UUID,
+  from_display_name TEXT,
+  emoji TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  IF NOT public._is_pod_member(p_pod_id, auth.uid()) THEN
+    RAISE EXCEPTION 'Not a pod member';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    k.to_user_id,
+    pm.display_name AS from_display_name,
+    k.emoji
+  FROM public.pod_kudos k
+  INNER JOIN public.pod_members pm ON pm.user_id = k.from_user_id AND pm.pod_id = k.pod_id
+  WHERE k.pod_id = p_pod_id AND k.date = CURRENT_DATE;
+END;
+$$;
+
+-- Update pod weekly goal (owner only)
+CREATE OR REPLACE FUNCTION public.update_pod_weekly_goal(p_pod_id UUID, p_goal_minutes INTEGER)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  -- Check if user is the pod owner
+  IF NOT EXISTS (SELECT 1 FROM public.pods WHERE id = p_pod_id AND owner_id = auth.uid()) THEN
+    RAISE EXCEPTION 'Only pod owner can update weekly goal';
+  END IF;
+
+  -- Validate goal (between 1 hour and 50 hours)
+  IF p_goal_minutes < 60 OR p_goal_minutes > 3000 THEN
+    RAISE EXCEPTION 'Weekly goal must be between 60 and 3000 minutes';
+  END IF;
+
+  UPDATE public.pods
+  SET weekly_goal_minutes = p_goal_minutes
+  WHERE id = p_pod_id;
+
+  RETURN FOUND;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.send_pod_kudos(UUID, UUID, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.update_pod_streak(UUID, DATE) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_pod_status_enhanced(UUID, DATE) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_pod_weekly_summary(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_pod_kudos_today(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.update_pod_weekly_goal(UUID, INTEGER) TO authenticated;

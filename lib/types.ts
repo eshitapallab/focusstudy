@@ -126,6 +126,7 @@ export interface Pod {
   id: string
   ownerId: string
   inviteCode: string
+  weeklyGoalMinutes: number
   createdAt: Date
 }
 
@@ -134,6 +135,39 @@ export interface PodStatusRow {
   displayName: string
   checkedIn: boolean
   verdictStatus: VerdictStatus | null
+}
+
+// Enhanced pod status with gamification data
+export interface PodStatusEnhanced {
+  userId: string
+  displayName: string
+  checkedIn: boolean
+  verdictStatus: VerdictStatus | null
+  currentStreak: number
+  bestStreak: number
+  totalKudos: number
+  checkInTime: Date | null
+  isFirstToday: boolean
+  weekMinutes: number
+  kudosFromMe: boolean
+}
+
+// Pod weekly summary
+export interface PodWeeklySummary {
+  totalMinutes: number
+  weeklyGoal: number
+  goalProgressPct: number
+  podStreak: number
+  topPerformerName: string | null
+  topPerformerMinutes: number
+  avgDailyCheckIns: number
+}
+
+// Pod kudos entry
+export interface PodKudos {
+  toUserId: string
+  fromDisplayName: string
+  emoji: string
 }
 
 // Anonymous cohort statistics
