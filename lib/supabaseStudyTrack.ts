@@ -25,7 +25,11 @@ import type {
   PodStatusRow,
   PodStatusEnhanced,
   PodWeeklySummary,
-  PodKudos
+  PodKudos,
+  PodStudySession,
+  PodMessage,
+  PodAchievement,
+  PodDailyChallenge
 } from './types'
 
 import type { SyllabusTopic } from './preparationState.types'
@@ -1168,6 +1172,167 @@ export async function updatePodWeeklyGoal(podId: string, goalMinutes: number): P
   }
   
   return Boolean(data)
+}
+
+// Start a study session (visible to pod members)
+export async function startPodStudySession(podId: string, subject?: string, targetMinutes?: number): Promise<boolean> {
+  if (!supabase) return false
+
+  const { data, error } = await supabase.rpc('start_pod_study_session', { 
+    p_pod_id: podId,
+    p_subject: subject || null,
+    p_target_minutes: targetMinutes || null
+  })
+  
+  if (error) {
+    logError('startPodStudySession', error)
+    return false
+  }
+  
+  return Boolean(data)
+}
+
+// End a study session
+export async function endPodStudySession(podId: string): Promise<boolean> {
+  if (!supabase) return false
+
+  const { data, error } = await supabase.rpc('end_pod_study_session', { p_pod_id: podId })
+  
+  if (error) {
+    logError('endPodStudySession', error)
+    return false
+  }
+  
+  return Boolean(data)
+}
+
+// Get who's currently studying in the pod
+export async function getPodStudyingNow(podId: string): Promise<PodStudySession[]> {
+  if (!supabase) return []
+
+  const { data, error } = await supabase.rpc('get_pod_studying_now', { p_pod_id: podId })
+  if (error || !data) {
+    logError('getPodStudyingNow', error || 'No data')
+    return []
+  }
+
+  return (data as any[]).map((row) => ({
+    userId: row.user_id,
+    displayName: row.display_name || 'Anonymous',
+    subject: row.subject,
+    startedAt: new Date(row.started_at),
+    minutesElapsed: row.minutes_elapsed || 0,
+    targetMinutes: row.target_minutes
+  }))
+}
+
+// Send a motivational message
+export async function sendPodMessage(
+  podId: string, 
+  toUserId: string | null, 
+  messageType: string, 
+  messageKey: string
+): Promise<boolean> {
+  if (!supabase) return false
+
+  const { data, error } = await supabase.rpc('send_pod_message', { 
+    p_pod_id: podId,
+    p_to_user_id: toUserId,
+    p_message_type: messageType,
+    p_message_key: messageKey
+  })
+  
+  if (error) {
+    logError('sendPodMessage', error)
+    return false
+  }
+  
+  return Boolean(data)
+}
+
+// Get recent messages for the pod
+export async function getPodMessagesRecent(podId: string): Promise<PodMessage[]> {
+  if (!supabase) return []
+
+  const { data, error } = await supabase.rpc('get_pod_messages_recent', { p_pod_id: podId })
+  if (error || !data) {
+    logError('getPodMessagesRecent', error || 'No data')
+    return []
+  }
+
+  return (data as any[]).map((row) => ({
+    fromUserId: row.from_user_id,
+    fromDisplayName: row.from_display_name || 'Anonymous',
+    toUserId: row.to_user_id,
+    toDisplayName: row.to_display_name,
+    messageType: row.message_type,
+    messageKey: row.message_key,
+    createdAt: new Date(row.created_at)
+  }))
+}
+
+// Get pod achievements
+export async function getPodAchievements(podId: string): Promise<PodAchievement[]> {
+  if (!supabase) return []
+
+  const { data, error } = await supabase.rpc('get_pod_achievements', { p_pod_id: podId })
+  if (error || !data) {
+    logError('getPodAchievements', error || 'No data')
+    return []
+  }
+
+  return (data as any[]).map((row) => ({
+    userId: row.user_id,
+    displayName: row.display_name || 'Anonymous',
+    achievementType: row.achievement_type,
+    achievementData: row.achievement_data || {},
+    unlockedAt: new Date(row.unlocked_at)
+  }))
+}
+
+// Unlock an achievement
+export async function unlockPodAchievement(
+  podId: string, 
+  achievementType: string, 
+  achievementData: Record<string, any> = {}
+): Promise<boolean> {
+  if (!supabase) return false
+
+  const { data, error } = await supabase.rpc('unlock_pod_achievement', { 
+    p_pod_id: podId,
+    p_achievement_type: achievementType,
+    p_achievement_data: achievementData
+  })
+  
+  if (error) {
+    logError('unlockPodAchievement', error)
+    return false
+  }
+  
+  return Boolean(data)
+}
+
+// Get daily challenge for the pod
+export async function getPodDailyChallenge(podId: string): Promise<PodDailyChallenge | null> {
+  if (!supabase) return null
+
+  const { data, error } = await supabase.rpc('get_pod_daily_challenge', { p_pod_id: podId })
+  if (error || !data) {
+    logError('getPodDailyChallenge', error || 'No data')
+    return null
+  }
+
+  const row = Array.isArray(data) ? data[0] : data
+  if (!row) return null
+
+  return {
+    challengeType: row.challenge_type,
+    challengeTitle: row.challenge_title,
+    challengeDescription: row.challenge_description,
+    challengeTarget: row.challenge_target || 0,
+    currentProgress: row.current_progress || 0,
+    isCompleted: Boolean(row.is_completed)
+  }
 }
 
 // Cohort stats operations

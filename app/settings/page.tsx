@@ -6,8 +6,8 @@ import AppNav from '@/components/Navigation/AppNav'
 import StudyTrackSettings from '@/components/StudyTrack/StudyTrackSettings'
 import { db, getOrCreateDeviceId } from '@/lib/dexieClient'
 import { supabase } from '@/lib/supabaseClient'
-import { createPod, joinPod, getPodStatus, updatePodDisplayName, getPodStatusEnhanced, getPodWeeklySummary, sendPodKudos, getPodKudosToday } from '@/lib/supabaseStudyTrack'
-import type { PodStatusEnhanced, PodWeeklySummary, PodKudos } from '@/lib/types'
+import { createPod, joinPod, getPodStatus, updatePodDisplayName, getPodStatusEnhanced, getPodWeeklySummary, sendPodKudos, getPodKudosToday, getPodStudyingNow, getPodDailyChallenge, getPodMessagesRecent, sendPodMessage } from '@/lib/supabaseStudyTrack'
+import type { PodStatusEnhanced, PodWeeklySummary, PodKudos, PodStudySession, PodDailyChallenge, PodMessage } from '@/lib/types'
 import { getHapticsEnabled, setHapticsEnabled, isHapticsSupported, triggerHaptic } from '@/lib/haptics'
 import { 
   getSmartNotificationsEnabled, 
@@ -40,6 +40,10 @@ export default function SettingsPage() {
   const [podKudosToday, setPodKudosToday] = useState<PodKudos[]>([])
   const [kudosEmoji, setKudosEmoji] = useState('👏')
   const [sendingKudos, setSendingKudos] = useState<string | null>(null)
+  const [studyingNow, setStudyingNow] = useState<PodStudySession[]>([])
+  const [dailyChallenge, setDailyChallenge] = useState<PodDailyChallenge | null>(null)
+  const [recentMessages, setRecentMessages] = useState<PodMessage[]>([])
+  const [showMessagePanel, setShowMessagePanel] = useState(false)
 
   useEffect(() => {
     loadSettings()
@@ -152,6 +156,30 @@ export default function SettingsPage() {
     } catch {
       setPodKudosToday([])
     }
+
+    // Try to load who's studying now
+    try {
+      const studying = await getPodStudyingNow(id)
+      setStudyingNow(studying)
+    } catch {
+      setStudyingNow([])
+    }
+
+    // Try to load daily challenge
+    try {
+      const challenge = await getPodDailyChallenge(id)
+      setDailyChallenge(challenge)
+    } catch {
+      setDailyChallenge(null)
+    }
+
+    // Try to load recent messages
+    try {
+      const messages = await getPodMessagesRecent(id)
+      setRecentMessages(messages)
+    } catch {
+      setRecentMessages([])
+    }
   }
 
   const handleSendKudos = async (toUserId: string) => {
@@ -169,6 +197,35 @@ export default function SettingsPage() {
       setPodError('Kudos feature not available yet')
     } finally {
       setSendingKudos(null)
+    }
+  }
+
+  const QUICK_MESSAGES = {
+    motivation: [
+      { key: 'you_got_this', emoji: '💪', text: 'You got this!' },
+      { key: 'keep_going', emoji: '🚀', text: 'Keep going!' },
+      { key: 'proud_of_you', emoji: '🌟', text: 'Proud of you!' },
+      { key: 'almost_there', emoji: '🏁', text: 'Almost there!' },
+    ],
+    nudge: [
+      { key: 'miss_you', emoji: '👋', text: 'We miss you!' },
+      { key: 'join_us', emoji: '📚', text: 'Join us!' },
+      { key: 'check_in', emoji: '✅', text: 'Check in?' },
+    ],
+    celebration: [
+      { key: 'amazing', emoji: '🎉', text: 'Amazing!' },
+      { key: 'crushed_it', emoji: '💥', text: 'Crushed it!' },
+      { key: 'on_fire', emoji: '🔥', text: 'On fire!' },
+    ]
+  }
+
+  const handleSendMessage = async (toUserId: string | null, messageType: string, messageKey: string) => {
+    if (!podId) return
+    try {
+      await sendPodMessage(podId, toUserId, messageType, messageKey)
+      await refreshPodStatus()
+    } catch {
+      // Silently fail if not available
     }
   }
 
@@ -424,9 +481,75 @@ export default function SettingsPage() {
           )}
 
           {podLoading ? (
-            <div className="text-sm text-gray-700 dark:text-gray-300">Loading pod…</div>
+            <div className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2">
+              <div className="animate-spin h-4 w-4 border-2 border-primary-500 border-t-transparent rounded-full"></div>
+              Loading pod…
+            </div>
           ) : podId ? (
             <div className="space-y-4">
+              {/* Daily Challenge Card */}
+              {dailyChallenge && (
+                <div className={`rounded-xl p-4 border-2 transition-all ${
+                  dailyChallenge.isCompleted 
+                    ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700' 
+                    : 'bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 border-orange-200 dark:border-orange-800'
+                }`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-sm font-bold text-gray-800 dark:text-gray-200">
+                      {dailyChallenge.challengeTitle}
+                    </div>
+                    {dailyChallenge.isCompleted && (
+                      <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full animate-pulse">
+                        ✓ COMPLETED!
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                    {dailyChallenge.challengeDescription}
+                  </div>
+                  <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-700 ${
+                        dailyChallenge.isCompleted 
+                          ? 'bg-green-500' 
+                          : 'bg-gradient-to-r from-orange-400 to-yellow-400'
+                      }`}
+                      style={{ width: `${Math.min(100, (dailyChallenge.currentProgress / dailyChallenge.challengeTarget) * 100)}%` }}
+                    />
+                  </div>
+                  <div className="text-xs text-right mt-1 text-gray-500 dark:text-gray-400">
+                    {dailyChallenge.currentProgress} / {dailyChallenge.challengeTarget}
+                  </div>
+                </div>
+              )}
+
+              {/* Who's Studying Now */}
+              {studyingNow.length > 0 && (
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-3 border border-green-200 dark:border-green-800">
+                  <div className="text-xs font-semibold text-green-700 dark:text-green-400 mb-2 flex items-center gap-2">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    STUDYING NOW
+                  </div>
+                  <div className="space-y-1">
+                    {studyingNow.map(session => (
+                      <div key={session.userId} className="flex items-center justify-between text-sm">
+                        <span className="font-medium text-gray-800 dark:text-gray-200">
+                          📖 {session.displayName}
+                        </span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {session.subject && <span className="mr-2">{session.subject}</span>}
+                          {session.minutesElapsed}m
+                          {session.targetMinutes && ` / ${session.targetMinutes}m`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Weekly Summary Card */}
               {podWeeklySummary && (
                 <div className="bg-gradient-to-br from-primary-50 to-accent-50 dark:from-primary-900/30 dark:to-accent-900/30 rounded-xl p-4 border border-primary-200 dark:border-primary-800">
@@ -637,6 +760,93 @@ export default function SettingsPage() {
                 </div>
               )}
 
+              {/* Quick Motivational Messages */}
+              <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-3 border border-purple-200 dark:border-purple-800">
+                <button
+                  onClick={() => setShowMessagePanel(!showMessagePanel)}
+                  className="w-full flex items-center justify-between text-sm font-semibold text-purple-700 dark:text-purple-400"
+                >
+                  <span>💬 Quick Messages</span>
+                  <span className="text-lg">{showMessagePanel ? '−' : '+'}</span>
+                </button>
+                
+                {showMessagePanel && (
+                  <div className="mt-3 space-y-3">
+                    <div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Motivate someone:</div>
+                      <div className="flex flex-wrap gap-1">
+                        {QUICK_MESSAGES.motivation.map(msg => (
+                          <button
+                            key={msg.key}
+                            onClick={() => {
+                              const notMe = podStatus.find(m => m.userId !== podUserId)
+                              if (notMe) handleSendMessage(notMe.userId, 'motivation', msg.key)
+                            }}
+                            className="text-xs px-2 py-1 bg-white dark:bg-gray-800 rounded-full hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors"
+                          >
+                            {msg.emoji} {msg.text}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Celebrate:</div>
+                      <div className="flex flex-wrap gap-1">
+                        {QUICK_MESSAGES.celebration.map(msg => (
+                          <button
+                            key={msg.key}
+                            onClick={() => handleSendMessage(null, 'celebration', msg.key)}
+                            className="text-xs px-2 py-1 bg-white dark:bg-gray-800 rounded-full hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors"
+                          >
+                            {msg.emoji} {msg.text}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Nudge inactive member:</div>
+                      <div className="flex flex-wrap gap-1">
+                        {QUICK_MESSAGES.nudge.map(msg => (
+                          <button
+                            key={msg.key}
+                            onClick={() => {
+                              const notCheckedIn = podStatus.find(m => !m.checkedIn && m.userId !== podUserId)
+                              if (notCheckedIn) handleSendMessage(notCheckedIn.userId, 'nudge', msg.key)
+                            }}
+                            className="text-xs px-2 py-1 bg-white dark:bg-gray-800 rounded-full hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors"
+                          >
+                            {msg.emoji} {msg.text}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Recent Activity Feed */}
+              {recentMessages.length > 0 && (
+                <div className="bg-gray-50 dark:bg-gray-700/30 rounded-lg p-3">
+                  <div className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">📢 Recent Activity</div>
+                  <div className="space-y-1 max-h-24 overflow-y-auto">
+                    {recentMessages.slice(0, 5).map((msg, idx) => {
+                      const msgData = Object.values(QUICK_MESSAGES).flat().find(m => m.key === msg.messageKey)
+                      return (
+                        <div key={idx} className="text-xs text-gray-600 dark:text-gray-400">
+                          <span className="font-medium">{msg.fromDisplayName}</span>
+                          {msg.toDisplayName ? (
+                            <> → <span className="font-medium">{msg.toDisplayName}</span>: </>
+                          ) : (
+                            <>: </>
+                          )}
+                          {msgData ? `${msgData.emoji} ${msgData.text}` : msg.messageKey}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
               <button
                 onClick={() => {
                   setPodId(null)
@@ -645,6 +855,9 @@ export default function SettingsPage() {
                   setPodDisplayName('')
                   setPodWeeklySummary(null)
                   setPodKudosToday([])
+                  setStudyingNow([])
+                  setDailyChallenge(null)
+                  setRecentMessages([])
                   localStorage.removeItem('ff_active_pod_id')
                 }}
                 className="w-full py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200 font-semibold hover:bg-gray-50 dark:hover:bg-gray-700"

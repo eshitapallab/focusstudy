@@ -170,6 +170,46 @@ export interface PodKudos {
   emoji: string
 }
 
+// Pod study session (who's studying now)
+export interface PodStudySession {
+  userId: string
+  displayName: string
+  subject: string | null
+  startedAt: Date
+  minutesElapsed: number
+  targetMinutes: number | null
+}
+
+// Pod message
+export interface PodMessage {
+  fromUserId: string
+  fromDisplayName: string
+  toUserId: string | null
+  toDisplayName: string | null
+  messageType: 'motivation' | 'challenge' | 'celebration' | 'nudge'
+  messageKey: string
+  createdAt: Date
+}
+
+// Pod achievement
+export interface PodAchievement {
+  userId: string
+  displayName: string
+  achievementType: string
+  achievementData: Record<string, any>
+  unlockedAt: Date
+}
+
+// Pod daily challenge
+export interface PodDailyChallenge {
+  challengeType: string
+  challengeTitle: string
+  challengeDescription: string
+  challengeTarget: number
+  currentProgress: number
+  isCompleted: boolean
+}
+
 // Anonymous cohort statistics
 export interface CohortStats {
   exam: string

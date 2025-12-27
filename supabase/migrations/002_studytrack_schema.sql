@@ -163,6 +163,38 @@ CREATE TABLE IF NOT EXISTS public.pod_daily_stats (
   UNIQUE(pod_id, date)
 );
 
+-- Pod achievements/badges
+CREATE TABLE IF NOT EXISTS public.pod_achievements (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  pod_id UUID NOT NULL REFERENCES public.pods(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  achievement_type TEXT NOT NULL,
+  achievement_data JSONB DEFAULT '{}',
+  unlocked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(pod_id, user_id, achievement_type)
+);
+
+-- Pod motivational messages (quick pre-set messages)
+CREATE TABLE IF NOT EXISTS public.pod_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  pod_id UUID NOT NULL REFERENCES public.pods(id) ON DELETE CASCADE,
+  from_user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  to_user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE, -- NULL means to whole pod
+  message_type TEXT NOT NULL, -- 'motivation', 'challenge', 'celebration'
+  message_key TEXT NOT NULL, -- predefined message key
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Currently studying status
+CREATE TABLE IF NOT EXISTS public.pod_study_sessions (
+  pod_id UUID NOT NULL REFERENCES public.pods(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  subject TEXT,
+  target_minutes INTEGER,
+  PRIMARY KEY (pod_id, user_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_pod_kudos_recipient ON public.pod_kudos(to_user_id, date DESC);
 CREATE INDEX IF NOT EXISTS idx_pod_daily_stats_pod_date ON public.pod_daily_stats(pod_id, date DESC);
 
@@ -390,6 +422,35 @@ DROP POLICY IF EXISTS "System can update daily stats" ON public.pod_daily_stats;
 CREATE POLICY "Pod members can view daily stats"
   ON public.pod_daily_stats FOR SELECT
   USING (public._is_pod_member(pod_id, auth.uid()));
+
+-- Pod achievements policies
+ALTER TABLE public.pod_achievements ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Pod members can view achievements" ON public.pod_achievements;
+CREATE POLICY "Pod members can view achievements"
+  ON public.pod_achievements FOR SELECT
+  USING (public._is_pod_member(pod_id, auth.uid()));
+
+-- Pod messages policies
+ALTER TABLE public.pod_messages ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Pod members can view messages" ON public.pod_messages;
+DROP POLICY IF EXISTS "Pod members can send messages" ON public.pod_messages;
+CREATE POLICY "Pod members can view messages"
+  ON public.pod_messages FOR SELECT
+  USING (public._is_pod_member(pod_id, auth.uid()));
+CREATE POLICY "Pod members can send messages"
+  ON public.pod_messages FOR INSERT
+  WITH CHECK (public._is_pod_member(pod_id, auth.uid()) AND from_user_id = auth.uid());
+
+-- Pod study sessions policies
+ALTER TABLE public.pod_study_sessions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Pod members can view study sessions" ON public.pod_study_sessions;
+DROP POLICY IF EXISTS "Users can manage own study session" ON public.pod_study_sessions;
+CREATE POLICY "Pod members can view study sessions"
+  ON public.pod_study_sessions FOR SELECT
+  USING (public._is_pod_member(pod_id, auth.uid()));
+CREATE POLICY "Users can manage own study session"
+  ON public.pod_study_sessions FOR ALL
+  USING (user_id = auth.uid());
 
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -988,3 +1049,354 @@ GRANT EXECUTE ON FUNCTION public.get_pod_status_enhanced(UUID, DATE) TO authenti
 GRANT EXECUTE ON FUNCTION public.get_pod_weekly_summary(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_pod_kudos_today(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.update_pod_weekly_goal(UUID, INTEGER) TO authenticated;
+
+-- Start a study session (visible to pod members)
+CREATE OR REPLACE FUNCTION public.start_pod_study_session(
+  p_pod_id UUID,
+  p_subject TEXT DEFAULT NULL,
+  p_target_minutes INTEGER DEFAULT NULL
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  IF NOT public._is_pod_member(p_pod_id, auth.uid()) THEN
+    RAISE EXCEPTION 'Not a pod member';
+  END IF;
+
+  INSERT INTO public.pod_study_sessions (pod_id, user_id, subject, target_minutes)
+  VALUES (p_pod_id, auth.uid(), p_subject, p_target_minutes)
+  ON CONFLICT (pod_id, user_id) 
+  DO UPDATE SET started_at = NOW(), subject = p_subject, target_minutes = p_target_minutes;
+
+  RETURN true;
+END;
+$$;
+
+-- End a study session
+CREATE OR REPLACE FUNCTION public.end_pod_study_session(p_pod_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  DELETE FROM public.pod_study_sessions
+  WHERE pod_id = p_pod_id AND user_id = auth.uid();
+
+  RETURN true;
+END;
+$$;
+
+-- Get who's currently studying in the pod
+CREATE OR REPLACE FUNCTION public.get_pod_studying_now(p_pod_id UUID)
+RETURNS TABLE(
+  user_id UUID,
+  display_name TEXT,
+  subject TEXT,
+  started_at TIMESTAMPTZ,
+  minutes_elapsed INTEGER,
+  target_minutes INTEGER
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  IF NOT public._is_pod_member(p_pod_id, auth.uid()) THEN
+    RAISE EXCEPTION 'Not a pod member';
+  END IF;
+
+  -- Clean up stale sessions (older than 4 hours)
+  DELETE FROM public.pod_study_sessions
+  WHERE pod_id = p_pod_id AND started_at < NOW() - INTERVAL '4 hours';
+
+  RETURN QUERY
+  SELECT
+    pss.user_id,
+    pm.display_name,
+    pss.subject,
+    pss.started_at,
+    EXTRACT(EPOCH FROM (NOW() - pss.started_at))::INTEGER / 60 AS minutes_elapsed,
+    pss.target_minutes
+  FROM public.pod_study_sessions pss
+  INNER JOIN public.pod_members pm ON pm.user_id = pss.user_id AND pm.pod_id = pss.pod_id
+  WHERE pss.pod_id = p_pod_id
+  ORDER BY pss.started_at ASC;
+END;
+$$;
+
+-- Send a motivational message
+CREATE OR REPLACE FUNCTION public.send_pod_message(
+  p_pod_id UUID,
+  p_to_user_id UUID,
+  p_message_type TEXT,
+  p_message_key TEXT
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  valid_types TEXT[] := ARRAY['motivation', 'challenge', 'celebration', 'nudge'];
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  IF NOT public._is_pod_member(p_pod_id, auth.uid()) THEN
+    RAISE EXCEPTION 'Not a pod member';
+  END IF;
+
+  IF p_to_user_id IS NOT NULL AND NOT public._is_pod_member(p_pod_id, p_to_user_id) THEN
+    RAISE EXCEPTION 'Target user is not in this pod';
+  END IF;
+
+  IF NOT (p_message_type = ANY(valid_types)) THEN
+    p_message_type := 'motivation';
+  END IF;
+
+  INSERT INTO public.pod_messages (pod_id, from_user_id, to_user_id, message_type, message_key)
+  VALUES (p_pod_id, auth.uid(), p_to_user_id, p_message_type, p_message_key);
+
+  RETURN true;
+END;
+$$;
+
+-- Get recent messages for the pod (last 24 hours)
+CREATE OR REPLACE FUNCTION public.get_pod_messages_recent(p_pod_id UUID)
+RETURNS TABLE(
+  from_user_id UUID,
+  from_display_name TEXT,
+  to_user_id UUID,
+  to_display_name TEXT,
+  message_type TEXT,
+  message_key TEXT,
+  created_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  IF NOT public._is_pod_member(p_pod_id, auth.uid()) THEN
+    RAISE EXCEPTION 'Not a pod member';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    m.from_user_id,
+    pm_from.display_name AS from_display_name,
+    m.to_user_id,
+    pm_to.display_name AS to_display_name,
+    m.message_type,
+    m.message_key,
+    m.created_at
+  FROM public.pod_messages m
+  INNER JOIN public.pod_members pm_from ON pm_from.user_id = m.from_user_id AND pm_from.pod_id = m.pod_id
+  LEFT JOIN public.pod_members pm_to ON pm_to.user_id = m.to_user_id AND pm_to.pod_id = m.pod_id
+  WHERE m.pod_id = p_pod_id 
+    AND m.created_at > NOW() - INTERVAL '24 hours'
+  ORDER BY m.created_at DESC
+  LIMIT 20;
+END;
+$$;
+
+-- Unlock an achievement
+CREATE OR REPLACE FUNCTION public.unlock_pod_achievement(
+  p_pod_id UUID,
+  p_achievement_type TEXT,
+  p_achievement_data JSONB DEFAULT '{}'
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  IF NOT public._is_pod_member(p_pod_id, auth.uid()) THEN
+    RAISE EXCEPTION 'Not a pod member';
+  END IF;
+
+  INSERT INTO public.pod_achievements (pod_id, user_id, achievement_type, achievement_data)
+  VALUES (p_pod_id, auth.uid(), p_achievement_type, p_achievement_data)
+  ON CONFLICT (pod_id, user_id, achievement_type) DO NOTHING;
+
+  RETURN true;
+END;
+$$;
+
+-- Get achievements for pod members
+CREATE OR REPLACE FUNCTION public.get_pod_achievements(p_pod_id UUID)
+RETURNS TABLE(
+  user_id UUID,
+  display_name TEXT,
+  achievement_type TEXT,
+  achievement_data JSONB,
+  unlocked_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  IF NOT public._is_pod_member(p_pod_id, auth.uid()) THEN
+    RAISE EXCEPTION 'Not a pod member';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    a.user_id,
+    pm.display_name,
+    a.achievement_type,
+    a.achievement_data,
+    a.unlocked_at
+  FROM public.pod_achievements a
+  INNER JOIN public.pod_members pm ON pm.user_id = a.user_id AND pm.pod_id = a.pod_id
+  WHERE a.pod_id = p_pod_id
+  ORDER BY a.unlocked_at DESC;
+END;
+$$;
+
+-- Get daily challenge for the pod
+CREATE OR REPLACE FUNCTION public.get_pod_daily_challenge(p_pod_id UUID)
+RETURNS TABLE(
+  challenge_type TEXT,
+  challenge_title TEXT,
+  challenge_description TEXT,
+  challenge_target INTEGER,
+  current_progress INTEGER,
+  is_completed BOOLEAN
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  day_of_week INTEGER;
+  member_count INTEGER;
+  checked_in_count INTEGER;
+  total_minutes INTEGER;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  IF NOT public._is_pod_member(p_pod_id, auth.uid()) THEN
+    RAISE EXCEPTION 'Not a pod member';
+  END IF;
+
+  day_of_week := EXTRACT(DOW FROM CURRENT_DATE)::INTEGER;
+  
+  SELECT COUNT(*) INTO member_count FROM public.pod_members WHERE pod_id = p_pod_id;
+  
+  SELECT COUNT(*) INTO checked_in_count
+  FROM public.pod_members pm
+  WHERE pm.pod_id = p_pod_id
+  AND EXISTS (
+    SELECT 1 FROM public.daily_check_ins d 
+    WHERE d.user_id = pm.user_id AND d.date = CURRENT_DATE
+  );
+
+  SELECT COALESCE(SUM(d.study_minutes), 0) INTO total_minutes
+  FROM public.daily_check_ins d
+  INNER JOIN public.pod_members pm ON pm.user_id = d.user_id AND pm.pod_id = p_pod_id
+  WHERE d.date = CURRENT_DATE;
+
+  -- Rotate challenges based on day of week
+  CASE day_of_week
+    WHEN 0 THEN -- Sunday: Rest & Review
+      RETURN QUERY SELECT 
+        'collective_checkin'::TEXT,
+        '🌟 Sunday Squad Goal'::TEXT,
+        'Get everyone to check in today!'::TEXT,
+        member_count,
+        checked_in_count,
+        checked_in_count >= member_count;
+    WHEN 1 THEN -- Monday: Strong Start
+      RETURN QUERY SELECT 
+        'early_birds'::TEXT,
+        '🌅 Monday Momentum'::TEXT,
+        'Collective 2 hours of study before noon'::TEXT,
+        120,
+        total_minutes,
+        total_minutes >= 120;
+    WHEN 2 THEN -- Tuesday: Team Target
+      RETURN QUERY SELECT 
+        'collective_minutes'::TEXT,
+        '🎯 Team Target Tuesday'::TEXT,
+        'Hit 3 hours of combined study time'::TEXT,
+        180,
+        total_minutes,
+        total_minutes >= 180;
+    WHEN 3 THEN -- Wednesday: Halfway Hero
+      RETURN QUERY SELECT 
+        'all_checkin'::TEXT,
+        '💪 Halfway Hero Wednesday'::TEXT,
+        '100% pod check-in rate!'::TEXT,
+        member_count,
+        checked_in_count,
+        checked_in_count >= member_count;
+    WHEN 4 THEN -- Thursday: Thunder
+      RETURN QUERY SELECT 
+        'collective_minutes'::TEXT,
+        '⚡ Thunder Thursday'::TEXT,
+        'Hit 4 hours combined - you can do it!'::TEXT,
+        240,
+        total_minutes,
+        total_minutes >= 240;
+    WHEN 5 THEN -- Friday: Finish Strong
+      RETURN QUERY SELECT 
+        'collective_minutes'::TEXT,
+        '🏁 Finish Strong Friday'::TEXT,
+        'End the week with 3 hours combined'::TEXT,
+        180,
+        total_minutes,
+        total_minutes >= 180;
+    WHEN 6 THEN -- Saturday: Super Study
+      RETURN QUERY SELECT 
+        'collective_minutes'::TEXT,
+        '🚀 Super Saturday'::TEXT,
+        'Weekend warriors: 5 hours combined!'::TEXT,
+        300,
+        total_minutes,
+        total_minutes >= 300;
+  END CASE;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.start_pod_study_session(UUID, TEXT, INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.end_pod_study_session(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_pod_studying_now(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.send_pod_message(UUID, UUID, TEXT, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_pod_messages_recent(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.unlock_pod_achievement(UUID, TEXT, JSONB) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_pod_achievements(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_pod_daily_challenge(UUID) TO authenticated;
