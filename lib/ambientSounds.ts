@@ -7,7 +7,7 @@ export interface AmbientSound {
   emoji: string;
   description: string;
   type: 'generated';
-  generatorType: 'rain' | 'ocean' | 'wind' | 'campfire' | 'binaural' | 'drone';
+  generatorType: 'rain' | 'ocean' | 'wind' | 'campfire' | 'binaural' | 'drone' | 'thunder' | 'coffeeshop' | 'whitenoise' | 'brownnoise' | 'birds' | 'forest' | 'stream' | 'night';
   category: 'nature' | 'ambient' | 'binaural';
 }
 
@@ -22,12 +22,30 @@ export const AMBIENT_SOUNDS: AmbientSound[] = [
     category: 'nature',
   },
   {
+    id: 'thunder',
+    name: 'Thunderstorm',
+    emoji: '⛈️',
+    description: 'Rain with distant thunder',
+    type: 'generated',
+    generatorType: 'thunder',
+    category: 'nature',
+  },
+  {
     id: 'ocean',
     name: 'Ocean Waves',
     emoji: '🌊',
     description: 'Calming beach waves',
     type: 'generated',
     generatorType: 'ocean',
+    category: 'nature',
+  },
+  {
+    id: 'stream',
+    name: 'Flowing Stream',
+    emoji: '💧',
+    description: 'Gentle water stream',
+    type: 'generated',
+    generatorType: 'stream',
     category: 'nature',
   },
   {
@@ -40,6 +58,24 @@ export const AMBIENT_SOUNDS: AmbientSound[] = [
     category: 'nature',
   },
   {
+    id: 'forest',
+    name: 'Forest Ambience',
+    emoji: '🌲',
+    description: 'Wind and rustling leaves',
+    type: 'generated',
+    generatorType: 'forest',
+    category: 'nature',
+  },
+  {
+    id: 'birds',
+    name: 'Morning Birds',
+    emoji: '🐦',
+    description: 'Peaceful bird chirping',
+    type: 'generated',
+    generatorType: 'birds',
+    category: 'nature',
+  },
+  {
     id: 'campfire',
     name: 'Campfire',
     emoji: '🔥',
@@ -47,6 +83,42 @@ export const AMBIENT_SOUNDS: AmbientSound[] = [
     type: 'generated',
     generatorType: 'campfire',
     category: 'nature',
+  },
+  {
+    id: 'night',
+    name: 'Night Crickets',
+    emoji: '🌙',
+    description: 'Peaceful night sounds',
+    type: 'generated',
+    generatorType: 'night',
+    category: 'nature',
+  },
+  {
+    id: 'coffeeshop',
+    name: 'Coffee Shop',
+    emoji: '☕',
+    description: 'Ambient cafe chatter',
+    type: 'generated',
+    generatorType: 'coffeeshop',
+    category: 'ambient',
+  },
+  {
+    id: 'whitenoise',
+    name: 'White Noise',
+    emoji: '⚪',
+    description: 'Pure white noise',
+    type: 'generated',
+    generatorType: 'whitenoise',
+    category: 'ambient',
+  },
+  {
+    id: 'brownnoise',
+    name: 'Brown Noise',
+    emoji: '🟤',
+    description: 'Deep brown noise',
+    type: 'generated',
+    generatorType: 'brownnoise',
+    category: 'ambient',
   },
   {
     id: 'drone',
@@ -338,6 +410,303 @@ class SoundGenerator {
     this.nodes.push(oscLeft, oscRight, panLeft, panRight);
   }
 
+  playThunder(volume: number) {
+    const ctx = this.getAudioContext();
+    
+    this.gainNode = ctx.createGain();
+    this.gainNode.gain.value = volume * 0.4;
+
+    // Base rain
+    const { source: rain, filter: rainFilter } = this.createFilteredNoise('rain');
+    rain.connect(rainFilter);
+    rainFilter.connect(this.gainNode);
+    rain.start();
+    this.nodes.push(rain, rainFilter);
+
+    // Thunder rumbles at random intervals
+    const createThunder = () => {
+      const thunder = ctx.createOscillator();
+      const thunderGain = ctx.createGain();
+      const thunderFilter = ctx.createBiquadFilter();
+      
+      thunder.frequency.value = 40 + Math.random() * 20;
+      thunder.type = 'sine';
+      thunderFilter.type = 'lowpass';
+      thunderFilter.frequency.value = 200;
+      
+      thunderGain.gain.value = 0;
+      thunderGain.gain.setValueAtTime(0, ctx.currentTime);
+      thunderGain.gain.linearRampToValueAtTime(0.3 + Math.random() * 0.2, ctx.currentTime + 0.2);
+      thunderGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 2 + Math.random() * 2);
+      
+      thunder.connect(thunderFilter);
+      thunderFilter.connect(thunderGain);
+      thunderGain.connect(this.gainNode!);
+      thunder.start(ctx.currentTime);
+      thunder.stop(ctx.currentTime + 4);
+    };
+
+    // Random thunder every 10-30 seconds
+    const scheduleThunder = () => {
+      createThunder();
+      const nextDelay = 10000 + Math.random() * 20000;
+      const id = window.setTimeout(scheduleThunder, nextDelay);
+      this.intervals.push(id);
+    };
+    scheduleThunder();
+
+    this.gainNode.connect(ctx.destination);
+  }
+
+  playStream(volume: number) {
+    const ctx = this.getAudioContext();
+    
+    this.gainNode = ctx.createGain();
+    this.gainNode.gain.value = volume * 0.35;
+
+    // Higher frequency water noise
+    const { source, filter } = this.createFilteredNoise('ocean');
+    filter.type = 'bandpass';
+    filter.frequency.value = 1200;
+    filter.Q.value = 0.5;
+
+    // Faster modulation for bubbling
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 0.3;
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 300;
+    lfo.connect(lfoGain);
+    lfoGain.connect(filter.frequency);
+    lfo.start();
+
+    source.connect(filter);
+    filter.connect(this.gainNode);
+    this.gainNode.connect(ctx.destination);
+    source.start();
+
+    this.nodes.push(source, filter, lfo, lfoGain);
+  }
+
+  playForest(volume: number) {
+    const ctx = this.getAudioContext();
+    
+    this.gainNode = ctx.createGain();
+    this.gainNode.gain.value = volume * 0.3;
+
+    // Wind through trees
+    const { source: wind, filter: windFilter } = this.createFilteredNoise('wind');
+    wind.connect(windFilter);
+    windFilter.connect(this.gainNode);
+    wind.start();
+    this.nodes.push(wind, windFilter);
+
+    // Rustling leaves (higher frequency)
+    const { source: leaves, filter: leavesFilter } = this.createFilteredNoise('wind');
+    leavesFilter.frequency.value = 800;
+    const leavesGain = ctx.createGain();
+    leavesGain.gain.value = 0.2;
+    leaves.connect(leavesFilter);
+    leavesFilter.connect(leavesGain);
+    leavesGain.connect(this.gainNode);
+    leaves.start();
+    this.nodes.push(leaves, leavesFilter, leavesGain);
+
+    this.gainNode.connect(ctx.destination);
+  }
+
+  playBirds(volume: number) {
+    const ctx = this.getAudioContext();
+    
+    this.gainNode = ctx.createGain();
+    this.gainNode.gain.value = volume * 0.3;
+
+    // Background ambience
+    const { source: ambient, filter: ambientFilter } = this.createFilteredNoise('wind');
+    ambientFilter.frequency.value = 600;
+    const ambientGain = ctx.createGain();
+    ambientGain.gain.value = 0.1;
+    ambient.connect(ambientFilter);
+    ambientFilter.connect(ambientGain);
+    ambientGain.connect(this.gainNode);
+    ambient.start();
+    this.nodes.push(ambient, ambientFilter, ambientGain);
+
+    // Bird chirps at random intervals
+    const createChirp = () => {
+      const chirp = ctx.createOscillator();
+      const chirpGain = ctx.createGain();
+      const chirpFilter = ctx.createBiquadFilter();
+      
+      const baseFreq = 1500 + Math.random() * 1500;
+      chirp.frequency.value = baseFreq;
+      chirp.type = 'sine';
+      
+      chirpFilter.type = 'bandpass';
+      chirpFilter.frequency.value = baseFreq;
+      chirpFilter.Q.value = 2;
+      
+      chirpGain.gain.value = 0;
+      const now = ctx.currentTime;
+      chirpGain.gain.setValueAtTime(0, now);
+      chirpGain.gain.linearRampToValueAtTime(0.15, now + 0.02);
+      chirpGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15 + Math.random() * 0.1);
+      
+      chirp.connect(chirpFilter);
+      chirpFilter.connect(chirpGain);
+      chirpGain.connect(this.gainNode!);
+      chirp.start(now);
+      chirp.stop(now + 0.3);
+    };
+
+    const scheduleChirp = () => {
+      createChirp();
+      const nextDelay = 1000 + Math.random() * 4000;
+      const id = window.setTimeout(scheduleChirp, nextDelay);
+      this.intervals.push(id);
+    };
+    scheduleChirp();
+
+    this.gainNode.connect(ctx.destination);
+  }
+
+  playNight(volume: number) {
+    const ctx = this.getAudioContext();
+    
+    this.gainNode = ctx.createGain();
+    this.gainNode.gain.value = volume * 0.25;
+
+    // Base night ambience
+    const { source: ambient, filter: ambientFilter } = this.createFilteredNoise('wind');
+    ambientFilter.frequency.value = 400;
+    const ambientGain = ctx.createGain();
+    ambientGain.gain.value = 0.05;
+    ambient.connect(ambientFilter);
+    ambientFilter.connect(ambientGain);
+    ambientGain.connect(this.gainNode);
+    ambient.start();
+    this.nodes.push(ambient, ambientFilter, ambientGain);
+
+    // Cricket chirps
+    const createCricket = () => {
+      const cricket = ctx.createOscillator();
+      const cricketGain = ctx.createGain();
+      
+      cricket.frequency.value = 3000 + Math.random() * 1000;
+      cricket.type = 'square';
+      
+      cricketGain.gain.value = 0;
+      const now = ctx.currentTime;
+      const duration = 0.05 + Math.random() * 0.1;
+      
+      cricketGain.gain.setValueAtTime(0, now);
+      cricketGain.gain.linearRampToValueAtTime(0.08, now + 0.01);
+      cricketGain.gain.setValueAtTime(0.08, now + duration - 0.01);
+      cricketGain.gain.linearRampToValueAtTime(0, now + duration);
+      
+      cricket.connect(cricketGain);
+      cricketGain.connect(this.gainNode!);
+      cricket.start(now);
+      cricket.stop(now + duration);
+    };
+
+    const scheduleCricket = () => {
+      createCricket();
+      const nextDelay = 200 + Math.random() * 800;
+      const id = window.setTimeout(scheduleCricket, nextDelay);
+      this.intervals.push(id);
+    };
+    scheduleCricket();
+
+    this.gainNode.connect(ctx.destination);
+  }
+
+  playCoffeeShop(volume: number) {
+    const ctx = this.getAudioContext();
+    
+    this.gainNode = ctx.createGain();
+    this.gainNode.gain.value = volume * 0.3;
+
+    // Base chatter (filtered pink noise)
+    const { source: chatter, filter: chatterFilter } = this.createFilteredNoise('wind');
+    chatterFilter.type = 'bandpass';
+    chatterFilter.frequency.value = 600;
+    chatterFilter.Q.value = 0.4;
+    
+    const chatterGain = ctx.createGain();
+    chatterGain.gain.value = 0.4;
+    
+    chatter.connect(chatterFilter);
+    chatterFilter.connect(chatterGain);
+    chatterGain.connect(this.gainNode);
+    chatter.start();
+    this.nodes.push(chatter, chatterFilter, chatterGain);
+
+    // Low rumble (espresso machine)
+    const rumble = ctx.createOscillator();
+    rumble.frequency.value = 100;
+    rumble.type = 'sawtooth';
+    const rumbleGain = ctx.createGain();
+    rumbleGain.gain.value = 0.03;
+    rumble.connect(rumbleGain);
+    rumbleGain.connect(this.gainNode);
+    rumble.start();
+    this.nodes.push(rumble, rumbleGain);
+
+    this.gainNode.connect(ctx.destination);
+  }
+
+  playWhiteNoise(volume: number) {
+    const ctx = this.getAudioContext();
+    
+    this.gainNode = ctx.createGain();
+    this.gainNode.gain.value = volume * 0.3;
+
+    const bufferSize = 2 * ctx.sampleRate;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const output = buffer.getChannelData(0);
+    
+    for (let i = 0; i < bufferSize; i++) {
+      output[i] = Math.random() * 2 - 1;
+    }
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    source.connect(this.gainNode);
+    this.gainNode.connect(ctx.destination);
+    source.start();
+
+    this.nodes.push(source);
+  }
+
+  playBrownNoise(volume: number) {
+    const ctx = this.getAudioContext();
+    
+    this.gainNode = ctx.createGain();
+    this.gainNode.gain.value = volume * 0.4;
+
+    const bufferSize = 2 * ctx.sampleRate;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const output = buffer.getChannelData(0);
+    
+    let lastOut = 0;
+    for (let i = 0; i < bufferSize; i++) {
+      const white = Math.random() * 2 - 1;
+      output[i] = (lastOut + (0.02 * white)) / 1.02;
+      lastOut = output[i];
+      output[i] *= 3.5;
+    }
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    source.connect(this.gainNode);
+    this.gainNode.connect(ctx.destination);
+    source.start();
+
+    this.nodes.push(source);
+  }
+
   play(type: string, volume: number) {
     this.stop();
     
@@ -350,14 +719,38 @@ class SoundGenerator {
       case 'rain':
         this.playRain(volume);
         break;
+      case 'thunder':
+        this.playThunder(volume);
+        break;
       case 'ocean':
         this.playOcean(volume);
+        break;
+      case 'stream':
+        this.playStream(volume);
         break;
       case 'wind':
         this.playWind(volume);
         break;
+      case 'forest':
+        this.playForest(volume);
+        break;
+      case 'birds':
+        this.playBirds(volume);
+        break;
       case 'campfire':
         this.playCampfire(volume);
+        break;
+      case 'night':
+        this.playNight(volume);
+        break;
+      case 'coffeeshop':
+        this.playCoffeeShop(volume);
+        break;
+      case 'whitenoise':
+        this.playWhiteNoise(volume);
+        break;
+      case 'brownnoise':
+        this.playBrownNoise(volume);
         break;
       case 'drone':
         this.playDrone(volume);
