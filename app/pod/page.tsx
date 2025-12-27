@@ -136,7 +136,13 @@ export default function PodPage() {
 
     // Handler for membership changes (joins, leaves, approvals)
     const handleMembershipChange = (payload: any) => {
-      console.log('🔔 Membership change:', payload)
+      console.log('🔔 Membership change received:', payload)
+      
+      // Check if this change is for our pod
+      if (payload.new?.pod_id !== podId && payload.old?.pod_id !== podId) {
+        console.log('🔔 Ignoring - different pod')
+        return
+      }
       
       // Show notification based on event type
       if (payload.eventType === 'INSERT') {
@@ -165,15 +171,17 @@ export default function PodPage() {
     }
 
     // Subscribe to realtime changes
+    // Note: Using separate channel for pod_members without filter for better compatibility
     const channel = supabase
       .channel(`pod-${podId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pod_study_sessions', filter: `pod_id=eq.${podId}` }, handleRealtimeChange)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pod_messages', filter: `pod_id=eq.${podId}` }, handleRealtimeChange)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pod_kudos', filter: `pod_id=eq.${podId}` }, handleRealtimeChange)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pod_members', filter: `pod_id=eq.${podId}` }, handleMembershipChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pod_members' }, handleMembershipChange)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_check_ins' }, handleRealtimeChange)
-      .subscribe((status) => {
+      .subscribe((status, err) => {
         console.log('🔴 Realtime subscription status:', status)
+        if (err) console.error('🔴 Realtime subscription error:', err)
       })
 
     realtimeChannelRef.current = channel

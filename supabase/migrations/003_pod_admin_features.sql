@@ -393,3 +393,6 @@ GRANT EXECUTE ON FUNCTION public.get_pod_info(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.approve_pod_member(UUID, UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.reject_pod_member(UUID, UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.remove_pod_member(UUID, UUID) TO authenticated;
+
+-- Enable Realtime for pod_members table (required for live notifications)
+ALTER PUBLICATION supabase_realtime ADD TABLE public.pod_members;
