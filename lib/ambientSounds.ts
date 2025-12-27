@@ -287,8 +287,8 @@ class SoundGenerator {
       
       osc.connect(oscGain);
       detune.connect(detuneGain);
-      oscGain.connect(this.gainNode);
-      detuneGain.connect(this.gainNode);
+      oscGain.connect(this.gainNode!);
+      detuneGain.connect(this.gainNode!);
       
       osc.start();
       detune.start();
