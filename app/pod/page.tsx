@@ -35,6 +35,9 @@ export default function PodPage() {
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
   const [codeCopied, setCodeCopied] = useState(false)
   const realtimeChannelRef = useRef<RealtimeChannel | null>(null)
+  const lastRefreshRef = useRef<number>(0)
+  const previousChallengeCompletedRef = useRef<boolean>(false)
+  const refreshPodStatusRef = useRef<(id: string, force?: boolean) => Promise<void>>()
 
   // Predefined quick messages
   const quickMessages = {
@@ -67,9 +70,17 @@ export default function PodPage() {
     }, 3000)
   }, [])
 
-  // Refresh pod status
-  const refreshPodStatus = useCallback(async (id: string) => {
+  // Refresh pod status (with throttle to prevent flickering)
+  const refreshPodStatus = useCallback(async (id: string, force: boolean = false) => {
     if (!id) return
+    
+    // Throttle: only refresh if 2 seconds have passed since last refresh
+    const now = Date.now()
+    if (!force && now - lastRefreshRef.current < 2000) {
+      return
+    }
+    lastRefreshRef.current = now
+    
     try {
       const today = new Date().toISOString().split('T')[0]
       const [status, summary, kudos, studying, challenge, messages] = await Promise.all([
@@ -95,44 +106,45 @@ export default function PodPage() {
         setIsStudying(amIStudying)
       }
       
-      // Check if challenge was just completed
-      if (challenge?.isCompleted && dailyChallenge && !dailyChallenge.isCompleted) {
+      // Check if challenge was just completed (use ref to avoid dependency)
+      if (challenge?.isCompleted && !previousChallengeCompletedRef.current) {
         triggerCelebration('🎯 Challenge Completed!')
       }
+      previousChallengeCompletedRef.current = challenge?.isCompleted || false
     } catch (e) {
       console.error('Error refreshing pod status:', e)
     }
-  }, [dailyChallenge, triggerCelebration])
+  }, [triggerCelebration])
 
-  // Set up realtime subscription
+  // Keep ref updated
+  refreshPodStatusRef.current = refreshPodStatus
+
+  // Set up realtime subscription (only depends on podId)
   useEffect(() => {
     if (!podId || !supabase) return
+
+    // Handler that uses ref to avoid subscription recreation
+    const handleRealtimeChange = () => {
+      refreshPodStatusRef.current?.(podId)
+    }
 
     // Subscribe to realtime changes
     const channel = supabase
       .channel(`pod-${podId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pod_study_sessions' }, () => {
-        refreshPodStatus(podId)
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pod_messages' }, () => {
-        refreshPodStatus(podId)
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pod_kudos' }, () => {
-        refreshPodStatus(podId)
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_check_ins' }, () => {
-        refreshPodStatus(podId)
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pod_study_sessions', filter: `pod_id=eq.${podId}` }, handleRealtimeChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pod_messages', filter: `pod_id=eq.${podId}` }, handleRealtimeChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pod_kudos', filter: `pod_id=eq.${podId}` }, handleRealtimeChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_check_ins' }, handleRealtimeChange)
       .subscribe((status) => {
         console.log('🔴 Realtime subscription status:', status)
       })
 
     realtimeChannelRef.current = channel
 
-    // Also set up a backup polling interval (30 seconds)
+    // Also set up a backup polling interval (60 seconds - less frequent)
     const pollInterval = setInterval(() => {
-      refreshPodStatus(podId)
-    }, 30000)
+      refreshPodStatusRef.current?.(podId)
+    }, 60000)
 
     return () => {
       if (realtimeChannelRef.current && supabase) {
@@ -140,7 +152,7 @@ export default function PodPage() {
       }
       clearInterval(pollInterval)
     }
-  }, [podId, refreshPodStatus])
+  }, [podId]) // Only depends on podId now
 
   // Load pod on mount
   useEffect(() => {
