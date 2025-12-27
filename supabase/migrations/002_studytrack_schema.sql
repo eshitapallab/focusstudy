@@ -129,6 +129,7 @@ CREATE TABLE IF NOT EXISTS public.pods (
 CREATE TABLE IF NOT EXISTS public.pod_members (
   pod_id UUID NOT NULL REFERENCES public.pods(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  display_name TEXT NOT NULL DEFAULT 'Anonymous',
   joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (pod_id, user_id)
 );
@@ -378,6 +379,10 @@ ALTER TABLE public.weekly_reality
   ADD CONSTRAINT weekly_reality_confidence_score_range
   CHECK (confidence_score IS NULL OR (confidence_score >= 0 AND confidence_score <= 100));
 
+-- Add display_name to pod_members for existing tables
+ALTER TABLE public.pod_members
+  ADD COLUMN IF NOT EXISTS display_name TEXT NOT NULL DEFAULT 'Anonymous';
+
 -- Pods helpers (secure minimal data access)
 CREATE OR REPLACE FUNCTION public._generate_invite_code()
 RETURNS TEXT
@@ -391,7 +396,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.create_pod()
+CREATE OR REPLACE FUNCTION public.create_pod(p_display_name TEXT DEFAULT 'Anonymous')
 RETURNS TABLE(pod_id UUID, invite_code TEXT)
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -401,9 +406,16 @@ DECLARE
   code TEXT;
   new_pod_id UUID;
   attempts INTEGER := 0;
+  safe_name TEXT;
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  -- Sanitize display name
+  safe_name := COALESCE(NULLIF(trim(p_display_name), ''), 'Anonymous');
+  IF length(safe_name) > 20 THEN
+    safe_name := substring(safe_name, 1, 20);
   END IF;
 
   LOOP
@@ -420,8 +432,8 @@ BEGIN
   VALUES (auth.uid(), code)
   RETURNING id INTO new_pod_id;
 
-  INSERT INTO public.pod_members (pod_id, user_id)
-  VALUES (new_pod_id, auth.uid())
+  INSERT INTO public.pod_members (pod_id, user_id, display_name)
+  VALUES (new_pod_id, auth.uid(), safe_name)
   ON CONFLICT DO NOTHING;
 
   pod_id := new_pod_id;
@@ -430,7 +442,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.join_pod(p_invite_code TEXT)
+CREATE OR REPLACE FUNCTION public.join_pod(p_invite_code TEXT, p_display_name TEXT DEFAULT 'Anonymous')
 RETURNS UUID
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -439,9 +451,16 @@ AS $$
 DECLARE
   target_pod_id UUID;
   member_count INTEGER;
+  safe_name TEXT;
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  -- Sanitize display name
+  safe_name := COALESCE(NULLIF(trim(p_display_name), ''), 'Anonymous');
+  IF length(safe_name) > 20 THEN
+    safe_name := substring(safe_name, 1, 20);
   END IF;
 
   SELECT id INTO target_pod_id
@@ -461,16 +480,43 @@ BEGIN
     RAISE EXCEPTION 'Pod is full';
   END IF;
 
-  INSERT INTO public.pod_members (pod_id, user_id)
-  VALUES (target_pod_id, auth.uid())
-  ON CONFLICT DO NOTHING;
+  INSERT INTO public.pod_members (pod_id, user_id, display_name)
+  VALUES (target_pod_id, auth.uid(), safe_name)
+  ON CONFLICT (pod_id, user_id) DO UPDATE SET display_name = safe_name;
 
   RETURN target_pod_id;
 END;
 $$;
 
+-- Function to update display name in a pod
+CREATE OR REPLACE FUNCTION public.update_pod_display_name(p_pod_id UUID, p_display_name TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  safe_name TEXT;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  safe_name := COALESCE(NULLIF(trim(p_display_name), ''), 'Anonymous');
+  IF length(safe_name) > 20 THEN
+    safe_name := substring(safe_name, 1, 20);
+  END IF;
+
+  UPDATE public.pod_members
+  SET display_name = safe_name
+  WHERE pod_id = p_pod_id AND user_id = auth.uid();
+
+  RETURN FOUND;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION public.get_pod_status(p_pod_id UUID, p_date DATE)
-RETURNS TABLE(user_id UUID, checked_in BOOLEAN, verdict_status TEXT)
+RETURNS TABLE(user_id UUID, display_name TEXT, checked_in BOOLEAN, verdict_status TEXT)
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
@@ -490,6 +536,7 @@ BEGIN
   RETURN QUERY
   SELECT
     pm.user_id,
+    pm.display_name,
     EXISTS(
       SELECT 1 FROM public.daily_check_ins d
       WHERE d.user_id = pm.user_id AND d.date = p_date
@@ -504,6 +551,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.create_pod() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.join_pod(TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.create_pod(TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.join_pod(TEXT, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_pod_status(UUID, DATE) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.update_pod_display_name(UUID, TEXT) TO authenticated;

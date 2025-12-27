@@ -131,6 +131,7 @@ export interface Pod {
 
 export interface PodStatusRow {
   userId: string
+  displayName: string
   checkedIn: boolean
   verdictStatus: VerdictStatus | null
 }

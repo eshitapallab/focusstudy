@@ -979,7 +979,7 @@ export async function createMonthlySnapshot(userId: string, snapshot: Omit<Month
 }
 
 // Pods operations (RPC)
-export async function createPod(): Promise<{ pod: Pod; joined: boolean } | null> {
+export async function createPod(displayName: string = 'Anonymous'): Promise<{ pod: Pod; joined: boolean } | null> {
   if (!supabase) {
     throw new Error('Supabase is not configured')
   }
@@ -990,7 +990,7 @@ export async function createPod(): Promise<{ pod: Pod; joined: boolean } | null>
     throw new Error('Please sign in to create a pod')
   }
 
-  const { data, error } = await supabase.rpc('create_pod')
+  const { data, error } = await supabase.rpc('create_pod', { p_display_name: displayName })
   if (error) {
     logError('createPod', error)
     throw new Error(error.message || 'Failed to create pod')
@@ -1011,7 +1011,7 @@ export async function createPod(): Promise<{ pod: Pod; joined: boolean } | null>
   return { pod, joined: true }
 }
 
-export async function joinPod(inviteCode: string): Promise<string | null> {
+export async function joinPod(inviteCode: string, displayName: string = 'Anonymous'): Promise<string | null> {
   if (!supabase) {
     throw new Error('Supabase is not configured')
   }
@@ -1021,7 +1021,7 @@ export async function joinPod(inviteCode: string): Promise<string | null> {
     throw new Error('Please sign in to join a pod')
   }
 
-  const { data, error } = await supabase.rpc('join_pod', { p_invite_code: inviteCode })
+  const { data, error } = await supabase.rpc('join_pod', { p_invite_code: inviteCode, p_display_name: displayName })
   if (error) {
     logError('joinPod', error)
     throw new Error(error.message || 'Failed to join pod')
@@ -1043,9 +1043,26 @@ export async function getPodStatus(podId: string, date: string): Promise<PodStat
 
   return (data as any[]).map((row) => ({
     userId: row.user_id,
+    displayName: row.display_name || 'Anonymous',
     checkedIn: Boolean(row.checked_in),
     verdictStatus: (row.verdict_status as any) ?? null
   }))
+}
+
+export async function updatePodDisplayName(podId: string, displayName: string): Promise<boolean> {
+  if (!supabase) return false
+
+  const { data, error } = await supabase.rpc('update_pod_display_name', { 
+    p_pod_id: podId, 
+    p_display_name: displayName 
+  })
+  
+  if (error) {
+    logError('updatePodDisplayName', error)
+    return false
+  }
+  
+  return Boolean(data)
 }
 
 // Cohort stats operations

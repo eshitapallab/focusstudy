@@ -6,7 +6,7 @@ import AppNav from '@/components/Navigation/AppNav'
 import StudyTrackSettings from '@/components/StudyTrack/StudyTrackSettings'
 import { db, getOrCreateDeviceId } from '@/lib/dexieClient'
 import { supabase } from '@/lib/supabaseClient'
-import { createPod, joinPod, getPodStatus } from '@/lib/supabaseStudyTrack'
+import { createPod, joinPod, getPodStatus, updatePodDisplayName } from '@/lib/supabaseStudyTrack'
 import { getHapticsEnabled, setHapticsEnabled, isHapticsSupported, triggerHaptic } from '@/lib/haptics'
 import { 
   getSmartNotificationsEnabled, 
@@ -32,7 +32,8 @@ export default function SettingsPage() {
   const [podId, setPodId] = useState<string | null>(null)
   const [podInviteCode, setPodInviteCode] = useState<string | null>(null)
   const [podJoinCode, setPodJoinCode] = useState('')
-  const [podStatus, setPodStatus] = useState<{ userId: string; checkedIn: boolean; verdictStatus: string | null }[]>([])
+  const [podDisplayName, setPodDisplayName] = useState('')
+  const [podStatus, setPodStatus] = useState<{ userId: string; displayName: string; checkedIn: boolean; verdictStatus: string | null }[]>([])
   const [podUserId, setPodUserId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -420,7 +421,7 @@ export default function SettingsPage() {
                         className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/40 rounded-lg p-3"
                       >
                         <div className="text-sm text-gray-800 dark:text-gray-200 font-medium">
-                          {row.userId === podUserId ? '👤 You' : `👤 Member ${idx + 1}`}
+                          {row.userId === podUserId ? `👤 ${row.displayName} (You)` : `👤 ${row.displayName}`}
                         </div>
                         <div className="flex items-center gap-3">
                           <div className="text-xs text-gray-600 dark:text-gray-300">
@@ -441,6 +442,7 @@ export default function SettingsPage() {
                   setPodId(null)
                   setPodInviteCode(null)
                   setPodStatus([])
+                  setPodDisplayName('')
                   localStorage.removeItem('ff_active_pod_id')
                 }}
                 className="w-full py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200 font-semibold hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -450,12 +452,30 @@ export default function SettingsPage() {
             </div>
           ) : (
             <div className="space-y-4">
+              {/* Display name input */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                  Your display name (visible to pod members)
+                </label>
+                <input
+                  value={podDisplayName}
+                  onChange={(e) => setPodDisplayName(e.target.value)}
+                  placeholder="Enter your name (max 20 chars)"
+                  maxLength={20}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                />
+              </div>
+
               <button
                 onClick={async () => {
                   try {
+                    if (!podDisplayName.trim()) {
+                      setPodError('Please enter a display name')
+                      return
+                    }
                     setPodLoading(true)
                     setPodError(null)
-                    const result = await createPod()
+                    const result = await createPod(podDisplayName.trim())
                     if (!result) throw new Error('Could not create pod')
                     setPodId(result.pod.id)
                     setPodInviteCode(result.pod.inviteCode)
@@ -472,21 +492,39 @@ export default function SettingsPage() {
                 Create a pod
               </button>
 
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white dark:bg-gray-800 text-gray-500">or</span>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">Join with invite code</label>
                 <div className="flex gap-2">
                   <input
                     value={podJoinCode}
-                    onChange={(e) => setPodJoinCode(e.target.value)}
+                    onChange={(e) => setPodJoinCode(e.target.value.toUpperCase())}
                     placeholder="e.g. A1B2C3D4"
-                    className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                    maxLength={8}
+                    className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-mono tracking-wider uppercase"
                   />
                   <button
                     onClick={async () => {
                       try {
+                        if (!podDisplayName.trim()) {
+                          setPodError('Please enter a display name first')
+                          return
+                        }
+                        if (!podJoinCode.trim()) {
+                          setPodError('Please enter an invite code')
+                          return
+                        }
                         setPodLoading(true)
                         setPodError(null)
-                        const id = await joinPod(podJoinCode)
+                        const id = await joinPod(podJoinCode.trim(), podDisplayName.trim())
                         if (!id) throw new Error('Could not join pod')
                         setPodId(id)
                         localStorage.setItem('ff_active_pod_id', id)
