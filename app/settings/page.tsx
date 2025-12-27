@@ -118,7 +118,7 @@ export default function SettingsPage() {
     }, 30000)
 
     return () => {
-      if (realtimeChannelRef.current) {
+      if (realtimeChannelRef.current && supabase) {
         supabase.removeChannel(realtimeChannelRef.current)
       }
       clearInterval(pollInterval)
