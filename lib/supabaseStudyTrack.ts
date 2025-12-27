@@ -980,19 +980,24 @@ export async function createMonthlySnapshot(userId: string, snapshot: Omit<Month
 
 // Pods operations (RPC)
 export async function createPod(): Promise<{ pod: Pod; joined: boolean } | null> {
-  if (!supabase) return null
+  if (!supabase) {
+    throw new Error('Supabase is not configured')
+  }
 
   const { data: authData } = await supabase.auth.getUser()
   const ownerId = authData?.user?.id
   if (!ownerId) {
-    logError('createPod', 'No authenticated user')
-    return null
+    throw new Error('Please sign in to create a pod')
   }
 
   const { data, error } = await supabase.rpc('create_pod')
-  if (error || !data || (Array.isArray(data) && data.length === 0)) {
-    logError('createPod', error || 'No data')
-    return null
+  if (error) {
+    logError('createPod', error)
+    throw new Error(error.message || 'Failed to create pod')
+  }
+  if (!data || (Array.isArray(data) && data.length === 0)) {
+    logError('createPod', 'No data returned')
+    throw new Error('Pod creation returned no data. Please check database setup.')
   }
 
   const row = Array.isArray(data) ? data[0] : data
@@ -1007,12 +1012,22 @@ export async function createPod(): Promise<{ pod: Pod; joined: boolean } | null>
 }
 
 export async function joinPod(inviteCode: string): Promise<string | null> {
-  if (!supabase) return null
+  if (!supabase) {
+    throw new Error('Supabase is not configured')
+  }
+
+  const { data: authData } = await supabase.auth.getUser()
+  if (!authData?.user?.id) {
+    throw new Error('Please sign in to join a pod')
+  }
 
   const { data, error } = await supabase.rpc('join_pod', { p_invite_code: inviteCode })
-  if (error || !data) {
-    logError('joinPod', error || 'No data')
-    return null
+  if (error) {
+    logError('joinPod', error)
+    throw new Error(error.message || 'Failed to join pod')
+  }
+  if (!data) {
+    throw new Error('Invalid invite code or pod is full')
   }
   return String(data)
 }
