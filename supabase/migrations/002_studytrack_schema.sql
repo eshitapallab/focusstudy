@@ -209,6 +209,8 @@ DROP POLICY IF EXISTS "Users can insert own monthly snapshots" ON public.monthly
 
 DROP POLICY IF EXISTS "Pod members can view pods" ON public.pods;
 DROP POLICY IF EXISTS "Pod members can view pod members" ON public.pod_members;
+DROP POLICY IF EXISTS "Pod owner can insert pods" ON public.pods;
+DROP POLICY IF EXISTS "Pod members can insert pod members" ON public.pod_members;
 
 DROP POLICY IF EXISTS "Users can view own reality checks" ON public.weekly_reality;
 DROP POLICY IF EXISTS "Users can insert own reality checks" ON public.weekly_reality;
@@ -284,17 +286,12 @@ CREATE POLICY "Users can insert own monthly snapshots"
 
 CREATE POLICY "Pod members can view pods"
   ON public.pods FOR SELECT
-  USING (EXISTS (
-    SELECT 1 FROM public.pod_members pm
-    WHERE pm.pod_id = id AND pm.user_id = auth.uid()
-  ));
+  USING (public._is_pod_member(id, auth.uid()));
 
+-- Use user_id directly to avoid infinite recursion (no self-referential subquery)
 CREATE POLICY "Pod members can view pod members"
   ON public.pod_members FOR SELECT
-  USING (EXISTS (
-    SELECT 1 FROM public.pod_members self
-    WHERE self.pod_id = pod_id AND self.user_id = auth.uid()
-  ));
+  USING (public._is_pod_member(pod_id, auth.uid()));
 
 CREATE POLICY "Users can view own reality checks"
   ON public.weekly_reality FOR SELECT
@@ -377,6 +374,19 @@ BEGIN
   code := substring(replace(uuid_generate_v4()::text, '-', ''), 1, 8);
   RETURN upper(code);
 END;
+$$;
+
+-- Helper function to check pod membership (bypasses RLS to avoid recursion)
+CREATE OR REPLACE FUNCTION public._is_pod_member(p_pod_id UUID, p_user_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.pod_members
+    WHERE pod_id = p_pod_id AND user_id = p_user_id
+  );
 $$;
 
 CREATE OR REPLACE FUNCTION public.create_pod()
