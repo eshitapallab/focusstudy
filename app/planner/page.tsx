@@ -5,7 +5,8 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameM
 import { useAuth } from '@/hooks/useAuth'
 import { db, PlannedSession } from '@/lib/dexieClient'
 import { MicroAction } from '@/lib/types'
-import { getMicroActionsForDateRange } from '@/lib/supabaseStudyTrack'
+import { getMicroActionsForDateRange, getStudyUser } from '@/lib/supabaseStudyTrack'
+import { EXAM_SYLLABI } from '@/lib/examSyllabi'
 import AppNav from '@/components/Navigation/AppNav'
 import StatusBadge from '@/components/StatusBadge'
 import SessionActions from '@/components/SessionActions'
@@ -20,6 +21,22 @@ export default function PlannerCalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [addModalDate, setAddModalDate] = useState<string | undefined>(undefined)
+  const [selectedExam, setSelectedExam] = useState<string>('')
+  const [userDefaultExam, setUserDefaultExam] = useState<string>('')
+  const examList = Object.keys(EXAM_SYLLABI)
+
+  // Load user's default exam
+  useEffect(() => {
+    const loadUserExam = async () => {
+      if (!user?.id) return
+      const studyUser = await getStudyUser(user.id)
+      if (studyUser?.exam) {
+        setSelectedExam(studyUser.exam)
+        setUserDefaultExam(studyUser.exam)
+      }
+    }
+    loadUserExam()
+  }, [user?.id])
 
   useEffect(() => {
     loadPlannedSessions()
@@ -108,12 +125,35 @@ export default function PlannerCalendarPage() {
       <div className="container mx-auto px-4 py-6 max-w-6xl">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-text-primary dark:text-white mb-2">
-            Session Planner
-          </h1>
-          <p className="text-text-secondary dark:text-gray-400 text-sm md:text-base">
-            Plan your study sessions ahead
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-text-primary dark:text-white mb-2">
+                Session Planner
+              </h1>
+              <p className="text-text-secondary dark:text-gray-400 text-sm md:text-base">
+                Plan your study sessions ahead
+              </p>
+            </div>
+            
+            {/* Exam Selector */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                📚 Exam:
+              </label>
+              <select
+                value={selectedExam}
+                onChange={(e) => setSelectedExam(e.target.value)}
+                className="px-3 py-2 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all min-w-[180px]"
+              >
+                <option value="">Select exam...</option>
+                {examList.map(exam => (
+                  <option key={exam} value={exam}>
+                    {exam} {exam === userDefaultExam ? '(Your exam)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
 
         {/* Calendar */}
@@ -419,6 +459,7 @@ export default function PlannerCalendarPage() {
             loadPlannedSessions()
           }}
           initialDate={addModalDate}
+          selectedExam={selectedExam || undefined}
         />
       )}
     </main>

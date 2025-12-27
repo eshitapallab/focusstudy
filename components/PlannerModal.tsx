@@ -48,9 +48,10 @@ interface PlannerModalProps {
   onClose: () => void
   onCreated: () => void
   initialDate?: string  // Allow pre-selecting a date
+  selectedExam?: string // Allow overriding the user's default exam
 }
 
-export default function PlannerModal({ onClose, onCreated, initialDate }: PlannerModalProps) {
+export default function PlannerModal({ onClose, onCreated, initialDate, selectedExam: propExam }: PlannerModalProps) {
   const [subject, setSubject] = useState('')
   const [date, setDate] = useState(initialDate || format(new Date(), 'yyyy-MM-dd'))
   const [goal, setGoal] = useState('')
@@ -68,10 +69,64 @@ export default function PlannerModal({ onClose, onCreated, initialDate }: Planne
 
   useEffect(() => {
     loadUserExamAndPatterns()
-  }, [])
+  }, [propExam])
 
   const loadUserExamAndPatterns = async () => {
     try {
+      // If a specific exam was passed as prop, use that
+      if (propExam && isKnownExam(propExam)) {
+        setUserExam(propExam)
+        const subjects = getExamSubjects(propExam)
+        setExamSubjects(subjects)
+        
+        // Still try to get user's study patterns for recommendations
+        if (supabase) {
+          const { data: { session } } = await supabase.auth.getSession()
+          if (session?.user) {
+            const checkIns = await getRecentCheckIns(session.user.id, 30)
+            const patterns = analyzeStudyPatterns(checkIns, subjects)
+            setStudyPatterns(patterns)
+            const recs = generateRecommendations(propExam, subjects, patterns)
+            setRecommendations(recs)
+          } else {
+            // No session - generate basic recommendations without pattern data
+            const recs = generateRecommendations(propExam, subjects, {
+              totalMinutes: 0,
+              subjectMinutes: new Map(),
+              subjectRecallRate: new Map(),
+              neglectedSubjects: subjects, // All subjects are "neglected" without data
+              weakRecallSubjects: [],
+              strongRecallSubjects: [],
+              dominantSubject: null,
+              leastStudiedSubject: null,
+              averageRecallRate: 0,
+              studyDaysCount: 0,
+              consistencyScore: 0
+            })
+            setRecommendations(recs)
+          }
+        } else {
+          // No supabase - generate basic recommendations
+          const recs = generateRecommendations(propExam, subjects, {
+            totalMinutes: 0,
+            subjectMinutes: new Map(),
+            subjectRecallRate: new Map(),
+            neglectedSubjects: subjects,
+            weakRecallSubjects: [],
+            strongRecallSubjects: [],
+            dominantSubject: null,
+            leastStudiedSubject: null,
+            averageRecallRate: 0,
+            studyDaysCount: 0,
+            consistencyScore: 0
+          })
+          setRecommendations(recs)
+        }
+        setLoading(false)
+        return
+      }
+
+      // Otherwise, load user's default exam from database
       if (!supabase) {
         setLoading(false)
         return
