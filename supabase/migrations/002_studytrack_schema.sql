@@ -220,6 +220,20 @@ DROP POLICY IF EXISTS "Users can insert own gaming detections" ON public.gaming_
 
 DROP POLICY IF EXISTS "Anyone can view cohort stats" ON public.cohort_stats;
 
+-- Helper function to check pod membership (must be created before policies that use it)
+-- Uses SECURITY DEFINER to bypass RLS and avoid infinite recursion
+CREATE OR REPLACE FUNCTION public._is_pod_member(p_pod_id UUID, p_user_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.pod_members
+    WHERE pod_id = p_pod_id AND user_id = p_user_id
+  );
+$$;
+
 CREATE POLICY "Users can view own study profile"
   ON public.study_users FOR SELECT
   USING (auth.uid() = id);
@@ -374,19 +388,6 @@ BEGIN
   code := substring(replace(uuid_generate_v4()::text, '-', ''), 1, 8);
   RETURN upper(code);
 END;
-$$;
-
--- Helper function to check pod membership (bypasses RLS to avoid recursion)
-CREATE OR REPLACE FUNCTION public._is_pod_member(p_pod_id UUID, p_user_id UUID)
-RETURNS BOOLEAN
-LANGUAGE sql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.pod_members
-    WHERE pod_id = p_pod_id AND user_id = p_user_id
-  );
 $$;
 
 CREATE OR REPLACE FUNCTION public.create_pod()
