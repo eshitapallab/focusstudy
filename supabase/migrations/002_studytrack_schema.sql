@@ -515,6 +515,9 @@ BEGIN
 END;
 $$;
 
+-- Drop existing function first if return type changed
+DROP FUNCTION IF EXISTS public.get_pod_status(UUID, DATE);
+
 CREATE OR REPLACE FUNCTION public.get_pod_status(p_pod_id UUID, p_date DATE)
 RETURNS TABLE(user_id UUID, display_name TEXT, checked_in BOOLEAN, verdict_status TEXT)
 LANGUAGE plpgsql
