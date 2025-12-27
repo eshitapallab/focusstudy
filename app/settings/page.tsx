@@ -113,7 +113,11 @@ export default function SettingsPage() {
       if (status && status.length > 0) {
         setPodStatus(status)
       } else {
-        // Fallback to basic status
+        throw new Error('No enhanced data')
+      }
+    } catch {
+      // Fallback to basic status if enhanced fails (404 or 400)
+      try {
         const basicStatus = await getPodStatus(id, today)
         setPodStatus(basicStatus.map(s => ({
           ...s,
@@ -125,26 +129,19 @@ export default function SettingsPage() {
           weekMinutes: 0,
           kudosFromMe: false
         })))
+      } catch {
+        // Even basic failed, keep existing status
       }
-    } catch {
-      // Fallback to basic status if enhanced fails (404)
-      const basicStatus = await getPodStatus(id, today)
-      setPodStatus(basicStatus.map(s => ({
-        ...s,
-        currentStreak: 0,
-        bestStreak: 0,
-        totalKudos: 0,
-        checkInTime: null,
-        isFirstToday: false,
-        weekMinutes: 0,
-        kudosFromMe: false
-      })))
     }
     
     // Try to load weekly summary (ignore if not available)
     try {
       const summary = await getPodWeeklySummary(id)
-      setPodWeeklySummary(summary)
+      if (summary && summary.totalMinutes !== undefined) {
+        setPodWeeklySummary(summary)
+      } else {
+        setPodWeeklySummary(null)
+      }
     } catch {
       setPodWeeklySummary(null)
     }
@@ -152,20 +149,20 @@ export default function SettingsPage() {
     // Try to load today's kudos (ignore if not available)
     try {
       const kudos = await getPodKudosToday(id)
-      setPodKudosToday(kudos)
+      setPodKudosToday(kudos || [])
     } catch {
       setPodKudosToday([])
     }
 
-    // Try to load who's studying now
+    // Try to load who's studying now (new feature, may not exist)
     try {
       const studying = await getPodStudyingNow(id)
-      setStudyingNow(studying)
+      setStudyingNow(studying || [])
     } catch {
       setStudyingNow([])
     }
 
-    // Try to load daily challenge
+    // Try to load daily challenge (new feature, may not exist)
     try {
       const challenge = await getPodDailyChallenge(id)
       setDailyChallenge(challenge)
@@ -173,10 +170,10 @@ export default function SettingsPage() {
       setDailyChallenge(null)
     }
 
-    // Try to load recent messages
+    // Try to load recent messages (new feature, may not exist)
     try {
       const messages = await getPodMessagesRecent(id)
-      setRecentMessages(messages)
+      setRecentMessages(messages || [])
     } catch {
       setRecentMessages([])
     }
@@ -222,10 +219,12 @@ export default function SettingsPage() {
   const handleSendMessage = async (toUserId: string | null, messageType: string, messageKey: string) => {
     if (!podId) return
     try {
-      await sendPodMessage(podId, toUserId, messageType, messageKey)
-      await refreshPodStatus()
+      const success = await sendPodMessage(podId, toUserId, messageType, messageKey)
+      if (success) {
+        await refreshPodStatus()
+      }
     } catch {
-      // Silently fail if not available
+      // Silently fail if not available - feature requires migration
     }
   }
 
