@@ -288,10 +288,10 @@ export default function PlannerModal({ onClose, onCreated, initialDate, selected
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 z-50\">
-      <div className=\"bg-white dark:bg-gray-800 rounded-t-3xl md:rounded-3xl p-6 pb-8 safe-area-pb w-full md:max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl animate-slide-up\">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-t-3xl md:rounded-3xl p-6 pb-8 safe-area-pb w-full md:max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl animate-slide-up">
         {/* Mobile drag handle */}
-        <div className=\"w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-4 md:hidden\" />
+        <div className="w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-4 md:hidden" />
         
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
