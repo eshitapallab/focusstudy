@@ -180,7 +180,10 @@ export default function LogTestMistakesModal({ user, onClose, onLogged }: LogTes
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center p-0 md:p-4 z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-t-3xl md:rounded-2xl p-6 md:p-8 w-full md:max-w-3xl shadow-2xl">
+      <div className="bg-white dark:bg-gray-800 rounded-t-3xl md:rounded-2xl p-6 pb-8 safe-area-pb md:p-8 w-full md:max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl">
+        {/* Mobile drag handle */}
+        <div className="w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-4 md:hidden" />
+        
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
             <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">+ Log Test Mistakes</h2>

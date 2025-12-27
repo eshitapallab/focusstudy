@@ -155,9 +155,10 @@ export default function SessionActions({ session, onUpdate, compact = false }: S
         </div>
 
         {showRescheduleModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <div className="bg-surface dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full shadow-xl">
-              <h3 className="text-lg font-bold mb-3 text-text-primary dark:text-white">
+          <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center p-0 md:p-4 z-50">
+            <div className="bg-surface dark:bg-gray-800 rounded-t-3xl md:rounded-2xl p-6 pb-8 safe-area-pb w-full md:max-w-sm md:w-full shadow-xl">
+              <div className="w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-4 md:hidden\" />
+              <h3 className="text-lg font-bold mb-3 text-text-primary dark:text-white\">
                 Reschedule Session
               </h3>
               <p className="text-sm text-text-secondary dark:text-gray-400 mb-4">

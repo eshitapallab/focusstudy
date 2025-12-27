@@ -83,7 +83,7 @@ export default function ReflectionModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-t-3xl md:rounded-3xl p-6 w-full md:max-w-lg md:w-full shadow-2xl animate-slide-up border-t-4 border-gradient-start">
+      <div className="bg-white dark:bg-gray-800 rounded-t-3xl md:rounded-3xl p-6 pb-8 safe-area-pb w-full md:max-w-lg md:w-full shadow-2xl animate-slide-up border-t-4 border-gradient-start max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="mb-6 text-center">
           <div className="text-5xl mb-3">🎉</div>

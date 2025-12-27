@@ -55,8 +55,10 @@ export default function DailyCheckInCard({ onSubmit, onClose, userExam }: DailyC
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center p-0 md:p-4 z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-t-3xl md:rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        {/* Mobile drag handle */}
+        <div className="w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mt-3 md:hidden" />
         <div className="p-6 space-y-6">
           {/* Header */}
           <div className="text-center">
@@ -180,11 +182,14 @@ export default function DailyCheckInCard({ onSubmit, onClose, userExam }: DailyC
           {onClose && !submitting && (
             <button
               onClick={onClose}
-              className="w-full py-3 text-gray-600 hover:text-gray-800 text-sm font-medium"
+              className="w-full py-3 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-sm font-medium"
             >
               Cancel
             </button>
           )}
+          
+          {/* Safe area padding */}
+          <div className="h-4 safe-area-pb md:hidden" />
         </div>
       </div>
 

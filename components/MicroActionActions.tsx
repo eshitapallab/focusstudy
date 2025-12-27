@@ -92,8 +92,10 @@ export default function MicroActionActions({ action, onUpdate }: MicroActionActi
       </div>
 
       {showRescheduleModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-surface dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center p-0 md:p-4 z-50">
+          <div className="bg-surface dark:bg-gray-800 rounded-t-3xl md:rounded-2xl p-6 pb-8 safe-area-pb max-w-sm w-full shadow-xl">
+            {/* Mobile drag handle */}
+            <div className="w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-4 md:hidden" />
             <h3 className="text-lg font-bold mb-3 text-text-primary dark:text-white">
               Reschedule Focus Action
             </h3>

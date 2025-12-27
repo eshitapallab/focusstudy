@@ -21,7 +21,10 @@ export default function AuthModal({ onClose }: AuthModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center p-0 md:p-4 z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-t-3xl md:rounded-2xl p-8 w-full md:max-w-md shadow-2xl animate-slide-up">
+      <div className="bg-white dark:bg-gray-800 rounded-t-3xl md:rounded-2xl p-8 pb-10 safe-area-pb w-full md:max-w-md max-h-[90vh] overflow-y-auto shadow-2xl animate-slide-up">
+        {/* Mobile drag handle */}
+        <div className="w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-4 md:hidden" />
+        
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-text-primary dark:text-white">

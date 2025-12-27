@@ -104,8 +104,8 @@ export default function WeeklyRealityCheck({ onSubmit, onSkip }: WeeklyRealityCh
   }
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-b from-purple-900 to-indigo-900 flex items-center justify-center p-4 z-50">
-      <div className="w-full max-w-lg">
+    <div className="fixed inset-0 bg-gradient-to-b from-purple-900 to-indigo-900 flex items-end md:items-center justify-center p-0 md:p-4 z-50 safe-area-pb">
+      <div className="w-full max-w-lg p-4">
         {/* Progress */}
         <div className="flex justify-center gap-1.5 mb-8">
           {QUESTIONS.map((_, idx) => (
