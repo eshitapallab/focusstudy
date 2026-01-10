@@ -17,7 +17,7 @@ import { calculateActualDuration } from '@/lib/timer'
 import { format } from 'date-fns'
 
 export default function FocusFlowHome() {
-  const { state, start, pause, resume, stop, logDistraction, getDistractionCount, reconciliationMessage, dismissReconciliationMessage } = useTimer()
+  const { state, start, pause, resume, stop, logDistraction, getDistractionCount, reconciliationMessage, dismissReconciliationMessage, isOnline } = useTimer()
   const { user, syncInProgress, syncError, isSupabaseConfigured } = useAuth()
   const [showReflection, setShowReflection] = useState(false)
   const [completedSessionId, setCompletedSessionId] = useState<string | null>(null)

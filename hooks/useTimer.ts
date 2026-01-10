@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Timer, TimerState } from '@/lib/timer'
 import { incrementSessionCount } from '@/lib/dexieClient'
+import { offlineSyncManager } from '@/lib/offlineSync'
 
 export function useTimer() {
   const [state, setState] = useState<TimerState>({
@@ -12,41 +13,127 @@ export function useTimer() {
     currentPauseStart: null,
     totalPausedMs: 0,
     mode: 'flow',
-    elapsedMs: 0
+    elapsedMs: 0,
+    isBackgrounded: false
   })
   
   const [reconciliationMessage, setReconciliationMessage] = useState<string | null>(null)
+  const [isOnline, setIsOnline] = useState(true)
   const timerRef = useRef<Timer | null>(null)
   const visibilityRef = useRef<boolean>(true)
+  const lastVisibleTimeRef = useRef<number>(Date.now())
 
-  // Initialize timer
+  // Initialize timer and restore any active session
   useEffect(() => {
     timerRef.current = new Timer()
     
-    // Handle page visibility changes
-    const handleVisibilityChange = () => {
-      visibilityRef.current = !document.hidden
-      
-      if (!document.hidden && timerRef.current) {
-        // Page became visible again - reconcile timer
-        timerRef.current.reconcile().then(adjustment => {
-          if (Math.abs(adjustment) > 1000) { // More than 1 second
-            const seconds = Math.round(adjustment / 1000)
+    // Check for and restore any active session (e.g., after page refresh)
+    const restoreSession = async () => {
+      if (timerRef.current) {
+        const restored = await timerRef.current.restoreSession((newState) => {
+          setState(newState)
+        })
+        
+        if (restored) {
+          const state = timerRef.current.getState()
+          setState(state)
+          
+          // Show message that session was restored
+          const elapsedMinutes = Math.round(state.elapsedMs / 60000)
+          if (elapsedMinutes > 0) {
             setReconciliationMessage(
-              `Timer adjusted to reflect time away. (${Math.abs(seconds)}s ${seconds > 0 ? 'added' : 'removed'})`
+              `Session restored! You've been focusing for ${elapsedMinutes} minute${elapsedMinutes !== 1 ? 's' : ''}.`
             )
-            
-            // Clear message after 5 seconds
             setTimeout(() => setReconciliationMessage(null), 5000)
           }
-        })
+        }
       }
     }
     
+    restoreSession()
+    
+    // Handle page visibility changes (app going to background/foreground)
+    const handleVisibilityChange = async () => {
+      const isVisible = !document.hidden
+      visibilityRef.current = isVisible
+      
+      if (isVisible && timerRef.current) {
+        // Page became visible again - calculate time away
+        const timeAway = Date.now() - lastVisibleTimeRef.current
+        
+        // Reconcile timer with actual time passed
+        const adjustment = await timerRef.current.handleVisibilityChange(true)
+        
+        // Show message if significant time passed while backgrounded
+        if (timeAway > 10000) { // More than 10 seconds
+          const secondsAway = Math.round(timeAway / 1000)
+          const minutesAway = Math.floor(secondsAway / 60)
+          
+          if (minutesAway > 0) {
+            setReconciliationMessage(
+              `Welcome back! ${minutesAway} minute${minutesAway !== 1 ? 's' : ''} passed while you were away.`
+            )
+          } else if (secondsAway > 30) {
+            setReconciliationMessage(
+              `Timer synchronized after ${secondsAway} seconds.`
+            )
+          }
+          
+          setTimeout(() => setReconciliationMessage(null), 5000)
+        }
+        
+        // Update state after reconciliation
+        setState(timerRef.current.getState())
+      } else if (!isVisible && timerRef.current) {
+        // Going to background - record time and persist state
+        lastVisibleTimeRef.current = Date.now()
+        await timerRef.current.handleVisibilityChange(false)
+      }
+    }
+    
+    // Handle page freeze/resume events (more reliable on mobile)
+    const handleFreeze = () => {
+      if (timerRef.current) {
+        timerRef.current.handleVisibilityChange(false)
+      }
+    }
+    
+    const handleResume = async () => {
+      if (timerRef.current) {
+        await timerRef.current.handleVisibilityChange(true)
+        setState(timerRef.current.getState())
+      }
+    }
+    
+    // Subscribe to online/offline status
+    const unsubscribeOffline = offlineSyncManager.subscribe((online) => {
+      setIsOnline(online)
+      
+      if (online) {
+        // Try to sync when coming back online
+        offlineSyncManager.forceSync()
+      }
+    })
+    
+    // Set initial online status
+    setIsOnline(offlineSyncManager.getOnlineStatus())
+    
     document.addEventListener('visibilitychange', handleVisibilityChange)
+    document.addEventListener('freeze', handleFreeze)
+    document.addEventListener('resume', handleResume)
+    
+    // Also handle focus/blur for additional reliability
+    window.addEventListener('focus', handleResume)
+    window.addEventListener('blur', handleFreeze)
     
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
+      document.removeEventListener('freeze', handleFreeze)
+      document.removeEventListener('resume', handleResume)
+      window.removeEventListener('focus', handleResume)
+      window.removeEventListener('blur', handleFreeze)
+      unsubscribeOffline()
+      
       if (timerRef.current) {
         timerRef.current.destroy()
       }
@@ -106,6 +193,7 @@ export function useTimer() {
     logDistraction,
     getDistractionCount,
     reconciliationMessage,
-    dismissReconciliationMessage
+    dismissReconciliationMessage,
+    isOnline
   }
 }

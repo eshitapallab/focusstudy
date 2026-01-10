@@ -1,14 +1,18 @@
 {
   "name": "FocusStudy - Study Timer & Exam Prep",
   "short_name": "FocusStudy",
-  "description": "All-in-one study companion: Pomodoro timer with analytics and exam accountability",
-  "start_url": "/",
+  "description": "All-in-one study companion: Pomodoro timer with analytics and exam accountability. Works offline!",
+  "start_url": "/focus",
   "display": "standalone",
   "background_color": "#FFFFFF",
   "theme_color": "#6366F1",
   "orientation": "portrait",
   "scope": "/",
   "categories": ["productivity", "education"],
+  "handle_links": "preferred",
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
   "shortcuts": [
     {
       "name": "Focus Timer",

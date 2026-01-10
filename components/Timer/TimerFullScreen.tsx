@@ -6,6 +6,7 @@ import FocusStudyLogo from '@/components/FocusStudyLogo'
 import { triggerHaptic, getHapticsEnabled } from '@/lib/haptics'
 import { getRandomQuote } from '@/lib/motivationalQuotes'
 import AmbientSoundSelector from '@/components/AmbientSoundSelector'
+import NetworkStatus, { NetworkStatusBadge } from '@/components/NetworkStatus'
 
 interface TimerFullScreenProps {
   sessionId: string
@@ -228,6 +229,9 @@ export default function TimerFullScreen({
       <div className="absolute bottom-4 sm:bottom-6 right-4 sm:right-6 safe-area-mb">
         <AmbientSoundSelector compact />
       </div>
+
+      {/* Network Status Indicator */}
+      <NetworkStatus />
 
       {/* Stop Confirmation Modal */}
       {showStopConfirm && (
