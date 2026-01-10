@@ -1,4 +1,8 @@
 /** @type {import('next').NextConfig} */
+
+// Generate build timestamp in format YYYYMMDDHHMMSS
+const buildTimestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14)
+
 const withPWA = require('next-pwa')({
   dest: 'public',
   register: true,
@@ -52,6 +56,11 @@ const withPWA = require('next-pwa')({
 const nextConfig = {
   reactStrictMode: true,
   turbopack: {}, // Enable Turbopack (default in Next.js 16)
+  
+  // Expose build timestamp as environment variable
+  env: {
+    NEXT_PUBLIC_BUILD_TIMESTAMP: buildTimestamp,
+  },
   
   // Production optimizations
   compress: true,

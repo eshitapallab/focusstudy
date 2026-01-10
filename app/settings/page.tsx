@@ -12,6 +12,9 @@ import {
   requestNotificationPermission as requestSmartNotificationPermission
 } from '@/lib/smartNotifications'
 
+// App version with build timestamp (format: 1.YYYYMMDDHHMMSS)
+const APP_VERSION = `1.${process.env.NEXT_PUBLIC_BUILD_TIMESTAMP || '20260110000000'}`
+
 export default function SettingsPage() {
   const { user } = useAuth()
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
@@ -388,11 +391,19 @@ export default function SettingsPage() {
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
             Device
           </h2>
-          <div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Device ID</p>
-            <p className="font-mono text-xs text-gray-900 dark:text-white break-all">
-              {deviceId}
-            </p>
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">App Version</p>
+              <p className="font-mono text-sm text-gray-900 dark:text-white">
+                {APP_VERSION}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Device ID</p>
+              <p className="font-mono text-xs text-gray-900 dark:text-white break-all">
+                {deviceId}
+              </p>
+            </div>
           </div>
         </section>
 
