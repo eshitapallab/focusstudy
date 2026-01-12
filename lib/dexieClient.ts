@@ -182,3 +182,54 @@ export async function incrementSessionCount(labeled: boolean = false): Promise<v
     labeledSessionCount: labeled ? config.labeledSessionCount + 1 : config.labeledSessionCount
   })
 }
+
+/**
+ * Force stop all running sessions - call from browser console: FocusFlowDB.forceStopAllSessions()
+ * This is useful when the timer gets stuck and won't stop normally
+ */
+export async function forceStopAllSessions(): Promise<number> {
+  const now = Date.now()
+  let stoppedCount = 0
+  
+  try {
+    const sessions = await db.sessions.toArray()
+    const runningSessions = sessions.filter(s => !s.endTs || s.running)
+    
+    for (const session of runningSessions) {
+      console.log(`[FocusFlowDB] Force stopping session ${session.id} (started: ${new Date(session.startTs).toISOString()})`)
+      
+      // Close any open pause
+      let pausedMs = session.pausedMs
+      if (session.pauses && session.pauses.length > 0) {
+        const lastPause = session.pauses[session.pauses.length - 1]
+        if (!lastPause.end) {
+          lastPause.end = now
+          pausedMs += (lastPause.end - lastPause.start)
+        }
+      }
+      
+      await db.sessions.update(session.id, {
+        endTs: now,
+        running: false,
+        pauses: session.pauses || [],
+        pausedMs
+      })
+      
+      stoppedCount++
+    }
+    
+    console.log(`[FocusFlowDB] Force stopped ${stoppedCount} sessions`)
+    return stoppedCount
+  } catch (error) {
+    console.error('[FocusFlowDB] Error force stopping sessions:', error)
+    return 0
+  }
+}
+
+// Expose to window for console access
+if (typeof window !== 'undefined') {
+  (window as any).FocusFlowDB = {
+    db,
+    forceStopAllSessions
+  }
+}

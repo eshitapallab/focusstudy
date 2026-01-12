@@ -180,6 +180,22 @@ export function useTimer() {
     return timerRef.current.getDistractionCount()
   }, [])
 
+  const forceStopAll = useCallback(async () => {
+    if (!timerRef.current) return 0
+    const count = await timerRef.current.forceStopAll()
+    setState({
+      sessionId: null,
+      running: false,
+      startTs: null,
+      currentPauseStart: null,
+      totalPausedMs: 0,
+      mode: 'flow',
+      elapsedMs: 0,
+      isBackgrounded: false
+    })
+    return count
+  }, [])
+
   const dismissReconciliationMessage = useCallback(() => {
     setReconciliationMessage(null)
   }, [])
@@ -192,6 +208,7 @@ export function useTimer() {
     stop,
     logDistraction,
     getDistractionCount,
+    forceStopAll,
     reconciliationMessage,
     dismissReconciliationMessage,
     isOnline

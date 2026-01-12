@@ -17,7 +17,7 @@ import { calculateActualDuration } from '@/lib/timer'
 import { format } from 'date-fns'
 
 export default function FocusFlowHome() {
-  const { state, start, pause, resume, stop, logDistraction, getDistractionCount, reconciliationMessage, dismissReconciliationMessage, isOnline } = useTimer()
+  const { state, start, pause, resume, stop, logDistraction, getDistractionCount, forceStopAll, reconciliationMessage, dismissReconciliationMessage, isOnline } = useTimer()
   const { user, syncInProgress, syncError, isSupabaseConfigured } = useAuth()
   const [showReflection, setShowReflection] = useState(false)
   const [completedSessionId, setCompletedSessionId] = useState<string | null>(null)
@@ -124,18 +124,34 @@ export default function FocusFlowHome() {
   }
 
   const handleStop = async () => {
-    const sessionId = await stop()
+    // If session is extremely long (over 12 hours), use forceStopAll to ensure cleanup
+    const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000
+    
+    if (state.elapsedMs > TWELVE_HOURS_MS) {
+      console.log('[FocusFlowHome] Session exceeded 12 hours, using force stop')
+      await forceStopAll()
+      // Don't show reflection for stale sessions
+      return
+    }
+    
+    try {
+      const sessionId = await stop()
 
-    if (sessionId) {
-      // Get session details
-      const session = await db.sessions.get(sessionId)
+      if (sessionId) {
+        // Get session details
+        const session = await db.sessions.get(sessionId)
 
-      if (session && session.endTs) {
-        const duration = calculateActualDuration(session)
-        setCompletedSessionId(sessionId)
-        setCompletedDurationMs(duration)
-        setShowReflection(true)
+        if (session && session.endTs) {
+          const duration = calculateActualDuration(session)
+          setCompletedSessionId(sessionId)
+          setCompletedDurationMs(duration)
+          setShowReflection(true)
+        }
       }
+    } catch (error) {
+      console.error('[FocusFlowHome] Error stopping session:', error)
+      // If stop fails, force stop all sessions
+      await forceStopAll()
     }
   }
 

@@ -1,6 +1,9 @@
 import { db, LocalSession, getOrCreateDeviceId } from './dexieClient'
 import { offlineSyncManager } from './offlineSync'
 
+// Maximum session duration before auto-ending (24 hours in ms)
+const MAX_SESSION_DURATION_MS = 24 * 60 * 60 * 1000
+
 export interface TimerState {
   sessionId: string | null
   running: boolean
@@ -136,7 +139,13 @@ export class Timer {
    * Stop the current session
    */
   async stop(): Promise<string> {
+    // Stop intervals immediately to prevent further ticks
+    this.stopInterval()
+    this.stopPersistInterval()
+    
     if (!this.currentSession) {
+      // Try to find and clean up any orphaned running sessions
+      await this.cleanupOrphanedSessions()
       throw new Error('No active session to stop')
     }
     
@@ -396,24 +405,62 @@ export class Timer {
 
   /**
    * Check if there's an active session that needs to be restored
+   * Auto-ends sessions that are older than MAX_SESSION_DURATION_MS
    */
   async checkForActiveSession(): Promise<LocalSession | null> {
     try {
-      // Look for any running session
-      const activeSession = await db.sessions
-        .where('running')
-        .equals(1) // Dexie uses 1 for true
-        .first()
+      const now = Date.now()
       
-      if (activeSession && !activeSession.endTs) {
-        return activeSession
+      // Find all sessions that appear to be running (no endTs)
+      const sessions = await db.sessions.toArray()
+      const runningSessions = sessions.filter(s => s.running && !s.endTs)
+      
+      if (runningSessions.length === 0) {
+        return null
       }
       
-      // Also check for sessions without endTs (might not have running indexed properly)
-      const sessions = await db.sessions.toArray()
-      const runningSession = sessions.find(s => s.running && !s.endTs)
+      // Check each running session for staleness
+      for (const session of runningSessions) {
+        const sessionAge = now - session.startTs
+        
+        // If session is older than max duration, auto-end it
+        if (sessionAge > MAX_SESSION_DURATION_MS) {
+          console.log(`[Timer] Auto-ending stale session ${session.id} (age: ${Math.round(sessionAge / 1000 / 60)} minutes)`)
+          
+          // Calculate reasonable end time (start + max duration or last pause end)
+          let endTs = session.startTs + MAX_SESSION_DURATION_MS
+          if (session.pauses.length > 0) {
+            const lastPause = session.pauses[session.pauses.length - 1]
+            if (lastPause.end) {
+              endTs = Math.min(endTs, lastPause.end + 60000) // 1 min after last pause
+            }
+          }
+          
+          // Close any open pause
+          let pausedMs = session.pausedMs
+          if (session.pauses.length > 0) {
+            const lastPause = session.pauses[session.pauses.length - 1]
+            if (!lastPause.end) {
+              lastPause.end = endTs
+              pausedMs += (lastPause.end - lastPause.start)
+            }
+          }
+          
+          await db.sessions.update(session.id, {
+            endTs,
+            running: false,
+            pauses: session.pauses,
+            pausedMs
+          })
+          
+          continue // Skip this session, it's now ended
+        }
+        
+        // Return the first valid (non-stale) session
+        return session
+      }
       
-      return runningSession || null
+      return null
     } catch (error) {
       console.error('[Timer] Error checking for active session:', error)
       return null
@@ -481,6 +528,97 @@ export class Timer {
     if (this.intervalId) {
       clearInterval(this.intervalId)
       this.intervalId = null
+    }
+  }
+
+  /**
+   * Clean up any orphaned sessions that might be stuck in running state
+   */
+  async cleanupOrphanedSessions(): Promise<void> {
+    try {
+      const now = Date.now()
+      const sessions = await db.sessions.toArray()
+      const orphanedSessions = sessions.filter(s => s.running && !s.endTs)
+      
+      for (const session of orphanedSessions) {
+        console.log(`[Timer] Cleaning up orphaned session ${session.id}`)
+        
+        // Calculate end time based on last activity or max duration
+        let endTs = now
+        const sessionAge = now - session.startTs
+        
+        if (sessionAge > MAX_SESSION_DURATION_MS) {
+          endTs = session.startTs + MAX_SESSION_DURATION_MS
+        }
+        
+        // Close any open pause
+        let pausedMs = session.pausedMs
+        if (session.pauses.length > 0) {
+          const lastPause = session.pauses[session.pauses.length - 1]
+          if (!lastPause.end) {
+            lastPause.end = endTs
+            pausedMs += (lastPause.end - lastPause.start)
+          }
+        }
+        
+        await db.sessions.update(session.id, {
+          endTs,
+          running: false,
+          pauses: session.pauses,
+          pausedMs
+        })
+      }
+    } catch (error) {
+      console.error('[Timer] Error cleaning up orphaned sessions:', error)
+    }
+  }
+
+  /**
+   * Force stop all running sessions - use when timer appears stuck
+   */
+  async forceStopAll(): Promise<number> {
+    // Stop any active intervals
+    this.stopInterval()
+    this.stopPersistInterval()
+    await this.releaseWakeLock()
+    
+    const now = Date.now()
+    let stoppedCount = 0
+    
+    try {
+      const sessions = await db.sessions.toArray()
+      const runningSessions = sessions.filter(s => !s.endTs || s.running)
+      
+      for (const session of runningSessions) {
+        console.log(`[Timer] Force stopping session ${session.id}`)
+        
+        // Close any open pause
+        let pausedMs = session.pausedMs
+        if (session.pauses.length > 0) {
+          const lastPause = session.pauses[session.pauses.length - 1]
+          if (!lastPause.end) {
+            lastPause.end = now
+            pausedMs += (lastPause.end - lastPause.start)
+          }
+        }
+        
+        await db.sessions.update(session.id, {
+          endTs: now,
+          running: false,
+          pauses: session.pauses,
+          pausedMs
+        })
+        
+        stoppedCount++
+      }
+      
+      this.currentSession = null
+      console.log(`[Timer] Force stopped ${stoppedCount} sessions`)
+      
+      return stoppedCount
+    } catch (error) {
+      console.error('[Timer] Error force stopping sessions:', error)
+      return 0
     }
   }
 
